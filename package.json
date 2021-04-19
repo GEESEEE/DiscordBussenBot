@@ -2,9 +2,8 @@
   "name": "discordbussenbot",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
   "scripts": {
-    "test": "help"
+    "start": "node Index.js"
   },
   "author": "Gies den Broeder",
   "license": "ISC",
