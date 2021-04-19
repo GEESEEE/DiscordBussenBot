@@ -50,8 +50,14 @@ class Card {
     }
 
     valueOf() {
-        const entry = Object.entries(Values).find(entry => entry[1] === this.value)
-        return Object.entries(Values).indexOf(entry)
+        let index = 0
+        for (const value of Object.values(Values)) {
+            if (value === this.value) {
+                return index
+            }
+            index++
+        }
+        return -1
     }
 
     equals(card) {
@@ -59,7 +65,7 @@ class Card {
     }
 
     isBetween(card1, card2) {
-        return card1 < this.valueOf() && this.valueOf() < card2
+        return ((card1 < this && this < card2) || (card2 < this && this < card1))
     }
 
     isRed() {

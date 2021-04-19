@@ -1,6 +1,4 @@
 const {Deck, Card} = require('./Deck')
-const Player = require('./Player')
-
 
 class Bussen {
 
@@ -80,12 +78,13 @@ class Bussen {
             const card = this.deck.getRandomCard()
             player.addCard(card)
 
-            if ((content === "yes" && card.isBetween(playerCard1, playerCard2))
+            if (card.equals(playerCard1) || card.equals(playerCard2)){
+                this.channel.send(`${player} drew a ${card} and everyone to consume 1 drink`)
+            } else if ((content === "yes" && card.isBetween(playerCard1, playerCard2))
                 || (content === "no" && !card.isBetween(playerCard1, playerCard2)) ) {
 
                 this.channel.send(`${player} drew a ${card} and was correct`)
-            } else if (card.equals(playerCard1) || card.equals(playerCard2)){
-                this.channel.send(`${player} drew a ${card} and everyone to consume 1 drink`)
+
             } else {
                 this.channel.send(`${player} drew a ${card} and has to consume 1 drink`)
             }
