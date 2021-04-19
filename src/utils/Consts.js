@@ -1,9 +1,9 @@
 
 const Suits = {
-    DIAMONDS : "Diamonds",
+    DIAMONDS : ":diamonds:",
     SPADES : "Spades",
     CLUBS : "Clubs",
-    HEARTS : "Hearts"
+    HEARTS : ":heart:"
 }
 
 const Values = {

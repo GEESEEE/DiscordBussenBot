@@ -1,9 +1,8 @@
 module.exports = {
     name : "join",
-    description : "Used to join a game!",
+    desc : "Used to join a game after it has been initiated",
     execute(client, message, args) {
-        if (client.currentGame && !client.currentGame.hasStarted
-            && !client.currentGame.players.find(player => player.id === message.author.id)) {
+        if (client.readyToJoin(message.author)) {
 
             client.currentGame.addPlayer(message.author)
             message.channel.send(`${message.author.username} has joined the game!`)

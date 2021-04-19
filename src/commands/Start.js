@@ -1,11 +1,13 @@
+const Bussen = require('./../Bussen')
+
 module.exports = {
     name : "start",
-    description : "Starts a game!",
-    async execute(client, message, args) {
-        if (client.currentGame && client.currentGame.isLeader(message.author)) {
-            message.channel.send(`${message.author.username} has started the Game!`)
-            await client.currentGame.start(message.channel)
-
+    desc : "Used to initiate a game of Bussen!",
+    execute(client, message, args) {
+        if (client.readyToStart()) {
+            client.currentGame = new Bussen(message.author)
+            message.channel.send("Starting game with " + message.author.username)
+            message.channel.send("Type '!join' to join the game")
         }
     }
 }

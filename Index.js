@@ -1,9 +1,10 @@
 const fs = require('fs')
 const Discord = require('discord.js')
 const { prefix } = require('./config.json')
+const BotClient = require('./src/utils/BotClient')
 
 require('./src/Player')
-const client = new Discord.Client()
+const client = new BotClient()
 client.commands = new Discord.Collection()
 
 const commandFiles = fs.readdirSync('./src/commands').filter(file => file.endsWith('.js'))
@@ -24,16 +25,26 @@ client.once('ready', () => {
 
 
 client.on('message', async message => {
-    console.log(message.content);
 
     if (!message.content.startsWith(prefix) || message.author.bot) return;
 
     const args = message.content.slice(prefix.length).trim().split(/ +/);
     const command = args.shift().toLowerCase();
+    console.log(client)
 
-    if (client.commands.has(command)) {
+    if (!client.currentChannel) {
+        if (command === "bind" || command === "help") {
+            console.log(message.content);
+            await client.commands.get(command).execute(client, message, args)
+        }
+    } else if (message.channel === client.currentChannel && client.commands.has(command)) {
+        console.log(message.content);
         await client.commands.get(command).execute(client, message, args)
     }
+
+
+
+
 });
 
 

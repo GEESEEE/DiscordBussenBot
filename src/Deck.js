@@ -15,7 +15,11 @@ class Deck {
     }
 
     addCard(card) {
-        this.deck.push(card)
+        this.deck.push(...card)
+    }
+
+    addCards(cards) {
+        this.deck.push(...cards)
     }
 
     removeCard(card) {
@@ -50,14 +54,7 @@ class Card {
     }
 
     valueOf() {
-        let index = 0
-        for (const value of Object.values(Values)) {
-            if (value === this.value) {
-                return index
-            }
-            index++
-        }
-        return -1
+        return Object.entries(Values).findIndex(value => value[1] === this.value)
     }
 
     equals(card) {
@@ -79,6 +76,7 @@ class Card {
     hasSameSuit(cards) {
         for (const card of cards) {
             if (card.suit === this.suit) {
+
                 return true
             }
         }
