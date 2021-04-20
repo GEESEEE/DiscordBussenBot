@@ -84,7 +84,7 @@ class Card {
     }
 
     toString() {
-        return `${this.value} of ${this.suit}`
+        return `**${this.value}** of ${this.suit}`
     }
 }
 

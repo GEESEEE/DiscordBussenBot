@@ -9,6 +9,10 @@ const Player = Structures.extend("User", User => {
             this.cards = []
         }
 
+        equals(player) {
+            return this.id === player.id
+        }
+
         addCard(card) {
             this.cards.push(card)
         }
@@ -17,8 +21,6 @@ const Player = Structures.extend("User", User => {
             const index = this.cards.indexOf(card)
             if (index > -1) {
                 this.cards.splice(index, 1)
-            } else {
-                console.log(`${card} was not a part of ${this.username}'s hand, and could not be removed`)
             }
         }
 

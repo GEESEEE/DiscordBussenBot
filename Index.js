@@ -30,7 +30,6 @@ client.on('message', async message => {
 
     const args = message.content.slice(prefix.length).trim().split(/ +/);
     const command = args.shift().toLowerCase();
-    console.log(client)
 
     if (!client.currentChannel) {
         if (command === "bind" || command === "help") {
@@ -47,8 +46,5 @@ client.on('message', async message => {
 
 });
 
-
-
-// ... client setup (keep reading)
 
 client.login(process.env.TOKEN);

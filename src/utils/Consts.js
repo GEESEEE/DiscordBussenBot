@@ -1,3 +1,4 @@
+const pluralize = require(`pluralize`)
 
 const Suits = {
     DIAMONDS : ":diamonds:",
@@ -22,4 +23,27 @@ const Values = {
     ACE : "Ace"
 }
 
-module.exports = {Suits, Values}
+const Strings = {
+    RED : "red",
+    BLACK : "black",
+    HIGHER : "higher",
+    LOWER : "lower",
+    YES : "yes",
+    NO : "no",
+    NEXT : "next"
+}
+
+const StringCouples = {
+    YES_NO : [Strings.YES, Strings.NO],
+    RED_BLACK : [Strings.RED , Strings.BLACK],
+    HIGHER_LOWER : [Strings.HIGHER, Strings.LOWER]
+}
+
+const StringState = {
+    EQUAL : (player, card, drinks) => `${player} drew a ${card} and everyone has to consume ${pluralize("drink", drinks, true)}`,
+    TRUE :(player, card) =>  `${player} drew a ${card} and was correct`,
+    FALSE :(player, card, drinks) => `${player} drew a ${card} and has to consume ${pluralize("drink", drinks, true)}`
+}
+
+
+module.exports = {Suits, Values, Strings, StringCouples, StringState}
