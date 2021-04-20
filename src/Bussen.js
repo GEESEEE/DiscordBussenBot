@@ -1,5 +1,5 @@
 const {Deck} = require('./Deck')
-const {getPrompt, filter} = require('./utils/Utils')
+const {getPrompt, createFuse, filter} = require('./utils/Utils')
 const {Strings, StringCouples, StringState} = require('./utils/Consts')
 const Fuse = require('fuse.js')
 
@@ -66,8 +66,10 @@ class Bussen {
         // if removed player is in the bus, swap for new player
         if (this.bus && player.equals(this.bus.player)) {
             const newPlayer = this.getNewBusPlayer()
-            this.bus.player = newPlayer
-            message += `Because ${player} was in the bus, ${newPlayer} is now chosen to be the bus driver`
+            if (newPlayer) {
+                this.bus.player = newPlayer
+                message += `Because ${player} was in the bus, ${newPlayer} is now chosen to be the bus driver`
+            }
         }
 
         await this.channel.send(message)
@@ -115,40 +117,38 @@ class Bussen {
             }
         } catch { }
 
-
         await this.channel.send(`The game has finished`)
     }
 
-    async getResponse(player, string, responseOptions, regex = null, numeric=false) {
+    async getResponse(player, string, responseOptions, numeric=false) {
             if (typeof responseOptions === "string") {
                 responseOptions = [responseOptions]
             }
 
-            if (!regex) {
-                regex = new RegExp(`^${numeric ? "[" : "("}${responseOptions.join("|")}${numeric ? "]" : ")"}$`, "i")
-            }
+            const fuse = createFuse(responseOptions, numeric)
 
             let prompt = `${player}, ${string} (${responseOptions.join("/")})`
             await this.channel.send(prompt)
 
-            let {message , collector} = getPrompt(this.channel, filter(player, regex))
+            let {message , collector} = getPrompt(this.channel, filter(player, fuse))
             this.collector = collector
             collector.player = player
-            message = await message
+            let res = await message
 
-            if (typeof message === "undefined") {
-                return null
+            if (!numeric) {
+                return fuse.search(res.content)[0].item
             } else {
-                return numeric ? parseInt(message.content) : message.content.toLowerCase()
+                return parseInt(res.content)
             }
+
     }
 
-    async loopForResponse(player, string, responseOptions, regex = null, numeric = false) {
+    async loopForResponse(player, string, responseOptions, numeric = false) {
         let succes
         let val
         while (!succes && this.isPlayer(player)) {
             try {
-                val = await this.getResponse(player, string, responseOptions, regex, numeric)
+                val = await this.getResponse(player, string, responseOptions, numeric)
                 succes = true
             } catch {}
         }
@@ -239,7 +239,7 @@ class Bussen {
 
 
     async initPyramid() {
-        const pyramidSize = await this.loopForResponse(this.leader, `how tall should the pyramid be?`, `1-9`,null, true)
+        const pyramidSize = await this.loopForResponse(this.leader, `how tall should the pyramid be?`, `1-9`, true)
         const reverseContent = await this.loopForResponse(this.leader, `should the pyramid be reversed?`, StringCouples.YES_NO)
 
         if (pyramidSize && reverseContent) {
@@ -292,16 +292,15 @@ class Bussen {
                 player.removeAllCards()
             }
 
-            const regex = /^(?:[1-9]|1[0-9])$/
+/*            const regex = /^(?:[1-9]|1[0-9])$/*/
             let busSize
             while (!busSize && this.leader) {
                 if (this.isPlayer(busPlayer)) {
-                    busSize = await this.loopForResponse(busPlayer, `how long should the bus be?`, `1-19`, regex, true)
+                    busSize = await this.loopForResponse(busPlayer, `how long should the bus be?`, `1-19`, true)
                 } else {
                     busPlayer = this.getNewBusPlayer()
                 }
             }
-
 
             if (busSize) {
                 this.bus = new Bus(busPlayer, busSize)
@@ -329,7 +328,7 @@ class Bussen {
 
         }
 
-        if (this.bus && this.bus.player) {
+        if (this.bus && this.isPlayer(this.bus.player)) {
             await this.channel.send(`${this.bus.player} managed to escape the BUSS in ${this.bus.turns} turns, while consuming ${this.bus.totalDrinks} drinks in total`)
         }
 

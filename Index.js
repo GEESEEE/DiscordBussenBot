@@ -31,19 +31,11 @@ client.on('message', async message => {
     const args = message.content.slice(prefix.length).trim().split(/ +/);
     const command = args.shift().toLowerCase();
 
-    if (!client.currentChannel) {
-        if (command === "bind" || command === "help") {
-            console.log(message.content);
-            await client.commands.get(command).execute(client, message, args)
-        }
-    } else if (message.channel === client.currentChannel && client.commands.has(command)) {
+    if (client.commands.has(command)) {
         console.log(message.content);
         await client.commands.get(command).execute(client, message, args)
     }
-
-
-
-
+    
 });
 
 

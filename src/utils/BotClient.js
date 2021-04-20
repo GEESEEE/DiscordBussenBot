@@ -1,5 +1,5 @@
 const Discord = require('discord.js')
-
+const {GuildMember} = require(`discord.js`)
 
 class BotClient extends Discord.Client {
 
@@ -9,29 +9,41 @@ class BotClient extends Discord.Client {
         this.currentChannel = null
     }
 
+    hasChannel() {
+        return this.currentChannel
+    }
+    isFromChannel(message) {
+        return message.channel === this.currentChannel
+    }
+
+    validMessage(message) {
+        return this.hasChannel() && this.isFromChannel(message)
+    }
+
     gameExists() {
         return this.currentGame
     }
 
-    readyToJoin(author) {
-        return this.gameExists() && !this.currentGame.hasStarted
-            && !this.currentGame.players.some(player => player.equals(author))
+    readyToJoin(message) {
+        return this.validMessage(message) && this.gameExists() && !this.currentGame.hasStarted
+            && !this.currentGame.players.some(player => player.equals(message.author))
     }
 
-    readyToPlay(author) {
-        return this.gameExists() && this.currentGame.isLeader(author) && !this.currentGame.hasStarted
+    readyToPlay(message) {
+        return this.validMessage(message) && this.gameExists() && this.currentGame.isLeader(message.author) && !this.currentGame.hasStarted
     }
 
-    readyToQuit(author) {
-        return this.gameExists() && this.currentGame.players.includes(author)
+    readyToQuit(message) {
+        return this.validMessage(message) && this.gameExists() && this.currentGame.players.includes(message.author)
     }
 
-    readyToKick(leader, player) {
-        return (this.gameExists() && this.currentGame.isLeader(leader) && this.currentGame.isPlayer(player))
+    readyToKick(message, player) {
+        return player && player instanceof GuildMember && this.validMessage(message) && (this.gameExists()
+            && this.currentGame.isLeader(message.author) && this.currentGame.isPlayer(player))
     }
 
-    readyToEnd(author) {
-        return this.gameExists() && this.currentGame?.isLeader(author)
+    readyToEnd(message) {
+        return this.validMessage(message) && this.gameExists() && this.currentGame?.isLeader(message.author)
     }
 
 }

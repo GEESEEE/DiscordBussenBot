@@ -2,8 +2,8 @@ const pluralize = require(`pluralize`)
 
 const Suits = {
     DIAMONDS : ":diamonds:",
-    SPADES : "Spades",
-    CLUBS : "Clubs",
+    SPADES : "<:spades:834190269482008614>",
+    CLUBS : "<:clubs:834190252478300231>",
     HEARTS : ":heart:"
 }
 
