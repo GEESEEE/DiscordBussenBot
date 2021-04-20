@@ -47,7 +47,7 @@ const Player = Structures.extend("User", User => {
             return cards
         }
 
-        suitsCount() { //TODO: fix
+        suitsCount() {
             let suits = [...new Set(this.cards.map(card => card.suit))]
             return suits.length
         }

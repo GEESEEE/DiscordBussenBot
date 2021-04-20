@@ -40,9 +40,9 @@ const StringCouples = {
 }
 
 const StringState = {
-    EQUAL : (player, card, drinks) => `${player} drew a ${card} and everyone has to consume ${pluralize("drink", drinks, true)}`,
-    TRUE :(player, card) =>  `${player} drew a ${card} and was correct`,
-    FALSE :(player, card, drinks) => `${player} drew a ${card} and has to consume ${pluralize("drink", drinks, true)}`
+    EQUAL : (player, card, drinks) => `${player} drew ${card} and everyone has to consume ${pluralize("drink", drinks, true)}`,
+    TRUE :(player, card) =>  `${player} drew ${card} and was correct`,
+    FALSE :(player, card, drinks) => `${player} drew ${card} and has to consume ${pluralize("drink", drinks, true)}`
 }
 
 

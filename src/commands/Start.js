@@ -4,10 +4,9 @@ module.exports = {
     name : "start",
     desc : "Used to initiate a game of Bussen",
     execute(client, message, args) {
-        if (client.readyToStart()) {
-            client.currentGame = new Bussen(message.author)
-            message.channel.send("Starting game with " + message.author.username)
-            message.channel.send("Type '!join' to join the game")
+        if (!client.gameExists()) {
+            client.currentGame = new Bussen(message.author, message.channel)
+
         }
     }
 }

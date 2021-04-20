@@ -1,14 +1,22 @@
-const {Deck, Card} = require('./Deck')
+const {Deck} = require('./Deck')
 const {getPrompt, filter} = require('./utils/Utils')
 const {Strings, StringCouples, StringState} = require('./utils/Consts')
+const Fuse = require('fuse.js')
 
 class Bussen {
 
-    constructor(leader) {
+    constructor(leader, channel) {
         this.deck = new Deck()
-        this.players = [leader]
+        this.players = []
         this.hasStarted = false
         this.drinks = 1
+        this.channel = channel
+        this.addPlayer(leader)
+
+        let message =  `Starting game with ${leader}\n`
+        message += `Type '!join' to join the game\n`
+        message += `${leader}, type '!play' to start the game when all players have joined`
+        this.channel.send(message)
     }
 
     isLeader(player) {
@@ -17,97 +25,135 @@ class Bussen {
         } else {
             return null
         }
-
-    }
-
-    addPlayer(player) {
-        this.players.push(player)
-    }
-
-    getPlayer(id) {
-        for (const player of this.players) {
-            if (player.id === id) {
-                return player
-            }
-        }
-        return null
-    }
-
-    isPlayer(player) {
-        return this.players.includes(player)
-    }
-
-    removePlayer(player) {
-        this.channel.send(`${player} decided to be a little bitch and quit the game`)
-        const index = this.players.indexOf(player)
-        if (index > -1) {
-            this.players.splice(index, 1)
-        }
-
-        this.deck.addCards(player.cards)
-        player.removeAllCards()
-
-        if (this.bus && player.equals(this.bus.player)) {
-            let newPlayer
-            if (this.busPlayers.length > 0) {
-                const index = Math.floor(Math.random() * this.busPlayers.length)
-                newPlayer = this.busPlayers[index]
-                this.busPlayers.splice(index, 1)
-
-            } else {
-                newPlayer = this.players[Math.floor(Math.random() * this.players.length)]
-            }
-            this.bus.player = newPlayer
-            this.channel.send(`Because ${player} was in the bus, ${newPlayer} is now chosen to be the bus driver`)
-        }
-
-        if (this.players.length === 0) {
-            delete this
-        }
     }
 
     get leader() {
         return this.players[0]
     }
 
-    async play(channel) {
+    addPlayer(player) {
+        player.removeAllCards()
+        this.players.push(player)
+    }
+
+    isPlayer(player) {
+        return this.players.filter(p => p.equals(player)).length > 0
+    }
+
+    getPlayer(id) {
+        const players = this.players.filter(player => player.id === id)
+        return players.length > 0 ? players[0] : null
+    }
+
+    async removePlayer(player) {
+        // Stop the collector if it collects from the given player
+        if (this.collector && player.equals(this.collector.player)) {
+            this.collector.stop()
+        }
+
+        // Remove player
+        const index = this.players.indexOf(player)
+        if (index > -1) {
+            this.players.splice(index, 1)
+        }
+
+        // Add removed player's cards to the deck
+        this.deck.addCards(player.cards)
+        player.removeAllCards()
+
+        let message = `${player} decided to be a little bitch and quit the game\n`
+
+        // if removed player is in the bus, swap for new player
+        if (this.bus && player.equals(this.bus.player)) {
+            const newPlayer = this.getNewBusPlayer()
+            this.bus.player = newPlayer
+            message += `Because ${player} was in the bus, ${newPlayer} is now chosen to be the bus driver`
+        }
+
+        await this.channel.send(message)
+
+    }
+
+    getNewBusPlayer() {
+        let newPlayer
+        if (this.busPlayers.length > 0) {
+            const index = Math.floor(Math.random() * this.busPlayers.length)
+            newPlayer = this.busPlayers[index]
+            this.busPlayers.splice(index, 1)
+
+        } else {
+            newPlayer = this.players[Math.floor(Math.random() * this.players.length)]
+        }
+        return newPlayer
+    }
+
+    async endGame() {
+        this.hasEnded = true
+        this.collector.stop()
+    }
+
+    async play() {
         this.hasStarted = true
-        this.channel = channel
 
-        // Phase 1 questions
-        await this.askColours()
-        await this.askHigherOrLower()
-        await this.askInBetween()
-        await this.askSuits()
+        try {
+            // Phase 1 questions
+            await this.askColours()
+            await this.askHigherOrLower()
+            await this.askInBetween()
+            await this.askSuits()
 
-        // Phase 2 pyramid
-        await this.initPyramid()
-        await this.playPyramid()
+            // Phase 2 pyramid
+            if (this.leader) {
+                await this.initPyramid()
+                await this.playPyramid()
+            }
 
-        // Phase 3 The Bus
-        await this.initBus()
-        await this.playBus()
+            // Phase 3 The Bus
+            if (this.leader) {
+                await this.initBus()
+                await this.playBus()
+            }
+        } catch { }
 
-        this.cleanUp()
+
+        await this.channel.send(`The game has finished`)
     }
 
     async getResponse(player, string, responseOptions, regex = null, numeric=false) {
-        if (typeof responseOptions === "string") {
-            responseOptions = [responseOptions]
+            if (typeof responseOptions === "string") {
+                responseOptions = [responseOptions]
+            }
+
+            if (!regex) {
+                regex = new RegExp(`^${numeric ? "[" : "("}${responseOptions.join("|")}${numeric ? "]" : ")"}$`, "i")
+            }
+
+            let prompt = `${player}, ${string} (${responseOptions.join("/")})`
+            await this.channel.send(prompt)
+
+            let {message , collector} = getPrompt(this.channel, filter(player, regex))
+            this.collector = collector
+            collector.player = player
+            message = await message
+
+            if (typeof message === "undefined") {
+                return null
+            } else {
+                return numeric ? parseInt(message.content) : message.content.toLowerCase()
+            }
+    }
+
+    async loopForResponse(player, string, responseOptions, regex = null, numeric = false) {
+        let succes
+        let val
+        while (!succes && this.isPlayer(player)) {
+            try {
+                val = await this.getResponse(player, string, responseOptions, regex, numeric)
+                succes = true
+            } catch {}
         }
 
-        let prompt = `${player}, ${string} (${responseOptions.join("/")})`
-        await this.channel.send(prompt)
-
-        if (!regex) {
-            regex = new RegExp(`^${numeric ? "[" : "("}${responseOptions.join("|")}${numeric ? "]" : ")"}$`, "i")
-        }
-
-        const {message, collector} = getPrompt(this.channel, filter(player, regex))
-        this.collector = collector
-        await message
-
-        return numeric ? parseInt(message.content) : message.content.toLowerCase()
+        return val
     }
 
     getMessage(isEqual, isTrue, player, card) {
@@ -118,144 +164,175 @@ class Bussen {
                 : StringState.FALSE(player, card, this.drinks)
     }
 
+    isEnded() {
+        if (this.hasEnded) {
+            throw new Error(`Game has ended`)
+        }
+    }
+
 
     async askColours() {
         for (const player of this.players) {
-            const content = await this.getResponse(player, `red or black?`, StringCouples.RED_BLACK)
-            const card = this.deck.getRandomCard()
-            player.addCard(card)
+            try {
+                const content = await this.getResponse(player, `red or black?`, StringCouples.RED_BLACK)
+                const card = this.deck.getRandomCard()
+                player.addCard(card)
 
-            const isTrue = (content === "red" && card.isRed()) || (content === "black" && card.isBlack())
-            const message = this.getMessage(false, isTrue, player, card)
-
-            await this.channel.send(message)
+                const isTrue = (content === "red" && card.isRed()) || (content === "black" && card.isBlack())
+                await this.channel.send(this.getMessage(false, isTrue, player, card))
+            } catch {this.isEnded()}
         }
     }
 
 
     async askHigherOrLower() {
         for (const player of this.players) {
-            const playerCard = player.cards[0]
-            const content = await this.getResponse(player, `higher or lower than a ${playerCard}?`, StringCouples.HIGHER_LOWER)
-            const newCard = this.deck.getRandomCard()
+            try {
+                const playerCard = player.cards[0]
+                const content = await this.getResponse(player, `higher or lower than ${playerCard}?`, StringCouples.HIGHER_LOWER)
+                const newCard = this.deck.getRandomCard()
 
-            const isEqual = (content === "higher" && newCard > playerCard) || (content === "lower" && newCard < playerCard)
-            const message = this.getMessage(isEqual, playerCard.equals(newCard), player, newCard)
+                const isTrue = (content === "higher" && newCard > playerCard) || (content === "lower" && newCard < playerCard)
+                await this.channel.send(this.getMessage(playerCard.equals(newCard), isTrue, player, newCard))
+                player.addCard(newCard)
+            } catch {this.isEnded()}
 
-            await this.channel.send(message)
-            player.addCard(newCard)
         }
     }
 
     async askInBetween() {
         for (const player of this.players) {
-            const playerCard1 = player.cards[0]
-            const playerCard2 = player.cards[1]
-            const content = await this.getResponse(player, `is it between a ${playerCard1} and a ${playerCard2}?`, StringCouples.YES_NO)
+            try {
+                const playerCard1 = player.cards[0]
+                const playerCard2 = player.cards[1]
+                const content = await this.getResponse(player, `is it between a ${playerCard1} and a ${playerCard2}?`, StringCouples.YES_NO)
 
-            const card = this.deck.getRandomCard()
-            player.addCard(card)
+                const card = this.deck.getRandomCard()
+                player.addCard(card)
 
-            const isBetween = card.isBetween(playerCard1, playerCard2)
-            const isTrue = (content === "yes" && isBetween) || (content === "no" && !isBetween)
-            const message = this.getMessage(card.equals(playerCard1) || card.equals(playerCard2), isTrue, player, card)
+                const isBetween = card.isBetween(playerCard1, playerCard2)
+                const isTrue = (content === "yes" && isBetween) || (content === "no" && !isBetween)
+                await this.channel.send(this.getMessage(card.equals(playerCard1) || card.equals(playerCard2), isTrue, player, card))
+            } catch {this.isEnded()}
 
-            await this.channel.send(message)
         }
     }
 
     async askSuits() {
         for (const player of this.players) {
-            const playerSuits = [...new Set(player.cards.map(cards => cards.suit))].join(", ")
-            const content = await this.getResponse(player, `do you already have the suit, you have ${playerSuits}?`, StringCouples.YES_NO)
+            try {
+                const playerSuits = [...new Set(player.cards.map(cards => cards.suit))].join(", ")
+                const content = await this.getResponse(player, `do you already have the suit, you have ${playerSuits}?`, StringCouples.YES_NO)
 
-            const card = this.deck.getRandomCard()
+                const card = this.deck.getRandomCard()
 
-            const hasSameSuit = card.hasSameSuit(player.cards)
-            const isTrue = (content === "yes" && hasSameSuit || content === "no" && !hasSameSuit)
-            const message = this.getMessage(isTrue && content === "no" && player.suitsCount() === 3, isTrue, player, card)
-            await this.channel.send(message)
+                const hasSameSuit = card.hasSameSuit(player.cards)
+                const isTrue = (content === "yes" && hasSameSuit || content === "no" && !hasSameSuit)
+                await this.channel.send(this.getMessage(isTrue && content === "no" && player.suitsCount() === 3, isTrue, player, card))
 
-            player.addCard(card)
+                player.addCard(card)
+            } catch {this.isEnded()}
+
         }
     }
 
+
+
     async initPyramid() {
-        const pyramidSize = await this.getResponse(this.leader, `how tall should the pyramid be?`, `1-9`,null, true)
-        const reverseContent = await this.getResponse(this.leader, `should the pyramid be reversed?`, StringCouples.YES_NO)
-        this.pyramid = new Pyramid(this.deck, (reverseContent === "yes"), pyramidSize)
+        const pyramidSize = await this.loopForResponse(this.leader, `how tall should the pyramid be?`, `1-9`,null, true)
+        const reverseContent = await this.loopForResponse(this.leader, `should the pyramid be reversed?`, StringCouples.YES_NO)
+
+        if (pyramidSize && reverseContent) {
+            this.pyramid = new Pyramid(this.deck, (reverseContent === "yes"), pyramidSize)
+
+        }
+
+
     }
 
     async playPyramid() {
+        while (this.leader && this.pyramid && !this.pyramid.isEmpty()) {
+            try {
+                await this.getResponse(this.leader, `type 'next' to draw the next card`, Strings.NEXT)
+                const {card, drinks} = this.pyramid.getNextCard()
 
-        while (!this.pyramid.isEmpty()) {
-            await this.getResponse(this.leader, `you should type 'next' to draw the next card after everyone has had their drinks`, Strings.NEXT)
+                let message = `${card} was drawn\n`
+                for (const player of this.players) {
 
-            const {card, drinks} = this.pyramid.getNextCard()
+                    if (player.hasValueInHand(card)) {
+                        const playerCards = player.getCardsWithValue(card)
+                        const playerCardsString = playerCards.join(", ")
+                        message += `${player} put down ${playerCardsString} and can give ${drinks * playerCards.length} drinks to other players. Cards left: ${player.cards.length}\n`
 
-            let message = `${card} was drawn\n`
-            for (const player of this.players) {
+                    } else { message += `${player} has no card with value ${card.value} to put down. Cards left: ${player.cards.length}\n`}
 
-                if (player.hasValueInHand(card)) {
-                    const playerCards = player.getCardsWithValue(card)
-                    const playerCardsString = playerCards.join(", ")
-                    message += `${player} put down ${playerCardsString} and can give ${drinks * playerCards.length} drinks to other players. Cards left: ${player.cards.length}\n`
+                }
+                await this.channel.send(message)
+            } catch {this.isEnded()}
 
-                } else { message += `${player} has no card with value ${card.value} to put down. Cards left: ${player.cards.length}`}
-
-            }
-            await this.channel.send(message)
         }
 
     }
 
     async initBus() {
-        const maxCards = Math.max(...this.players.map(player => player.cards.length))
-        this.busPlayers = this.players.filter(player => player.cards.length === maxCards)
-        const player = this.busPlayers[Math.floor(Math.random() * this.busPlayers.length)]
-        await this.channel.send(`${this.busPlayers.join(", ")} all have ${maxCards} cards, but ${player} has been selected as the bus driver!`)
+        try {
+            const maxCards = Math.max(...this.players.map(player => player.cards.length))
+            this.busPlayers = this.players.filter(player => player.cards.length === maxCards)
+            let busPlayer = this.busPlayers[Math.floor(Math.random() * this.busPlayers.length)]
+            await this.channel.send(`${this.busPlayers.join(", ")} all have ${maxCards} cards, but ${busPlayer} has been selected as the bus driver!`)
 
-        // Removing chosen player from options
-        const index = this.busPlayers.indexOf(player)
-        if (index > -1) {
-            this.busPlayers.splice(index, 1)
-        }
+            // Removing chosen player from options
+            const index = this.busPlayers.indexOf(busPlayer)
+            if (index > -1) {
+                this.busPlayers.splice(index, 1)
+            }
 
-        // removing all player cards, because they dont use them in the bus
-        for (const player of this.players) {
-            player.removeAllCards()
-        }
+            // removing all players'  cards, because they dont use them in the bus
+            for (const player of this.players) {
+                player.removeAllCards()
+            }
 
-        const regex = /^(?:[1-9]|1[0-9])$/
-        const busSize = await this.getResponse(player, `how long should the bus be?`, `1-19`, regex, true)
+            const regex = /^(?:[1-9]|1[0-9])$/
+            let busSize
+            while (!busSize && this.leader) {
+                if (this.isPlayer(busPlayer)) {
+                    busSize = await this.loopForResponse(busPlayer, `how long should the bus be?`, `1-19`, regex, true)
+                } else {
+                    busPlayer = this.getNewBusPlayer()
+                }
+            }
 
-        this.bus = new Bus(player, busSize)
+
+            if (busSize) {
+                this.bus = new Bus(busPlayer, busSize)
+            }
+
+        } catch {this.isEnded()}
+
     }
 
     async playBus() {
-        while (!this.bus.isFinished) {
-            const oldCard = this.bus.getCurrentCard()
-            const newCard = this.bus.getRandomCard()
-            const content = await this.getResponse(this.bus.player, `Card ${this.bus.currentIndex + 1} is ${oldCard}, higher or lower?`, StringCouples.HIGHER_LOWER)
+        while (this.leader && this.bus && !this.bus.isFinished) {
+            try {
+                const oldCard = this.bus.getCurrentCard()
+                const newCard = this.bus.getRandomCard()
+                const content = await this.getResponse(this.bus.player, `Card ${this.bus.currentIndex + 1} is ${oldCard}, higher or lower?`, StringCouples.HIGHER_LOWER)
 
-            const correct = (content === "higher" && newCard > oldCard) || (content === "lower" && newCard < oldCard )
-            const message = correct
-                ? `${this.bus.player} drew a ${newCard} and can advance to card ${this.bus.currentIndex + 2} `
-                : `${this.bus.player} drew a ${newCard}, has to consume ${this.bus.currentIndex + 1} drinks and resets to the first card`
+                const correct = (content === "higher" && newCard > oldCard) || (content === "lower" && newCard < oldCard )
+                const message = correct
+                    ? `${this.bus.player} drew ${newCard} and can advance to card ${this.bus.currentIndex + 2} `
+                    : `${this.bus.player} drew ${newCard}, has to consume ${this.bus.currentIndex + 1} drinks and resets to the first card`
 
-            await this.channel.send(message)
-            this.bus.iterate(newCard, correct)
+                await this.channel.send(message)
+                this.bus.iterate(newCard, correct)
+            } catch {this.isEnded()}
 
         }
-        await this.channel.send(`${this.bus.player} managed to escape the BUSS in ${this.bus.turns} turns, while consuming ${this.bus.totalDrinks} drinks in total`)
-    }
 
-    cleanUp() {
-        this.deck = new Deck()
-        this.hasStarted = false
-        for (const player of this.players) {
-            player.removeAllCards()
+        if (this.bus && this.bus.player) {
+            await this.channel.send(`${this.bus.player} managed to escape the BUSS in ${this.bus.turns} turns, while consuming ${this.bus.totalDrinks} drinks in total`)
         }
+
     }
 
 
@@ -312,7 +389,6 @@ class Bus {
             this.totalDrinks = this.totalDrinks + this.currentIndex + 1
         }
         this.incrementIndex(correct)
-        console.log(this.currentIndex)
         this.turns++
 
     }
@@ -388,7 +464,5 @@ class Pyramid {
         return (Math.pow(n, 2) + n) / 2
     }
 }
-
-
 
 module.exports = Bussen
