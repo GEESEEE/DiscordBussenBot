@@ -76,15 +76,22 @@ class Card {
     hasSameSuit(cards) {
         for (const card of cards) {
             if (card.suit === this.suit) {
-
                 return true
             }
         }
         return false
     }
 
+    get prefix() {
+        let string = `a`
+        if ([Values.EIGHT, Values.ACE].includes(this.value)) {
+            string += `n`
+        }
+        return string
+    }
+
     toString() {
-        return `**${this.value}** of ${this.suit}`
+        return `${this.prefix} **${this.value}** of ${this.suit}`
     }
 }
 

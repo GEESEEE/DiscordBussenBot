@@ -205,7 +205,7 @@ class Bussen {
             try {
                 const playerCard1 = player.cards[0]
                 const playerCard2 = player.cards[1]
-                const content = await this.getResponse(player, `is it between a ${playerCard1} and a ${playerCard2}?`, StringCouples.YES_NO)
+                const content = await this.getResponse(player, `is it between ${playerCard1} and ${playerCard2}?`, StringCouples.YES_NO)
 
                 const card = this.deck.getRandomCard()
                 player.addCard(card)
@@ -256,18 +256,21 @@ class Bussen {
                 await this.getResponse(this.leader, `type 'next' to draw the next card`, Strings.NEXT)
                 const {card, drinks} = this.pyramid.getNextCard()
 
-                let message = `${card} was drawn\n`
+                let message = `Drew ${card}\n`
                 for (const player of this.players) {
 
                     if (player.hasValueInHand(card)) {
                         const playerCards = player.getCardsWithValue(card)
                         const playerCardsString = playerCards.join(", ")
-                        message += `${player} put down ${playerCardsString} and can give ${drinks * playerCards.length} drinks to other players. Cards left: ${player.cards.length}\n`
+                        message += `${player} put down ${playerCardsString} and can give ${drinks * playerCards.length} drinks to other players.`
 
-                    } else { message += `${player} has no card with value ${card.value} to put down. Cards left: ${player.cards.length}\n`}
-
+                    } else {
+                        message += `${player} has no card with value ${card.value} to put down.`
+                    }
+                    message += ` Cards left: ${player.cards.length}\n`
                 }
                 await this.channel.send(message)
+
             } catch {this.isEnded()}
 
         }

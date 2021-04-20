@@ -1,7 +1,7 @@
 const fs = require('fs')
 const Discord = require('discord.js')
 const { prefix } = require('./config.json')
-const BotClient = require('./src/utils/BotClient')
+const BotClient = require('./src/BotClient')
 
 require('./src/Player')
 const client = new BotClient()
@@ -35,7 +35,7 @@ client.on('message', async message => {
         console.log(message.content);
         await client.commands.get(command).execute(client, message, args)
     }
-    
+
 });
 
 
