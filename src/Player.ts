@@ -1,11 +1,15 @@
-const {Structures} = require('discord.js')
+import {Client, Structures} from "discord.js";
+import {Card} from './Deck'
 
-const Player = Structures.extend("User", User => {
 
-    class Player extends User {
+export const Player = Structures.extend("User", User => {
 
-        constructor(...args) {
-            super(...args)
+    class PlayerClass extends User {
+
+        cards: Array<Card>
+
+        constructor(client: Client, object: object) {
+            super(client, object)
             this.cards = []
         }
 
@@ -54,8 +58,6 @@ const Player = Structures.extend("User", User => {
 
     }
 
-    return Player
+    return PlayerClass
 
 })
-
-module.exports = Player

@@ -1,9 +1,24 @@
-const {Deck} = require('./Deck')
-const {getPrompt, createFuse, filter} = require('./utils/Utils')
-const {Strings, StringCouples, StringState} = require('./utils/Consts')
-const Fuse = require('fuse.js')
+import {Channel, Message, MessageCollector, User} from "discord.js";
+import {createFuse, filter, getPrompt} from "./utils/Utils";
+import {StringCouples, Strings, StringState} from "./utils/Consts";
+import {Card, Deck} from "./Deck";
 
-class Bussen {
+
+export class Bussen {
+
+    deck: Deck
+    players: Array<any>
+    hasStarted: boolean
+    hasEnded: boolean
+    drinks: number
+    channel: any
+
+    collector: MessageCollector & {player: any}
+
+    pyramid: Pyramid
+
+    bus: Bus
+    busPlayers: Array<any>
 
     constructor(leader, channel) {
         this.deck = new Deck()
@@ -342,6 +357,17 @@ class Bussen {
 
 class Bus {
 
+    player: any
+    deck: any
+    sequence: any
+
+    discarded: Array<Card>
+    currentIndex: number
+    isFinished: boolean
+
+    turns: number
+    totalDrinks: number
+
     constructor(player, size) {
         this.player = player
         this.deck = new Deck()
@@ -399,6 +425,12 @@ class Bus {
 }
 
 class Pyramid {
+
+    deck: Deck
+    reversed: boolean
+    size: number
+    cards: Array<Card>
+    index: number
 
     constructor(deck, reversed, size) {
         this.deck = deck
@@ -466,5 +498,3 @@ class Pyramid {
         return (Math.pow(n, 2) + n) / 2
     }
 }
-
-module.exports = Bussen

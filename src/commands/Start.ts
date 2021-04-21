@@ -1,4 +1,5 @@
-const Bussen = require('./../Bussen')
+import {Bussen} from "../Bussen";
+
 
 module.exports = {
     name : "start",
@@ -6,7 +7,6 @@ module.exports = {
     execute(client, message, args) {
         if (!client.gameExists()) {
             client.currentGame = new Bussen(message.author, message.channel)
-
         }
     }
 }

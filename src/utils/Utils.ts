@@ -1,20 +1,24 @@
+import {Message} from "discord.js";
+
 const Fuse = require(`fuse.js`)
 
-function getPrompt(channel, filter) {
+export function getPrompt(channel, filter): any {
     const collector = channel.createMessageCollector(filter, { max : 1 })
 
     return {message : new Promise((resolve, reject) => {
         collector.on('end', collected => {
+
             if (collected.size === 0) {
                 reject(new Error(`Collector stopped`))
                 return
             }
-            resolve(collected.first())
+
+            resolve(collected.first() as Message)
         })
     }), collector}
 }
 
-function createFuse(responseOptions, numeric) {
+export function createFuse(responseOptions, numeric) {
     if (numeric) {
         const [s1, s2] = responseOptions[0].split("-")
         const [start, end] = [parseInt(s1), parseInt(s2)]
@@ -24,7 +28,7 @@ function createFuse(responseOptions, numeric) {
     return new Fuse(responseOptions)
 }
 
-function filter(user, checker) {
+export function filter(user, checker) {
     return m => {
         let correctAnswer
         if (checker instanceof Fuse) {
@@ -35,6 +39,3 @@ function filter(user, checker) {
         return correctAnswer &&  m.author.equals(user)
     }
 }
-
-
-module.exports = {getPrompt, createFuse, filter}

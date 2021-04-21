@@ -1,12 +1,13 @@
-const {Suits, Values} = require("./utils/Consts")
+import {Suit, Value} from "./utils/Consts";
 
-class Deck {
+export class Deck {
 
+    deck: Array<Card>
     constructor() {
         this.deck = []
 
-        for (const value of Object.values(Values)) {
-            for (const suit of Object.values(Suits)) {
+        for (const value of Object.values(Value)) {
+            for (const suit of Object.values(Suit)) {
                 const card = new Card(value, suit)
                 this.deck.push(card)
             }
@@ -46,7 +47,10 @@ class Deck {
     }
 }
 
-class Card {
+export class Card {
+
+    value: Value
+    suit: Suit
 
     constructor(value, suit) {
         this.value = value
@@ -54,7 +58,7 @@ class Card {
     }
 
     valueOf() {
-        return Object.entries(Values).findIndex(value => value[1] === this.value)
+        return Object.entries(Value).findIndex(value => value[1] === this.value)
     }
 
     equals(card) {
@@ -66,11 +70,11 @@ class Card {
     }
 
     isRed() {
-        return this.suit === Suits.DIAMONDS || this.suit === Suits.HEARTS
+        return this.suit === Suit.DIAMONDS || this.suit === Suit.HEARTS
     }
 
     isBlack() {
-        return this.suit === Suits.CLUBS || this.suit === Suits.SPADES
+        return this.suit === Suit.CLUBS || this.suit === Suit.SPADES
     }
 
     hasSameSuit(cards) {
@@ -84,7 +88,7 @@ class Card {
 
     get prefix() {
         let string = `a`
-        if ([Values.EIGHT, Values.ACE].includes(this.value)) {
+        if ([Value.EIGHT, Value.ACE].includes(this.value)) {
             string += `n`
         }
         return string
@@ -95,5 +99,3 @@ class Card {
     }
 }
 
-
-module.exports = {Deck, Card}

@@ -7,7 +7,7 @@ require('./src/Player')
 const client = new BotClient()
 client.commands = new Discord.Collection()
 
-const commandFiles = fs.readdirSync('./src/commands').filter(file => file.endsWith('.js'))
+const commandFiles = fs.readdirSync('./src/commands').filter(file => file.endsWith('.ts'))
 
 for (const file of commandFiles) {
     const command = require(`./src/commands/${file}`)

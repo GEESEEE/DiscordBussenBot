@@ -1,5 +1,3 @@
-
-
 module.exports = {
     name: "kick",
     desc: "Used to kick a player during a game if you're the leader",

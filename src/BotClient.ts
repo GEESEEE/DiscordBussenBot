@@ -1,7 +1,11 @@
-const Discord = require('discord.js')
-const {GuildMember} = require(`discord.js`)
+import Discord, {Channel, GuildMember} from 'discord.js'
+import {Bussen} from "./Bussen";
+
 
 class BotClient extends Discord.Client {
+
+    currentGame: Bussen
+    currentChannel: Channel
 
     constructor(...args) {
         super(...args)
