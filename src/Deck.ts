@@ -1,7 +1,6 @@
-import {Suit, Value} from "./utils/Consts";
+import { Suit, Value } from './utils/Consts'
 
 export class Deck {
-
     deck: Array<Card>
     constructor() {
         this.deck = []
@@ -12,7 +11,6 @@ export class Deck {
                 this.deck.push(card)
             }
         }
-
     }
 
     addCard(card) {
@@ -40,7 +38,6 @@ export class Deck {
             const card = this.deck[index]
             this.removeCard(card)
             return card
-
         } else {
             return null
         }
@@ -48,7 +45,6 @@ export class Deck {
 }
 
 export class Card {
-
     value: Value
     suit: Suit
 
@@ -66,7 +62,7 @@ export class Card {
     }
 
     isBetween(card1, card2) {
-        return ((card1 < this && this < card2) || (card2 < this && this < card1))
+        return (card1 < this && this < card2) || (card2 < this && this < card1)
     }
 
     isRed() {
@@ -98,4 +94,3 @@ export class Card {
         return `${this.prefix} **${this.value}** of ${this.suit}`
     }
 }
-

@@ -1,9 +1,8 @@
-import Discord, {Channel, GuildMember} from 'discord.js'
-import {Bussen} from "./Bussen";
+import Discord, { Channel, GuildMember } from 'discord.js'
 
+import { Bussen } from './Bussen'
 
 class BotClient extends Discord.Client {
-
     currentGame: Bussen
     currentChannel: Channel
 
@@ -29,28 +28,51 @@ class BotClient extends Discord.Client {
     }
 
     readyToJoin(message) {
-        return this.validMessage(message) && this.gameExists() && !this.currentGame.hasStarted
-            && !this.currentGame.players.some(player => player.equals(message.author))
+        return (
+            this.validMessage(message) &&
+            this.gameExists() &&
+            !this.currentGame.hasStarted &&
+            !this.currentGame.players.some(player =>
+                player.equals(message.author),
+            )
+        )
     }
 
     readyToPlay(message) {
-        return this.validMessage(message) && this.gameExists() && this.currentGame.isLeader(message.author) && !this.currentGame.hasStarted
+        return (
+            this.validMessage(message) &&
+            this.gameExists() &&
+            this.currentGame.isLeader(message.author) &&
+            !this.currentGame.hasStarted
+        )
     }
 
     readyToQuit(message) {
-        return this.validMessage(message) && this.gameExists() && this.currentGame.players.includes(message.author)
+        return (
+            this.validMessage(message) &&
+            this.gameExists() &&
+            this.currentGame.players.includes(message.author)
+        )
     }
 
     readyToKick(message, player) {
-        return player && player instanceof GuildMember && this.validMessage(message) && (this.gameExists()
-            && this.currentGame.isLeader(message.author) && this.currentGame.isPlayer(player))
+        return (
+            player &&
+            player instanceof GuildMember &&
+            this.validMessage(message) &&
+            this.gameExists() &&
+            this.currentGame.isLeader(message.author) &&
+            this.currentGame.isPlayer(player)
+        )
     }
 
     readyToEnd(message) {
-        return this.validMessage(message) && this.gameExists() && this.currentGame?.isLeader(message.author)
+        return (
+            this.validMessage(message) &&
+            this.gameExists() &&
+            this.currentGame?.isLeader(message.author)
+        )
     }
-
 }
-
 
 module.exports = BotClient

@@ -1,14 +1,12 @@
-import {Client, Structures} from "discord.js";
-import {Card} from './Deck'
+import { Client, Structures } from 'discord.js'
 
+import { Card } from './Deck'
 
-export const Player = Structures.extend("User", User => {
-
+export const Player = Structures.extend('User', User => {
     class PlayerClass extends User {
-
         cards: Array<Card>
 
-        constructor(client: Client, object: object) {
+        constructor(client: Client, object: Record<string, unknown>) {
             super(client, object)
             this.cards = []
         }
@@ -21,7 +19,7 @@ export const Player = Structures.extend("User", User => {
             this.cards.push(card)
         }
 
-        removeCard(card){
+        removeCard(card) {
             const index = this.cards.indexOf(card)
             if (index > -1) {
                 this.cards.splice(index, 1)
@@ -46,18 +44,18 @@ export const Player = Structures.extend("User", User => {
         }
 
         getCardsWithValue(card) {
-            let cards = this.cards.filter(handCard => handCard.equals(card))
-            for (const c of cards) {this.removeCard(c)}
+            const cards = this.cards.filter(handCard => handCard.equals(card))
+            for (const c of cards) {
+                this.removeCard(c)
+            }
             return cards
         }
 
         suitsCount() {
-            let suits = [...new Set(this.cards.map(card => card.suit))]
+            const suits = [...new Set(this.cards.map(card => card.suit))]
             return suits.length
         }
-
     }
 
     return PlayerClass
-
 })

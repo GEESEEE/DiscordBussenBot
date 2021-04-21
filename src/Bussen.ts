@@ -1,11 +1,10 @@
-import {Channel, Message, MessageCollector, User} from "discord.js";
-import {createFuse, filter, getPrompt} from "./utils/Utils";
-import {StringCouples, Strings, StringState} from "./utils/Consts";
-import {Card, Deck} from "./Deck";
+import { MessageCollector } from 'discord.js'
 
+import { Card, Deck } from './Deck'
+import { StringCouples, Strings, StringState } from './utils/Consts'
+import { createFuse, filter, getPrompt } from './utils/Utils'
 
 export class Bussen {
-
     deck: Deck
     players: Array<any>
     hasStarted: boolean
@@ -13,7 +12,7 @@ export class Bussen {
     drinks: number
     channel: any
 
-    collector: MessageCollector & {player: any}
+    collector: MessageCollector & { player: any }
 
     pyramid: Pyramid
 
@@ -28,7 +27,7 @@ export class Bussen {
         this.channel = channel
         this.addPlayer(leader)
 
-        let message =  `Starting game with ${leader}\n`
+        let message = `Starting game with ${leader}\n`
         message += `Type '!join' to join the game\n`
         message += `${leader}, type '!play' to start the game when all players have joined`
         this.channel.send(message)
@@ -88,7 +87,6 @@ export class Bussen {
         }
 
         await this.channel.send(message)
-
     }
 
     getNewBusPlayer() {
@@ -97,9 +95,10 @@ export class Bussen {
             const index = Math.floor(Math.random() * this.busPlayers.length)
             newPlayer = this.busPlayers[index]
             this.busPlayers.splice(index, 1)
-
         } else {
-            newPlayer = this.players[Math.floor(Math.random() * this.players.length)]
+            newPlayer = this.players[
+                Math.floor(Math.random() * this.players.length)
+            ]
         }
         return newPlayer
     }
@@ -130,32 +129,34 @@ export class Bussen {
                 await this.initBus()
                 await this.playBus()
             }
-        } catch { }
+        } catch {}
 
         await this.channel.send(`The game has finished`)
     }
 
-    async getResponse(player, string, responseOptions, numeric=false) {
-            if (typeof responseOptions === "string") {
-                responseOptions = [responseOptions]
-            }
+    async getResponse(player, string, responseOptions, numeric = false) {
+        if (typeof responseOptions === 'string') {
+            responseOptions = [responseOptions]
+        }
 
-            const fuse = createFuse(responseOptions, numeric)
+        const fuse = createFuse(responseOptions, numeric)
 
-            let prompt = `${player}, ${string} (${responseOptions.join("/")})`
-            await this.channel.send(prompt)
+        const prompt = `${player}, ${string} (${responseOptions.join('/')})`
+        await this.channel.send(prompt)
 
-            let {message , collector} = getPrompt(this.channel, filter(player, fuse))
-            this.collector = collector
-            collector.player = player
-            let res = await message
+        const { collector, message } = getPrompt(
+            this.channel,
+            filter(player, fuse),
+        )
+        this.collector = collector
+        collector.player = player
+        const res = await message
 
-            if (!numeric) {
-                return fuse.search(res.content)[0].item
-            } else {
-                return parseInt(res.content)
-            }
-
+        if (!numeric) {
+            return fuse.search(res.content)[0].item
+        } else {
+            return parseInt(res.content)
+        }
     }
 
     async loopForResponse(player, string, responseOptions, numeric = false) {
@@ -163,7 +164,12 @@ export class Bussen {
         let val
         while (!succes && this.isPlayer(player)) {
             try {
-                val = await this.getResponse(player, string, responseOptions, numeric)
+                val = await this.getResponse(
+                    player,
+                    string,
+                    responseOptions,
+                    numeric,
+                )
                 succes = true
             } catch {}
         }
@@ -175,8 +181,8 @@ export class Bussen {
         return isEqual
             ? StringState.EQUAL(player, card, this.drinks)
             : isTrue
-                ? StringState.TRUE(player, card)
-                : StringState.FALSE(player, card, this.drinks)
+            ? StringState.TRUE(player, card)
+            : StringState.FALSE(player, card, this.drinks)
     }
 
     isEnded() {
@@ -185,33 +191,55 @@ export class Bussen {
         }
     }
 
-
     async askColours() {
         for (const player of this.players) {
             try {
-                const content = await this.getResponse(player, `red or black?`, StringCouples.RED_BLACK)
+                const content = await this.getResponse(
+                    player,
+                    `red or black?`,
+                    StringCouples.RED_BLACK,
+                )
                 const card = this.deck.getRandomCard()
                 player.addCard(card)
 
-                const isTrue = (content === "red" && card.isRed()) || (content === "black" && card.isBlack())
-                await this.channel.send(this.getMessage(false, isTrue, player, card))
-            } catch {this.isEnded()}
+                const isTrue =
+                    (content === 'red' && card.isRed()) ||
+                    (content === 'black' && card.isBlack())
+                await this.channel.send(
+                    this.getMessage(false, isTrue, player, card),
+                )
+            } catch {
+                this.isEnded()
+            }
         }
     }
-
 
     async askHigherOrLower() {
         for (const player of this.players) {
             try {
                 const playerCard = player.cards[0]
-                const content = await this.getResponse(player, `higher or lower than ${playerCard}?`, StringCouples.HIGHER_LOWER)
+                const content = await this.getResponse(
+                    player,
+                    `higher or lower than ${playerCard}?`,
+                    StringCouples.HIGHER_LOWER,
+                )
                 const newCard = this.deck.getRandomCard()
 
-                const isTrue = (content === "higher" && newCard > playerCard) || (content === "lower" && newCard < playerCard)
-                await this.channel.send(this.getMessage(playerCard.equals(newCard), isTrue, player, newCard))
+                const isTrue =
+                    (content === 'higher' && newCard > playerCard) ||
+                    (content === 'lower' && newCard < playerCard)
+                await this.channel.send(
+                    this.getMessage(
+                        playerCard.equals(newCard),
+                        isTrue,
+                        player,
+                        newCard,
+                    ),
+                )
                 player.addCard(newCard)
-            } catch {this.isEnded()}
-
+            } catch {
+                this.isEnded()
+            }
         }
     }
 
@@ -220,84 +248,135 @@ export class Bussen {
             try {
                 const playerCard1 = player.cards[0]
                 const playerCard2 = player.cards[1]
-                const content = await this.getResponse(player, `is it between ${playerCard1} and ${playerCard2}?`, StringCouples.YES_NO)
+                const content = await this.getResponse(
+                    player,
+                    `is it between ${playerCard1} and ${playerCard2}?`,
+                    StringCouples.YES_NO,
+                )
 
                 const card = this.deck.getRandomCard()
                 player.addCard(card)
 
                 const isBetween = card.isBetween(playerCard1, playerCard2)
-                const isTrue = (content === "yes" && isBetween) || (content === "no" && !isBetween)
-                await this.channel.send(this.getMessage(card.equals(playerCard1) || card.equals(playerCard2), isTrue, player, card))
-            } catch {this.isEnded()}
-
+                const isTrue =
+                    (content === 'yes' && isBetween) ||
+                    (content === 'no' && !isBetween)
+                await this.channel.send(
+                    this.getMessage(
+                        card.equals(playerCard1) || card.equals(playerCard2),
+                        isTrue,
+                        player,
+                        card,
+                    ),
+                )
+            } catch {
+                this.isEnded()
+            }
         }
     }
 
     async askSuits() {
         for (const player of this.players) {
             try {
-                const playerSuits = [...new Set(player.cards.map(cards => cards.suit))].join(", ")
-                const content = await this.getResponse(player, `do you already have the suit, you have ${playerSuits}?`, StringCouples.YES_NO)
+                const playerSuits = [
+                    ...new Set(player.cards.map(cards => cards.suit)),
+                ].join(', ')
+                const content = await this.getResponse(
+                    player,
+                    `do you already have the suit, you have ${playerSuits}?`,
+                    StringCouples.YES_NO,
+                )
 
                 const card = this.deck.getRandomCard()
 
                 const hasSameSuit = card.hasSameSuit(player.cards)
-                const isTrue = (content === "yes" && hasSameSuit || content === "no" && !hasSameSuit)
-                await this.channel.send(this.getMessage(isTrue && content === "no" && player.suitsCount() === 3, isTrue, player, card))
+                const isTrue =
+                    (content === 'yes' && hasSameSuit) ||
+                    (content === 'no' && !hasSameSuit)
+                await this.channel.send(
+                    this.getMessage(
+                        isTrue && content === 'no' && player.suitsCount() === 3,
+                        isTrue,
+                        player,
+                        card,
+                    ),
+                )
 
                 player.addCard(card)
-            } catch {this.isEnded()}
-
+            } catch {
+                this.isEnded()
+            }
         }
     }
 
-
-
     async initPyramid() {
-        const pyramidSize = await this.loopForResponse(this.leader, `how tall should the pyramid be?`, `1-9`, true)
-        const reverseContent = await this.loopForResponse(this.leader, `should the pyramid be reversed?`, StringCouples.YES_NO)
+        const pyramidSize = await this.loopForResponse(
+            this.leader,
+            `how tall should the pyramid be?`,
+            `1-9`,
+            true,
+        )
+        const reverseContent = await this.loopForResponse(
+            this.leader,
+            `should the pyramid be reversed?`,
+            StringCouples.YES_NO,
+        )
 
         if (pyramidSize && reverseContent) {
-            this.pyramid = new Pyramid(this.deck, (reverseContent === "yes"), pyramidSize)
-
+            this.pyramid = new Pyramid(
+                this.deck,
+                reverseContent === 'yes',
+                pyramidSize,
+            )
         }
-
-
     }
 
     async playPyramid() {
         while (this.leader && this.pyramid && !this.pyramid.isEmpty()) {
             try {
-                await this.getResponse(this.leader, `type 'next' to draw the next card`, Strings.NEXT)
-                const {card, drinks} = this.pyramid.getNextCard()
+                await this.getResponse(
+                    this.leader,
+                    `type 'next' to draw the next card`,
+                    Strings.NEXT,
+                )
+                const { card, drinks } = this.pyramid.getNextCard()
 
                 let message = `Drew ${card}\n`
                 for (const player of this.players) {
-
                     if (player.hasValueInHand(card)) {
                         const playerCards = player.getCardsWithValue(card)
-                        const playerCardsString = playerCards.join(", ")
-                        message += `${player} put down ${playerCardsString} and can give ${drinks * playerCards.length} drinks to other players.`
-
+                        const playerCardsString = playerCards.join(', ')
+                        message += `${player} put down ${playerCardsString} and can give ${
+                            drinks * playerCards.length
+                        } drinks to other players.`
                     } else {
                         message += `${player} has no card with value ${card.value} to put down.`
                     }
                     message += ` Cards left: ${player.cards.length}\n`
                 }
                 await this.channel.send(message)
-
-            } catch {this.isEnded()}
-
+            } catch {
+                this.isEnded()
+            }
         }
-
     }
 
     async initBus() {
         try {
-            const maxCards = Math.max(...this.players.map(player => player.cards.length))
-            this.busPlayers = this.players.filter(player => player.cards.length === maxCards)
-            let busPlayer = this.busPlayers[Math.floor(Math.random() * this.busPlayers.length)]
-            await this.channel.send(`${this.busPlayers.join(", ")} all have ${maxCards} cards, but ${busPlayer} has been selected as the bus driver!`)
+            const maxCards = Math.max(
+                ...this.players.map(player => player.cards.length),
+            )
+            this.busPlayers = this.players.filter(
+                player => player.cards.length === maxCards,
+            )
+            let busPlayer = this.busPlayers[
+                Math.floor(Math.random() * this.busPlayers.length)
+            ]
+            await this.channel.send(
+                `${this.busPlayers.join(
+                    ', ',
+                )} all have ${maxCards} cards, but ${busPlayer} has been selected as the bus driver!`,
+            )
 
             // Removing chosen player from options
             const index = this.busPlayers.indexOf(busPlayer)
@@ -310,11 +389,16 @@ export class Bussen {
                 player.removeAllCards()
             }
 
-/*            const regex = /^(?:[1-9]|1[0-9])$/*/
+            /*            const regex = /^(?:[1-9]|1[0-9])$/*/
             let busSize
             while (!busSize && this.leader) {
                 if (this.isPlayer(busPlayer)) {
-                    busSize = await this.loopForResponse(busPlayer, `how long should the bus be?`, `1-19`, true)
+                    busSize = await this.loopForResponse(
+                        busPlayer,
+                        `how long should the bus be?`,
+                        `1-19`,
+                        true,
+                    )
                 } else {
                     busPlayer = this.getNewBusPlayer()
                 }
@@ -323,9 +407,9 @@ export class Bussen {
             if (busSize) {
                 this.bus = new Bus(busPlayer, busSize)
             }
-
-        } catch {this.isEnded()}
-
+        } catch {
+            this.isEnded()
+        }
     }
 
     async playBus() {
@@ -333,30 +417,43 @@ export class Bussen {
             try {
                 const oldCard = this.bus.getCurrentCard()
                 const newCard = this.bus.getRandomCard()
-                const content = await this.getResponse(this.bus.player, `Card ${this.bus.currentIndex + 1} is ${oldCard}, higher or lower?`, StringCouples.HIGHER_LOWER)
+                const content = await this.getResponse(
+                    this.bus.player,
+                    `Card ${
+                        this.bus.currentIndex + 1
+                    } is ${oldCard}, higher or lower?`,
+                    StringCouples.HIGHER_LOWER,
+                )
 
-                const correct = (content === "higher" && newCard > oldCard) || (content === "lower" && newCard < oldCard )
+                const correct =
+                    (content === 'higher' && newCard > oldCard) ||
+                    (content === 'lower' && newCard < oldCard)
                 const message = correct
-                    ? `${this.bus.player} drew ${newCard} and can advance to card ${this.bus.currentIndex + 2} `
-                    : `${this.bus.player} drew ${newCard}, has to consume ${this.bus.currentIndex + 1} drinks and resets to the first card`
+                    ? `${
+                          this.bus.player
+                      } drew ${newCard} and can advance to card ${
+                          this.bus.currentIndex + 2
+                      } `
+                    : `${this.bus.player} drew ${newCard}, has to consume ${
+                          this.bus.currentIndex + 1
+                      } drinks and resets to the first card`
 
                 await this.channel.send(message)
                 this.bus.iterate(newCard, correct)
-            } catch {this.isEnded()}
-
+            } catch {
+                this.isEnded()
+            }
         }
 
         if (this.bus && this.isPlayer(this.bus.player)) {
-            await this.channel.send(`${this.bus.player} managed to escape the BUSS in ${this.bus.turns} turns, while consuming ${this.bus.totalDrinks} drinks in total`)
+            await this.channel.send(
+                `${this.bus.player} managed to escape the BUSS in ${this.bus.turns} turns, while consuming ${this.bus.totalDrinks} drinks in total`,
+            )
         }
-
     }
-
-
 }
 
 class Bus {
-
     player: any
     deck: any
     sequence: any
@@ -393,7 +490,6 @@ class Bus {
         } else {
             this.currentIndex = 0
         }
-
     }
 
     getCurrentCard() {
@@ -409,7 +505,6 @@ class Bus {
     }
 
     iterate(newCard, correct) {
-
         this.discarded.push(this.getCurrentCard())
         this.sequence[this.currentIndex] = newCard
 
@@ -418,14 +513,10 @@ class Bus {
         }
         this.incrementIndex(correct)
         this.turns++
-
     }
-
-
 }
 
 class Pyramid {
-
     deck: Deck
     reversed: boolean
     size: number
@@ -451,8 +542,7 @@ class Pyramid {
             }
         }
 
-        this.index = 0;
-
+        this.index = 0
     }
 
     isEmpty() {
@@ -468,9 +558,8 @@ class Pyramid {
             const drinks = this.getDrinkCounts(this.index)
             const card = this.deck.getRandomCard()
             this.index++
-            return {card, drinks}
+            return { card, drinks }
         }
-
     }
 
     getDrinkCounts(index) {
@@ -485,7 +574,7 @@ class Pyramid {
             for (let i = this.size; i > 0; i--) {
                 for (let j = 0; j < i; j++) {
                     if (totalIndex === index) {
-                        return this.size - (i - 1);
+                        return this.size - (i - 1)
                     }
                     totalIndex++
                 }
