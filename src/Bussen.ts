@@ -1,4 +1,4 @@
-import { MessageCollector } from 'discord.js'
+import { Channel, MessageCollector, TextChannel } from 'discord.js'
 import { type } from 'os'
 
 import { Card, Deck } from './Deck'
@@ -11,7 +11,7 @@ export class Bussen {
     hasStarted: boolean
     hasEnded: boolean
     drinks: number
-    channel: any
+    channel: TextChannel
 
     collector: MessageCollector & { player: any }
 
@@ -111,7 +111,7 @@ export class Bussen {
 
     async endGame() {
         this.hasEnded = true
-        this.collector.stop()
+        this.collector?.stop()
     }
 
     async play() {

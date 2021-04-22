@@ -4,8 +4,7 @@ module.exports = {
     execute(client, message, args) {
         const user = message.mentions.users.first()
         if (client.readyToKick(message, user)) {
-            console.log(`yes ${user}`)
-            return client.currentGame.removePlayer(user)
+            return client.removePlayer(user)
         }
     },
 }

@@ -39,6 +39,10 @@ export const StringCouples = {
     HIGHER_LOWER: [Strings.HIGHER, Strings.LOWER],
 }
 
+export const ReactionStrings = {
+    YES_NO: [`😩`, `😂`],
+}
+
 export const StringState = {
     EQUAL: (player, card, drinks) =>
         `${player} drew ${card} and everyone has to consume ${pluralize(
