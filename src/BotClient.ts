@@ -51,18 +51,18 @@ class BotClient extends Discord.Client {
         return (
             this.validMessage(message) &&
             this.gameExists() &&
-            this.currentGame.players.includes(message.author)
+            this.currentGame.isPlayer(message.author)
         )
     }
 
-    readyToKick(message, player) {
+    readyToKick(message, user) {
         return (
-            player &&
-            player instanceof GuildMember &&
+            user &&
+            message.author !== user &&
             this.validMessage(message) &&
             this.gameExists() &&
             this.currentGame.isLeader(message.author) &&
-            this.currentGame.isPlayer(player)
+            this.currentGame.isPlayer(user)
         )
     }
 

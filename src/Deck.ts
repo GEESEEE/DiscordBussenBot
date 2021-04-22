@@ -8,13 +8,13 @@ export class Deck {
         for (const value of Object.values(Value)) {
             for (const suit of Object.values(Suit)) {
                 const card = new Card(value, suit)
-                this.deck.push(card)
+                this.addCard(card)
             }
         }
     }
 
     addCard(card) {
-        this.deck.push(...card)
+        this.deck.push(card)
     }
 
     addCards(cards) {
@@ -48,13 +48,29 @@ export class Card {
     value: Value
     suit: Suit
 
+    CardValueMap: Record<Value, number> = {
+        '2': 2,
+        '3': 3,
+        '4': 4,
+        '5': 5,
+        '6': 6,
+        '7': 7,
+        '8': 8,
+        '9': 9,
+        '10': 10,
+        Jack: 11,
+        Queen: 12,
+        King: 13,
+        Ace: 14,
+    }
+
     constructor(value, suit) {
         this.value = value
         this.suit = suit
     }
 
     valueOf() {
-        return Object.entries(Value).findIndex(value => value[1] === this.value)
+        return this.CardValueMap[this.value]
     }
 
     equals(card) {

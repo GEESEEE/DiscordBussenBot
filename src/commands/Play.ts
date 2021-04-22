@@ -3,10 +3,7 @@ module.exports = {
     desc: 'Starts the game of Bussen after people have joined!',
     async execute(client, message, args) {
         if (client.readyToPlay(message)) {
-            message.channel.send(
-                `${message.author.username} has started the Game!`,
-            )
-            await client.currentGame.play(message.channel)
+            await client.currentGame.play()
             client.currentGame = null
         }
     },

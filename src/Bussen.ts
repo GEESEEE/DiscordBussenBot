@@ -1,7 +1,8 @@
 import { MessageCollector } from 'discord.js'
+import { type } from 'os'
 
 import { Card, Deck } from './Deck'
-import { StringCouples, Strings, StringState } from './utils/Consts'
+import { StringCouples, Strings, StringState, Value } from './utils/Consts'
 import { createFuse, filter, getPrompt } from './utils/Utils'
 
 export class Bussen {
@@ -46,17 +47,18 @@ export class Bussen {
     }
 
     addPlayer(player) {
-        player.removeAllCards()
-        this.players.push(player)
+        if (!this.isPlayer(player)) {
+            player.removeAllCards()
+            this.players.push(player)
+        }
     }
 
     isPlayer(player) {
-        return this.players.filter(p => p.equals(player)).length > 0
+        return this.players.includes(player)
     }
 
-    getPlayer(id) {
-        const players = this.players.filter(player => player.id === id)
-        return players.length > 0 ? players[0] : null
+    hasPlayers() {
+        return this.isPlayer(this.leader)
     }
 
     async removePlayer(player) {
@@ -87,6 +89,10 @@ export class Bussen {
         }
 
         await this.channel.send(message)
+
+        if (!this.hasPlayers()) {
+            return this.endGame()
+        }
     }
 
     getNewBusPlayer() {
@@ -110,6 +116,7 @@ export class Bussen {
 
     async play() {
         this.hasStarted = true
+        await this.channel.send(`${this.leader} has started the Game!`)
 
         try {
             // Phase 1 questions
@@ -119,16 +126,12 @@ export class Bussen {
             await this.askSuits()
 
             // Phase 2 pyramid
-            if (this.leader) {
-                await this.initPyramid()
-                await this.playPyramid()
-            }
+            await this.initPyramid()
+            await this.playPyramid()
 
             // Phase 3 The Bus
-            if (this.leader) {
-                await this.initBus()
-                await this.playBus()
-            }
+            await this.initBus()
+            await this.playBus()
         } catch {}
 
         await this.channel.send(`The game has finished`)
@@ -362,53 +365,55 @@ export class Bussen {
     }
 
     async initBus() {
-        try {
-            const maxCards = Math.max(
-                ...this.players.map(player => player.cards.length),
-            )
-            this.busPlayers = this.players.filter(
-                player => player.cards.length === maxCards,
-            )
-            let busPlayer = this.busPlayers[
-                Math.floor(Math.random() * this.busPlayers.length)
-            ]
-            await this.channel.send(
-                `${this.busPlayers.join(
-                    ', ',
-                )} all have ${maxCards} cards, but ${busPlayer} has been selected as the bus driver!`,
-            )
+        if (this.hasPlayers()) {
+            try {
+                const maxCards = Math.max(
+                    ...this.players.map(player => player.cards.length),
+                )
+                this.busPlayers = this.players.filter(
+                    player => player.cards.length === maxCards,
+                )
+                let busPlayer = this.busPlayers[
+                    Math.floor(Math.random() * this.busPlayers.length)
+                ]
+                await this.channel.send(
+                    `${this.busPlayers.join(
+                        ', ',
+                    )} all have ${maxCards} cards, but ${busPlayer} has been selected as the bus driver!`,
+                )
 
-            // Removing chosen player from options
-            const index = this.busPlayers.indexOf(busPlayer)
-            if (index > -1) {
-                this.busPlayers.splice(index, 1)
-            }
-
-            // removing all players'  cards, because they dont use them in the bus
-            for (const player of this.players) {
-                player.removeAllCards()
-            }
-
-            /*            const regex = /^(?:[1-9]|1[0-9])$/*/
-            let busSize
-            while (!busSize && this.leader) {
-                if (this.isPlayer(busPlayer)) {
-                    busSize = await this.loopForResponse(
-                        busPlayer,
-                        `how long should the bus be?`,
-                        `1-19`,
-                        true,
-                    )
-                } else {
-                    busPlayer = this.getNewBusPlayer()
+                // Removing chosen player from options
+                const index = this.busPlayers.indexOf(busPlayer)
+                if (index > -1) {
+                    this.busPlayers.splice(index, 1)
                 }
-            }
 
-            if (busSize) {
-                this.bus = new Bus(busPlayer, busSize)
+                // removing all players'  cards, because they dont use them in the bus
+                for (const player of this.players) {
+                    player.removeAllCards()
+                }
+
+                /*            const regex = /^(?:[1-9]|1[0-9])$/*/
+                let busSize
+                while (!busSize && this.leader) {
+                    if (this.isPlayer(busPlayer)) {
+                        busSize = await this.loopForResponse(
+                            busPlayer,
+                            `how long should the bus be?`,
+                            `1-19`,
+                            true,
+                        )
+                    } else {
+                        busPlayer = this.getNewBusPlayer()
+                    }
+                }
+
+                if (busSize) {
+                    this.bus = new Bus(busPlayer, busSize)
+                }
+            } catch {
+                this.isEnded()
             }
-        } catch {
-            this.isEnded()
         }
     }
 
