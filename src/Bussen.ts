@@ -35,7 +35,7 @@ export class Bussen {
     }
 
     isLeader(player) {
-        if (this.players.length > 0) {
+        if (this.hasPlayers()) {
             return this.players[0].equals(player)
         } else {
             return null
@@ -195,7 +195,8 @@ export class Bussen {
     }
 
     async askColours() {
-        for (const player of this.players) {
+        for (let i = 0; i < this.players.length; i++) {
+            const player = this.players[i]
             try {
                 const content = await this.getResponse(
                     player,
@@ -213,12 +214,14 @@ export class Bussen {
                 )
             } catch {
                 this.isEnded()
+                i--
             }
         }
     }
 
     async askHigherOrLower() {
-        for (const player of this.players) {
+        for (let i = 0; i < this.players.length; i++) {
+            const player = this.players[i]
             try {
                 const playerCard = player.cards[0]
                 const content = await this.getResponse(
@@ -242,12 +245,14 @@ export class Bussen {
                 player.addCard(newCard)
             } catch {
                 this.isEnded()
+                i--
             }
         }
     }
 
     async askInBetween() {
-        for (const player of this.players) {
+        for (let i = 0; i < this.players.length; i++) {
+            const player = this.players[i]
             try {
                 const playerCard1 = player.cards[0]
                 const playerCard2 = player.cards[1]
@@ -274,12 +279,14 @@ export class Bussen {
                 )
             } catch {
                 this.isEnded()
+                i--
             }
         }
     }
 
     async askSuits() {
-        for (const player of this.players) {
+        for (let i = 0; i < this.players.length; i++) {
+            const player = this.players[i]
             try {
                 const playerSuits = [
                     ...new Set(player.cards.map(cards => cards.suit)),
@@ -308,6 +315,7 @@ export class Bussen {
                 player.addCard(card)
             } catch {
                 this.isEnded()
+                i--
             }
         }
     }
