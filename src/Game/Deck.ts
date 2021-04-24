@@ -1,13 +1,13 @@
-import { Suit, Value } from './utils/Consts'
+import { Suit, Value } from '../utils/Consts'
 
 export class Deck {
     deck: Array<Card>
-    constructor() {
+    constructor(CardType) {
         this.deck = []
 
         for (const value of Object.values(Value)) {
             for (const suit of Object.values(Suit)) {
-                const card = new Card(value, suit)
+                const card = new CardType(value, suit)
                 this.addCard(card)
             }
         }
@@ -44,27 +44,13 @@ export class Deck {
     }
 }
 
-export class Card {
+export abstract class Card {
     value: Value
     suit: Suit
 
-    CardValueMap: Record<Value, number> = {
-        '2': 2,
-        '3': 3,
-        '4': 4,
-        '5': 5,
-        '6': 6,
-        '7': 7,
-        '8': 8,
-        '9': 9,
-        '10': 10,
-        Jack: 11,
-        Queen: 12,
-        King: 13,
-        Ace: 14,
-    }
+    CardValueMap: Record<Value, number>
 
-    constructor(value, suit) {
+    protected constructor(value, suit) {
         this.value = value
         this.suit = suit
     }

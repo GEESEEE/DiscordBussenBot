@@ -5,13 +5,14 @@ import {
     TextChannel,
 } from 'discord.js'
 
-import { Bussen } from './Bussen'
+import { Bussen } from './Game/Bussen'
+import { Game } from './Game/Game'
 import { ReactionStrings } from './utils/Consts'
 import { getBinaryReactions } from './utils/Utils'
 
 export const Server = Structures.extend('Guild', Guild => {
     class ServerClass extends Guild {
-        currentGame: Bussen
+        currentGame: Game
         currentChannel: TextChannel
         collector: ReactionCollector
 
@@ -106,6 +107,8 @@ export const Server = Structures.extend('Guild', Guild => {
                 await message.react(option)
             }
 
+            const gameName = this.currentGame.name
+
             const { collected, collector } = await getBinaryReactions(
                 message,
                 10000,
@@ -127,15 +130,15 @@ export const Server = Structures.extend('Guild', Guild => {
                     await this.currentGame.endGame()
                     if (!this.currentGame.hasStarted) {
                         await this.currentChannel.send(
-                            `The game has been removed`,
+                            `${gameName} has been removed`,
                         )
                     }
                     this.currentGame = null
                 } else {
-                    await this.currentChannel.send(`The game will continue`)
+                    await this.currentChannel.send(`${gameName} will continue`)
                 }
             } else {
-                await this.currentChannel.send(`The game is already gone`)
+                await this.currentChannel.send(`${gameName} is already gone`)
             }
         }
     }

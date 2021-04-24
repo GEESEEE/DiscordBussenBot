@@ -14,7 +14,7 @@ export function getPrompt(channel, filter): any {
         message: new Promise((resolve, reject) => {
             collector.on('end', collected => {
                 if (collected.size === 0) {
-                    reject(new Error(`Collector stopped`))
+                    reject(new CollectorError(`Collector stopped`))
                     return
                 }
 

@@ -1,13 +1,13 @@
 import { Client, Structures } from 'discord.js'
 
-import { Card } from './Deck'
+import { Card } from './Game/Deck'
 
 export const Player = Structures.extend('User', User => {
     class PlayerClass extends User {
         cards: Array<Card>
 
-        constructor(client: Client, object: Record<string, unknown>) {
-            super(client, object)
+        constructor(x, y) {
+            super(x, y)
             this.cards = []
         }
 

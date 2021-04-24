@@ -1,4 +1,4 @@
-import { Bussen } from '../Bussen'
+import { Bussen } from '../Game/Bussen'
 
 module.exports = {
     name: 'start',
@@ -7,7 +7,11 @@ module.exports = {
     execute(client, message, args) {
         const guild = message.guild
         if (!guild.gameExists()) {
-            guild.currentGame = new Bussen(message.author, message.channel)
+            guild.currentGame = new Bussen(
+                'Bussen',
+                message.author,
+                message.channel,
+            )
         }
     },
 }

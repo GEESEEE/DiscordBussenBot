@@ -1,5 +1,3 @@
-const pluralize = require(`pluralize`)
-
 export enum Suit {
     CLUBS = '<:clubs:834190252478300231>',
     DIAMONDS = ':diamonds:',
@@ -41,20 +39,4 @@ export const StringCouples = {
 
 export const ReactionStrings = {
     YES_NO: ['<:y_:835169920404684812>', '<:n_:835169930722410537>'],
-}
-
-export const StringState = {
-    EQUAL: (player, card, drinks) =>
-        `${player} drew ${card} and everyone has to consume ${pluralize(
-            'drink',
-            drinks,
-            true,
-        )}`,
-    TRUE: (player, card) => `${player} drew ${card} and was correct`,
-    FALSE: (player, card, drinks) =>
-        `${player} drew ${card} and has to consume ${pluralize(
-            'drink',
-            drinks,
-            true,
-        )}`,
 }
