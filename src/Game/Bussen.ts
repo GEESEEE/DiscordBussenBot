@@ -80,7 +80,6 @@ export class Bussen extends Game {
             () => this.bus && !this.bus.isFinished,
             this.playBus,
         )
-        await this.finishBus()
     }
 
     getMessage(isEqual, isTrue, player, card) {
@@ -287,30 +286,33 @@ export class Bussen extends Game {
         const correct =
             (content === 'higher' && newCard > oldCard) ||
             (content === 'lower' && newCard < oldCard)
-        const message = correct
-            ? `${this.bus.player} drew ${newCard} and can advance to card ${
-                  this.bus.currentIndex + 2
-              } `
-            : `${this.bus.player} drew ${newCard}, has to consume ${
-                  this.bus.currentIndex + 1
-              } drinks and resets to the first card`
+
+        let message
+        if (correct) {
+            if (this.bus.currentIndex + 2 <= this.bus.size) {
+                message = `${
+                    this.bus.player
+                } drew ${newCard} and can advance to card ${
+                    this.bus.currentIndex + 2
+                } `
+            } else {
+                message = `${this.bus.player} managed to escape the BUSS in ${this.bus.turns} turns, while consuming ${this.bus.totalDrinks} drinks in total`
+            }
+        } else {
+            message = `${this.bus.player} drew ${newCard}, has to consume ${
+                this.bus.currentIndex + 1
+            } drinks and resets to the first card`
+        }
 
         await this.channel.send(message)
         this.bus.iterate(newCard, correct)
-    }
-
-    async finishBus() {
-        if (this.bus && this.isPlayer(this.bus.player)) {
-            await this.channel.send(
-                `${this.bus.player} managed to escape the BUSS in ${this.bus.turns} turns, while consuming ${this.bus.totalDrinks} drinks in total`,
-            )
-        }
     }
 }
 
 class Bus {
     player: any
     deck: Deck
+    size: number
     sequence: Array<Card>
 
     discarded: Array<Card>
@@ -324,6 +326,7 @@ class Bus {
         this.player = player
         this.deck = new Deck(BussenCard)
         this.sequence = []
+        this.size = size
 
         for (let i = 0; i < size; i++) {
             this.sequence.push(this.deck.getRandomCard())

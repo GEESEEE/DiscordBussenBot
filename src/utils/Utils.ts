@@ -5,6 +5,8 @@ import {
     ReactionCollector,
 } from 'discord.js'
 
+import { CollectorError } from '../Game/Errors'
+
 const Fuse = require(`fuse.js`)
 
 export function getPrompt(channel, filter): any {
