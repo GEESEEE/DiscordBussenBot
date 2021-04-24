@@ -249,12 +249,11 @@ export default class Bussen extends Game {
             this.busPlayers.splice(index, 1)
         }
 
-        // removing all players'  cards, because they dont use them in the bus
+        // removing all players' cards, because they dont use them in the bus
         for (const player of this.players) {
             player.removeAllCards()
         }
 
-        /*            const regex = /^(?:[1-9]|1[0-9])$/*/
         let busSize
         while (!busSize && this.leader) {
             if (this.isPlayer(busPlayer)) {
