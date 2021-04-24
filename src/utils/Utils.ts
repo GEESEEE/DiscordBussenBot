@@ -1,13 +1,32 @@
-import {
-    Collection,
-    Message,
-    MessageReaction,
-    ReactionCollector,
-} from 'discord.js'
+import { Message } from 'discord.js'
 
 import { CollectorError } from '../game/Errors'
 
 const Fuse = require(`fuse.js`)
+
+export function createChecker(responseOptions, numeric) {
+    if (numeric) {
+        const [s1, s2] = responseOptions[0].split('-')
+        const [start, end] = [parseInt(s1), parseInt(s2)]
+        responseOptions = [...new Array(end).keys()]
+            .map(val => String(val + start))
+            .join('|')
+        return new RegExp(`^(${responseOptions})$`)
+    }
+    return new Fuse(responseOptions)
+}
+
+export function getFilter(user, checker) {
+    return m => {
+        let correctAnswer
+        if (checker instanceof Fuse) {
+            correctAnswer = checker.search(m.content).length === 1
+        } else {
+            correctAnswer = checker.test(m.content)
+        }
+        return correctAnswer && m.author.equals(user)
+    }
+}
 
 export function getPrompt(channel, filter): any {
     const collector = channel.createMessageCollector(filter, { max: 1 })
@@ -71,28 +90,4 @@ export function inElementOf(list, query) {
         }
     }
     return null
-}
-
-export function createFuse(responseOptions, numeric) {
-    if (numeric) {
-        const [s1, s2] = responseOptions[0].split('-')
-        const [start, end] = [parseInt(s1), parseInt(s2)]
-        responseOptions = [...new Array(end).keys()]
-            .map(val => String(val + start))
-            .join('|')
-        return new RegExp(`^(${responseOptions})$`)
-    }
-    return new Fuse(responseOptions)
-}
-
-export function getFilter(user, checker) {
-    return m => {
-        let correctAnswer
-        if (checker instanceof Fuse) {
-            correctAnswer = checker.search(m.content).length === 1
-        } else {
-            correctAnswer = checker.test(m.content)
-        }
-        return correctAnswer && m.author.equals(user)
-    }
 }

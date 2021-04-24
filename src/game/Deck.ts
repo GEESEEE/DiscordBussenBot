@@ -48,6 +48,7 @@ export abstract class Card {
     value: Value
     suit: Suit
 
+    // Any implementation *must* have their own CardValueMap
     CardValueMap: Record<Value, number>
 
     protected constructor(value, suit) {

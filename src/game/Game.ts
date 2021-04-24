@@ -1,6 +1,6 @@
 import { MessageCollector, TextChannel } from 'discord.js'
 
-import { createFuse, getFilter, getPrompt } from '../utils/Utils'
+import { createChecker, getFilter, getPrompt } from '../utils/Utils'
 import { Deck } from './Deck'
 import { CollectorError, GameEnded } from './Errors'
 
@@ -54,7 +54,7 @@ export abstract class Game {
     }
 
     hasPlayers() {
-        return this.isPlayer(this.leader)
+        return this.players.length > 0
     }
 
     endGame() {
@@ -68,12 +68,13 @@ export abstract class Game {
         }
     }
 
+    // if numeric is true, responseOptions should be x-y as a string with x and y as numbers
     async getResponse(player, string, responseOptions, numeric = false) {
         if (typeof responseOptions === 'string') {
             responseOptions = [responseOptions]
         }
 
-        const fuse = createFuse(responseOptions, numeric)
+        const fuse = createChecker(responseOptions, numeric)
         const prompt = `${player}, ${string} (${responseOptions.join('/')})`
         await this.channel.send(prompt)
 
@@ -92,51 +93,16 @@ export abstract class Game {
         }
     }
 
-    async loopForResponse(player, string, responseOptions, numeric = false) {
-        let succes
-        let val
-        while (!succes && this.isPlayer(player)) {
-            try {
-                val = await this.getResponse(
-                    player,
-                    string,
-                    responseOptions,
-                    numeric,
-                )
-                succes = true
-            } catch {}
-        }
-
-        return val
-    }
-
-    async play() {
-        this.hasStarted = true
-        await this.channel.send(`${this.leader} has started ${this.name}!`)
-        try {
-            await this.game()
-        } catch (err) {
-            if (!(err instanceof GameEnded)) {
-                throw err
-            }
-        }
-
-        await this.channel.send(`${this.name} has finished`)
-    }
-
     async removePlayer(player) {
-        // Stop the collector if it collects from the given player
         if (this.collector && player.equals(this.collector.player)) {
             this.collector.stop()
         }
 
-        // Remove player
         const index = this.players.indexOf(player)
         if (index > -1) {
             this.players.splice(index, 1)
         }
 
-        // Add removed player's cards to the deck
         this.deck.addCards(player.cards)
         player.removeAllCards()
 
@@ -155,6 +121,48 @@ export abstract class Game {
         }
     }
 
+    async play() {
+        this.hasStarted = true
+        await this.channel.send(`${this.leader} has started ${this.name}!`)
+        try {
+            await this.game()
+        } catch (err) {
+            if (!(err instanceof GameEnded)) {
+                throw err
+            }
+        }
+
+        await this.channel.send(`${this.name} has finished`)
+    }
+
+    abstract game(): void
+    abstract onRemovePlayer(player): string
+
+    //region User Input Error Handling
+
+    // This will continually and safely ask the given player for a response using getResponse
+    async loopForResponse(player, string, responseOptions, numeric = false) {
+        let succes
+        let val
+        while (!succes && this.isPlayer(player)) {
+            try {
+                val = await this.getResponse(
+                    player,
+                    string,
+                    responseOptions,
+                    numeric,
+                )
+                succes = true
+            } catch (err) {
+                if (!(err instanceof CollectorError)) {
+                    throw err
+                }
+            }
+        }
+
+        return val
+    }
+
     async askAllPlayers(func) {
         for (let i = 0; i < this.players.length; i++) {
             const player = this.players[i]
@@ -171,7 +179,7 @@ export abstract class Game {
         }
     }
 
-    async whileAsk(boolean, func) {
+    async askWhile(boolean, func) {
         while (this.hasPlayers() && boolean()) {
             try {
                 await func.call(this)
@@ -199,6 +207,5 @@ export abstract class Game {
         }
     }
 
-    abstract game(): void
-    abstract onRemovePlayer(player): string
+    //endregion
 }

@@ -2,7 +2,7 @@ import { Channel, MessageCollector, TextChannel } from 'discord.js'
 import { type } from 'os'
 
 import { StringCouples, Strings, Suit, Value } from '../../utils/Consts'
-import { createFuse, getFilter, getPrompt } from '../../utils/Utils'
+import { createChecker, getFilter, getPrompt } from '../../utils/Utils'
 import { Card, Deck } from '../Deck'
 import { Game } from '../Game'
 const pluralize = require(`pluralize`)
@@ -69,14 +69,14 @@ export default class Bussen extends Game {
 
         // Phase 2 pyramid
         await this.initPyramid()
-        await this.whileAsk(
+        await this.askWhile(
             () => this.pyramid && !this.pyramid.isEmpty(),
             this.playPyramid,
         )
 
         // Phase 3 The Bus
         await this.ask(this.initBus)
-        await this.whileAsk(
+        await this.askWhile(
             () => this.bus && !this.bus.isFinished,
             this.playBus,
         )
