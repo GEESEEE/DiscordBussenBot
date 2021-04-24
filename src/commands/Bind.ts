@@ -1,5 +1,6 @@
 module.exports = {
     name: 'bind',
+    aliases: ['b'],
     desc: 'Binds the bot to the channel this is called in',
     execute(client, message, args) {
         const guild = message.guild

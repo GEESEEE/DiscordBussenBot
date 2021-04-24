@@ -12,7 +12,7 @@ module.exports = {
             if (game && client.games.has(game)) {
                 const gameClass = client.games.get(game).default
                 guild.currentGame = new gameClass(
-                    game,
+                    game.charAt(0).toUpperCase() + game.slice(1),
                     message.author,
                     message.channel,
                 )

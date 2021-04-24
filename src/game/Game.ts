@@ -2,6 +2,7 @@ import { MessageCollector, TextChannel } from 'discord.js'
 
 import { createFuse, getFilter, getPrompt } from '../utils/Utils'
 import { Deck } from './Deck'
+import { CollectorError, GameEnded } from './Errors'
 
 export abstract class Game {
     name: string
@@ -112,7 +113,11 @@ export abstract class Game {
         await this.channel.send(`${this.leader} has started ${this.name}!`)
         try {
             await this.game()
-        } catch {}
+        } catch (err) {
+            if (!(err instanceof GameEnded)) {
+                throw err
+            }
+        }
 
         await this.channel.send(`${this.name} has finished`)
     }
@@ -157,6 +162,8 @@ export abstract class Game {
                 if (err instanceof CollectorError) {
                     this.isEnded()
                     i--
+                } else {
+                    throw err
                 }
             }
         }
@@ -169,6 +176,8 @@ export abstract class Game {
             } catch (err) {
                 if (err instanceof CollectorError) {
                     this.isEnded()
+                } else {
+                    throw err
                 }
             }
         }
@@ -181,6 +190,8 @@ export abstract class Game {
             } catch (err) {
                 if (err instanceof CollectorError) {
                     this.isEnded()
+                } else {
+                    throw err
                 }
             }
         }
