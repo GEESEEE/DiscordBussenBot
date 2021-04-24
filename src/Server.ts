@@ -1,4 +1,9 @@
-import { Structures, TextChannel } from 'discord.js'
+import {
+    Collection,
+    ReactionCollector,
+    Structures,
+    TextChannel,
+} from 'discord.js'
 
 import { Bussen } from './Bussen'
 import { ReactionStrings } from './utils/Consts'
@@ -8,6 +13,7 @@ export const Server = Structures.extend('Guild', Guild => {
     class ServerClass extends Guild {
         currentGame: Bussen
         currentChannel: TextChannel
+        collector: ReactionCollector
 
         constructor(x, y) {
             super(x, y)
@@ -77,6 +83,7 @@ export const Server = Structures.extend('Guild', Guild => {
         async removePlayer(player) {
             await this.currentGame.removePlayer(player)
             if (!this.currentGame.hasPlayers()) {
+                this.collector?.stop()
                 this.currentGame = null
             }
         }
@@ -94,19 +101,26 @@ export const Server = Structures.extend('Guild', Guild => {
         }
 
         async removeGame(message) {
-            const collected: any = await getBinaryReactions(
+            const options = ReactionStrings.YES_NO
+            for (const option of options) {
+                await message.react(option)
+            }
+
+            const { collected, collector } = await getBinaryReactions(
                 message,
-                60000,
-                ReactionStrings.YES_NO,
+                10000,
+                options,
             )
+            this.collector = collector
+            const col: any = await collected
 
             const max = Math.max(
-                ...collected.map(collection => collection.users.cache.size),
+                ...col.map(collection => collection.users.cache.size),
             )
 
-            const maxEmoji = collected
+            const maxEmoji = col
                 .filter(collection => collection.users.cache.size === max)
-                .first().emoji.name
+                .first()?.emoji.name
 
             if (this.gameExists()) {
                 if (ReactionStrings.YES_NO[0].includes(maxEmoji)) {

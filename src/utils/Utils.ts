@@ -1,4 +1,9 @@
-import { Message } from 'discord.js'
+import {
+    Collection,
+    Message,
+    MessageReaction,
+    ReactionCollector,
+} from 'discord.js'
 
 const Fuse = require(`fuse.js`)
 
@@ -20,7 +25,7 @@ export function getPrompt(channel, filter): any {
     }
 }
 
-export async function getBinaryReactions(message, maxTime, options) {
+export function getBinaryReactions(message, maxTime, options) {
     const collector = message.createReactionCollector(
         (reaction, _) => {
             const emojiName = reaction.emoji.name
@@ -29,15 +34,11 @@ export async function getBinaryReactions(message, maxTime, options) {
         { time: maxTime },
     )
 
-    const promise = new Promise(resolve => {
-        collector.on('end', collected => {
-            resolve(collected)
+    const collected = new Promise(resolve => {
+        collector.on('end', collect => {
+            resolve(collect)
         })
     })
-
-    for (const option of options) {
-        await message.react(option)
-    }
 
     collector.on('collect', async (reaction, user) => {
         const newReactionName = reaction.emoji.name
@@ -58,7 +59,7 @@ export async function getBinaryReactions(message, maxTime, options) {
         }
     })
 
-    return promise
+    return { collected, collector }
 }
 
 export function inElementOf(list, query) {
