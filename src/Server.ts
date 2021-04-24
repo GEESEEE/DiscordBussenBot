@@ -2,7 +2,7 @@ import { ReactionCollector, Structures, TextChannel } from 'discord.js'
 
 const { maxReactionTime } = require('../config.json')
 
-import { Game } from './Game/Game'
+import { Game } from './game/Game'
 import { ReactionStrings } from './utils/Consts'
 import { getBinaryReactions } from './utils/Utils'
 
@@ -36,6 +36,10 @@ export const Server = Structures.extend('Guild', Guild => {
 
         readyToHelp(message) {
             return this.validMessage(message)
+        }
+
+        readyToStart(message) {
+            return this.validMessage(message) && !this.gameExists()
         }
 
         readyToJoin(message) {

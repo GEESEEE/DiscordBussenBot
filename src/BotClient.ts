@@ -9,16 +9,27 @@ const commandFiles = fs
     .readdirSync('./src/commands')
     .filter(file => file.endsWith('.ts'))
 
+const gameFiles = fs
+    .readdirSync('./src/game/games')
+    .filter(file => file.endsWith('.ts'))
+
 class BotClient extends Discord.Client {
     commands
+    games
 
     constructor() {
         super()
         this.commands = new Discord.Collection()
+        this.games = new Discord.Collection()
 
         for (const file of commandFiles) {
             const command = require(`./commands/${file}`)
             this.commands.set(command.name, command)
+        }
+
+        for (const file of gameFiles) {
+            const game = require(`./game/games/${file}`)
+            this.games.set(file.toLowerCase().slice(0, -3), game)
         }
 
         // this event will only trigger one time after logging in
@@ -39,7 +50,11 @@ class BotClient extends Discord.Client {
         )
             return
 
-        const args = message.content.slice(prefix.length).trim().split(/ +/)
+        const args = message.content
+            .toLowerCase()
+            .slice(prefix.length)
+            .trim()
+            .split(/ +/)
         const commandName = args.shift().toLowerCase()
 
         if (this.commands.has(commandName)) {

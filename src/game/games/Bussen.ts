@@ -1,10 +1,10 @@
 import { Channel, MessageCollector, TextChannel } from 'discord.js'
 import { type } from 'os'
 
-import { StringCouples, Strings, Suit, Value } from '../utils/Consts'
-import { createFuse, getFilter, getPrompt } from '../utils/Utils'
-import { Card, Deck } from './Deck'
-import { Game } from './Game'
+import { StringCouples, Strings, Suit, Value } from '../../utils/Consts'
+import { createFuse, getFilter, getPrompt } from '../../utils/Utils'
+import { Card, Deck } from '../Deck'
+import { Game } from '../Game'
 const pluralize = require(`pluralize`)
 
 const StringState = {
@@ -23,7 +23,7 @@ const StringState = {
         )}`,
 }
 
-export class Bussen extends Game {
+export default class Bussen extends Game {
     drinks: number
     pyramid: Pyramid
     bus: Bus

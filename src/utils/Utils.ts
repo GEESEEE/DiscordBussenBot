@@ -5,7 +5,7 @@ import {
     ReactionCollector,
 } from 'discord.js'
 
-import { CollectorError } from '../Game/Errors'
+import { CollectorError } from '../game/Errors'
 
 const Fuse = require(`fuse.js`)
 
