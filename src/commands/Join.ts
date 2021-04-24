@@ -1,6 +1,6 @@
 module.exports = {
     name: 'join',
-    desc: 'Used to join a game after it has been initiated',
+    desc: 'Used to join a game after it has been started',
     execute(client, message, args) {
         if (client.readyToJoin(message)) {
             client.currentGame.addPlayer(message.author)

@@ -1,6 +1,6 @@
 module.exports = {
     name: 'bind',
-    desc: 'Binds the bot the channel this is last called in',
+    desc: 'Binds the bot to the channel this is called in',
     execute(client, message, args) {
         if (!client.gameExists()) {
             client.currentChannel = message.channel

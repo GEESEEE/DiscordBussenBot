@@ -1,6 +1,6 @@
 module.exports = {
     name: 'kick',
-    desc: "Used to kick a player during a game if you're the leader",
+    desc: 'Leader can use this to kick a player during a game',
     execute(client, message, args) {
         const user = message.mentions.users.first()
         if (client.readyToKick(message, user)) {

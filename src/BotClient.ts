@@ -1,10 +1,4 @@
-import Discord, {
-    Channel,
-    Collection,
-    GuildMember,
-    MessageReaction,
-    TextChannel,
-} from 'discord.js'
+import Discord, { TextChannel } from 'discord.js'
 
 import { Bussen } from './Bussen'
 import { ReactionStrings } from './utils/Consts'
@@ -23,6 +17,7 @@ class BotClient extends Discord.Client {
     hasChannel() {
         return this.currentChannel
     }
+
     isFromChannel(message) {
         return message.channel === this.currentChannel
     }
@@ -96,29 +91,30 @@ class BotClient extends Discord.Client {
     async removeGame(message) {
         const collected: any = await getBinaryReactions(
             message,
-            8000,
+            60000,
             ReactionStrings.YES_NO,
         )
 
         const max = Math.max(
             ...collected.map(collection => collection.users.cache.size),
         )
-        console.log(collected.map(collection => collection.users.cache.size))
 
         const maxEmoji = collected
             .filter(collection => collection.users.cache.size === max)
             .first().emoji.name
 
-        console.log(maxEmoji)
-
-        if (ReactionStrings.YES_NO[0].includes(maxEmoji)) {
-            await this.currentGame.endGame()
-            if (!this.currentGame.hasStarted) {
-                await this.currentChannel.send(`The game has been removed`)
+        if (this.gameExists()) {
+            if (ReactionStrings.YES_NO[0].includes(maxEmoji)) {
+                await this.currentGame.endGame()
+                if (!this.currentGame.hasStarted) {
+                    await this.currentChannel.send(`The game has been removed`)
+                }
+                this.currentGame = null
+            } else {
+                await this.currentChannel.send(`The game will continue`)
             }
-            this.currentGame = null
         } else {
-            await this.currentChannel.send(`The game will continue`)
+            await this.currentChannel.send(`The game is already gone`)
         }
     }
 }

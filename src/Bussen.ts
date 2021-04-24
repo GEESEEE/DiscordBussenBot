@@ -3,7 +3,7 @@ import { type } from 'os'
 
 import { Card, Deck } from './Deck'
 import { StringCouples, Strings, StringState, Value } from './utils/Consts'
-import { createFuse, filter, getPrompt } from './utils/Utils'
+import { createFuse, getFilter, getPrompt } from './utils/Utils'
 
 export class Bussen {
     deck: Deck
@@ -143,13 +143,12 @@ export class Bussen {
         }
 
         const fuse = createFuse(responseOptions, numeric)
-
         const prompt = `${player}, ${string} (${responseOptions.join('/')})`
         await this.channel.send(prompt)
 
         const { collector, message } = getPrompt(
             this.channel,
-            filter(player, fuse),
+            getFilter(player, fuse),
         )
         this.collector = collector
         collector.player = player

@@ -61,7 +61,7 @@ export async function getBinaryReactions(message, maxTime, options) {
     return promise
 }
 
-function inElementOf(list, query) {
+export function inElementOf(list, query) {
     for (const option of list) {
         if (option.includes(query)) {
             return option
@@ -82,7 +82,7 @@ export function createFuse(responseOptions, numeric) {
     return new Fuse(responseOptions)
 }
 
-export function filter(user, checker) {
+export function getFilter(user, checker) {
     return m => {
         let correctAnswer
         if (checker instanceof Fuse) {

@@ -29,11 +29,16 @@ client.on('message', async message => {
     if (!message.content.startsWith(prefix) || message.author.bot) return
 
     const args = message.content.slice(prefix.length).trim().split(/ +/)
-    const command = args.shift().toLowerCase()
+    const commandName = args.shift().toLowerCase()
 
-    if (client.commands.has(command)) {
-        console.log(message.content)
-        await client.commands.get(command).execute(client, message, args)
+    if (client.commands.has(commandName)) {
+        await client.commands.get(commandName).execute(client, message, args)
+    }
+
+    for (const command of client.commands.values()) {
+        if (command.aliases && command.aliases.includes(commandName)) {
+            await command.execute(client, message, args)
+        }
     }
 })
 
