@@ -1,5 +1,6 @@
 module.exports = {
     name: 'join',
+    aliases: ['j'],
     desc: 'Used to join a game after it has been started',
     execute(client, message, args) {
         const guild = message.guild

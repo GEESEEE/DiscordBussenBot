@@ -1,5 +1,6 @@
 module.exports = {
     name: 'play',
+    aliases: ['p'],
     desc: 'Starts the game after people have joined',
     async execute(client, message, args) {
         const guild = message.guild
