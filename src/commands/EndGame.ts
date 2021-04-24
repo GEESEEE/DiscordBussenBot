@@ -3,8 +3,9 @@ module.exports = {
     aliases: ['end'],
     desc: 'Leader can use this to end a game prematurely',
     execute(client, message, args) {
-        if (client.readyToEnd(message)) {
-            return client.currentGame.endGame()
+        const guild = message.guild
+        if (guild.readyToEnd(message)) {
+            return guild.currentGame.endGame()
         }
     },
 }

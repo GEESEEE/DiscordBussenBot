@@ -2,9 +2,10 @@ module.exports = {
     name: 'bind',
     desc: 'Binds the bot to the channel this is called in',
     execute(client, message, args) {
-        if (!client.gameExists()) {
-            client.currentChannel = message.channel
-            client.currentChannel.send(
+        const guild = message.guild
+        if (!guild.gameExists()) {
+            guild.currentChannel = message.channel
+            guild.currentChannel.send(
                 `Bot was successfully bound to this channel`,
             )
         }

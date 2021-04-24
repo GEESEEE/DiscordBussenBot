@@ -4,6 +4,7 @@ const { prefix } = require('./config.json')
 const BotClient = require('./src/BotClient')
 
 require('./src/Player')
+require('./src/Server')
 const client = new BotClient()
 client.commands = new Discord.Collection()
 
