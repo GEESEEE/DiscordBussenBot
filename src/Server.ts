@@ -1,11 +1,7 @@
-import {
-    Collection,
-    ReactionCollector,
-    Structures,
-    TextChannel,
-} from 'discord.js'
+import { ReactionCollector, Structures, TextChannel } from 'discord.js'
 
-import { Bussen } from './Game/Bussen'
+const { maxReactionTime } = require('../config.json')
+
 import { Game } from './Game/Game'
 import { ReactionStrings } from './utils/Consts'
 import { getBinaryReactions } from './utils/Utils'
@@ -111,7 +107,7 @@ export const Server = Structures.extend('Guild', Guild => {
 
             const { collected, collector } = await getBinaryReactions(
                 message,
-                10000,
+                maxReactionTime,
                 options,
             )
             this.collector = collector
