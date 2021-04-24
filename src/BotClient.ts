@@ -96,18 +96,22 @@ class BotClient extends Discord.Client {
     async removeGame(message) {
         const collected: any = await getBinaryReactions(
             message,
-            6000,
+            8000,
             ReactionStrings.YES_NO,
         )
+
         const max = Math.max(
             ...collected.map(collection => collection.users.cache.size),
         )
+        console.log(collected.map(collection => collection.users.cache.size))
 
         const maxEmoji = collected
             .filter(collection => collection.users.cache.size === max)
             .first().emoji.name
 
-        if (maxEmoji === ReactionStrings.YES_NO[0]) {
+        console.log(maxEmoji)
+
+        if (ReactionStrings.YES_NO[0].includes(maxEmoji)) {
             await this.currentGame.endGame()
             if (!this.currentGame.hasStarted) {
                 await this.currentChannel.send(`The game has been removed`)

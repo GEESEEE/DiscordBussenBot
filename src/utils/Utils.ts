@@ -23,7 +23,8 @@ export function getPrompt(channel, filter): any {
 export async function getBinaryReactions(message, maxTime, options) {
     const collector = message.createReactionCollector(
         (reaction, _) => {
-            return options.includes(reaction.emoji.name)
+            const emojiName = reaction.emoji.name
+            return inElementOf(options, emojiName)
         },
         { time: maxTime },
     )
@@ -39,21 +40,34 @@ export async function getBinaryReactions(message, maxTime, options) {
     }
 
     collector.on('collect', async (reaction, user) => {
-        if (options.includes(reaction.emoji.name)) {
-            for (const r of message.reactions.cache.values()) {
-                const react = r.emoji.name
+        const newReactionName = reaction.emoji.name
+        const users = reaction.users.cache
+        const messageReactions = message.reactions.cache.values()
+
+        if (inElementOf(options, newReactionName)) {
+            for (const react of messageReactions) {
+                const oldReactionName = react.emoji.name
                 if (
-                    react !== reaction.emoji.name &&
-                    options.includes(react) &&
-                    r.users.cache.has(user.id)
+                    newReactionName !== oldReactionName &&
+                    inElementOf(options, oldReactionName) &&
+                    users.has(user.id)
                 ) {
-                    await r.users.remove(user)
+                    await react.users.remove(user)
                 }
             }
         }
     })
 
     return promise
+}
+
+function inElementOf(list, query) {
+    for (const option of list) {
+        if (option.includes(query)) {
+            return option
+        }
+    }
+    return null
 }
 
 export function createFuse(responseOptions, numeric) {
