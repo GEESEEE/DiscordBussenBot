@@ -21,11 +21,13 @@ export abstract class Game {
         this.hasStarted = false
         this.channel = channel
         this.addPlayer(leader)
+    }
 
-        let message = `Starting ${this.name} with ${leader}\n`
+    async init() {
+        let message = `Starting ${this.name} with ${this.leader}\n`
         message += `Type '!join' to join the game\n`
-        message += `${leader}, type '!play' to start the game when all players have joined`
-        this.channel.send(message)
+        message += `${this.leader}, type '!play' to start the game when all players have joined`
+        await this.channel.send(message)
     }
 
     isLeader(player) {

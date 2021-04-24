@@ -16,6 +16,7 @@ module.exports = {
                     message.author,
                     message.channel,
                 )
+                return guild.currentGame.init()
             } else {
                 guild.currentGame = new Bussen(
                     'Bussen',
