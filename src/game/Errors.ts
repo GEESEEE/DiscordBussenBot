@@ -4,7 +4,7 @@ export class GameEnded extends Error {
     }
 }
 
-export class CollectorError extends Error {
+export class CollectorPlayerLeftError extends Error {
     constructor(message) {
         super(message)
     }

@@ -2,7 +2,7 @@ import { MessageCollector, TextChannel } from 'discord.js'
 
 import { createChecker, getFilter, getPrompt } from '../utils/Utils'
 import { Deck } from './Deck'
-import { CollectorError, GameEnded } from './Errors'
+import { CollectorPlayerLeftError, GameEnded } from './Errors'
 
 export abstract class Game {
     name: string
@@ -30,6 +30,7 @@ export abstract class Game {
         await this.channel.send(message)
     }
 
+    //region Simple Functions
     isLeader(player) {
         if (this.hasPlayers()) {
             return this.players[0].equals(player)
@@ -76,6 +77,10 @@ export abstract class Game {
         }
         return true
     }
+
+    //endregion
+
+    //region Important Functions
 
     // if numeric is true, responseOptions should be 'x,y' as a string with x and y as numbers, also supports negative numbers
     async getResponse(player, string, responseOptions, numeric = false) {
@@ -155,9 +160,12 @@ export abstract class Game {
     abstract game(): void
     abstract onRemovePlayer(player): string
 
+    //endregion
+
     //region User Input Error Handling
 
-    // This will continually and safely ask the given player for a response using getResponse
+    // This will continually ask the given player for a response using getResponse
+    // if the player leaves during this, it returns undefined
     async loopForResponse(player, string, responseOptions, numeric = false) {
         let succes
         let val
@@ -171,7 +179,7 @@ export abstract class Game {
                 )
                 succes = true
             } catch (err) {
-                if (!(err instanceof CollectorError)) {
+                if (!(err instanceof CollectorPlayerLeftError)) {
                     throw err
                 }
             }
@@ -186,7 +194,7 @@ export abstract class Game {
             try {
                 await func.call(this, player)
             } catch (err) {
-                if (err instanceof CollectorError) {
+                if (err instanceof CollectorPlayerLeftError) {
                     this.isEnded()
                     i--
                 } else {
@@ -201,7 +209,7 @@ export abstract class Game {
             try {
                 await func.call(this)
             } catch (err) {
-                if (err instanceof CollectorError) {
+                if (err instanceof CollectorPlayerLeftError) {
                     this.isEnded()
                 } else {
                     throw err
@@ -215,7 +223,7 @@ export abstract class Game {
             try {
                 await func.call(this)
             } catch (err) {
-                if (err instanceof CollectorError) {
+                if (err instanceof CollectorPlayerLeftError) {
                     this.isEnded()
                 } else {
                     throw err

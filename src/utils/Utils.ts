@@ -1,6 +1,6 @@
 import { DiscordAPIError, Message } from 'discord.js'
 
-import { CollectorError } from '../game/Errors'
+import { CollectorPlayerLeftError } from '../game/Errors'
 
 const Fuse = require(`fuse.js`)
 
@@ -52,7 +52,7 @@ export function getPrompt(channel, filter): any {
         message: new Promise((resolve, reject) => {
             collector.on('end', collected => {
                 if (collected.size === 0) {
-                    reject(new CollectorError(`Collector stopped`))
+                    reject(new CollectorPlayerLeftError(`Collector stopped`))
                     return
                 }
 
