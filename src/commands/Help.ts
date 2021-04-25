@@ -7,20 +7,27 @@ module.exports = {
         const server = message.guild
         if (server.readyToHelp(message)) {
             const embed = new MessageEmbed()
-            const commands = client.commands
-                .map(
-                    command =>
-                        `**!${command.name}${
-                            command.aliases && command.aliases.length > 0
-                                ? ', !' + command.aliases.join(', !')
-                                : ''
-                        }**: ${command.desc}\n`,
+
+            const commands = []
+            for (const command of client.commands.values()) {
+                const alias =
+                    command.aliases && command.aliases.length > 0
+                        ? ', !' + command.aliases.join(', !')
+                        : ''
+
+                const args =
+                    command.args && command.args.length > 0
+                        ? `***${command.args.join(' ')}***`
+                        : ``
+
+                commands.push(
+                    `**!${command.name}${alias}** ${args}: ${command.desc}\n`,
                 )
-                .join('')
+            }
 
             embed
                 .setTitle(`Here is a list of commands:`)
-                .setDescription(commands)
+                .setDescription(commands.join(''))
 
             return message.channel.send(embed)
         }

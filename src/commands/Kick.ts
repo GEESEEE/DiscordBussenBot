@@ -1,11 +1,12 @@
 module.exports = {
     name: 'kick',
     desc: 'Leader can use this to kick a player during a game',
+    args: [`@player`],
     execute(client, message, args) {
-        const guild = message.guild
+        const server = message.guild
         const user = message.mentions.users.first()
-        if (guild.readyToKick(message, user)) {
-            return guild.removePlayer(user)
+        if (server.readyToKick(message, user)) {
+            return server.removePlayer(user)
         }
     },
 }

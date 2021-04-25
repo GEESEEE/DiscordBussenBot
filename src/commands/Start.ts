@@ -5,26 +5,27 @@ module.exports = {
     name: 'start',
     aliases: ['s'],
     desc: 'Used to initiate a game',
+    args: [`gamename`],
     execute(client, message, args) {
-        const guild = message.guild
-        if (guild.readyToStart(message)) {
+        const server = message.guild
+        if (server.readyToStart(message)) {
             const game = args[0]
 
             if (game && client.games.has(game)) {
                 const gameClass = client.games.get(game).default
-                guild.currentGame = new gameClass(
+                server.currentGame = new gameClass(
                     capitalizeFirstLetter(game),
                     message.author,
                     message.channel,
                 )
-                return guild.currentGame.init()
+                return server.currentGame.init()
             } else {
-                guild.currentGame = new Bussen(
+                server.currentGame = new Bussen(
                     'Bussen',
                     message.author,
                     message.channel,
                 )
-                return guild.currentGame.init()
+                return server.currentGame.init()
             }
         }
     },

@@ -100,11 +100,13 @@ export function getBinaryReactions(message, maxTime, options) {
     return { collected, collector }
 }
 
-export async function failSilently(func) {
+// Fails the given function silently if the caught error is in the given errorCodes
+export async function failSilently(func, errorCodes) {
     try {
         await func()
     } catch (err) {
-        if (!(err instanceof DiscordAPIError)) {
+        console.log(err)
+        if (!(err instanceof DiscordAPIError && errorCodes.includes(err.code))) {
             throw err
         }
     }

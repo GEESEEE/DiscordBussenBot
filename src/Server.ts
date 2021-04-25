@@ -3,7 +3,7 @@ import { ReactionCollector, Structures, TextChannel } from 'discord.js'
 const { maxReactionTime } = require('../config.json')
 
 import { Game } from './game/Game'
-import { ReactionStrings } from './utils/Consts'
+import { DiscordErrors, ReactionStrings } from './utils/Consts'
 import { failSilently, getBinaryReactions } from './utils/Utils'
 
 export const Server = Structures.extend('Guild', Guild => {
@@ -106,16 +106,16 @@ export const Server = Structures.extend('Guild', Guild => {
         }
 
         async removeGame(message) {
-            await failSilently(this.unsafeRemoveGame.bind(this, message))
+            await failSilently(this.unsafeRemoveGame.bind(this, message), [
+                DiscordErrors.UNKNOWN_MESSAGE,
+            ])
         }
 
         async unsafeRemoveGame(message) {
             const options = ReactionStrings.YES_NO
 
             for (const option of options) {
-                if (message) {
-                    await message.react(option)
-                }
+                await message.react(option)
             }
 
             const gameName = this.currentGame.name
