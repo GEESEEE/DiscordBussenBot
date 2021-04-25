@@ -68,13 +68,17 @@ export abstract class Game {
         }
     }
 
-    // if numeric is true, responseOptions should be x-y as a string with x and y as numbers
+    // if numeric is true, responseOptions should be 'x,y' as a string with x and y as numbers, also supports negative numbers
     async getResponse(player, string, responseOptions, numeric = false) {
         if (typeof responseOptions === 'string') {
             responseOptions = [responseOptions]
         }
 
         const fuse = createChecker(responseOptions, numeric)
+        if (numeric) {
+            responseOptions[0] = responseOptions[0].replace(`,`, `-`)
+        }
+
         const prompt = `${player}, ${string} (${responseOptions.join('/')})`
         await this.channel.send(prompt)
 

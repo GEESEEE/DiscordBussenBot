@@ -1,8 +1,4 @@
-import { Channel, MessageCollector, TextChannel } from 'discord.js'
-import { type } from 'os'
-
 import { StringCouples, Strings, Suit, Value } from '../../utils/Consts'
-import { createChecker, getFilter, getPrompt } from '../../utils/Utils'
 import { Card, Deck } from '../Deck'
 import { Game } from '../Game'
 const pluralize = require(`pluralize`)
@@ -46,20 +42,6 @@ export default class Bussen extends Game {
         }
     }
 
-    getNewBusPlayer() {
-        let newPlayer
-        if (this.busPlayers.length > 0) {
-            const index = Math.floor(Math.random() * this.busPlayers.length)
-            newPlayer = this.busPlayers[index]
-            this.busPlayers.splice(index, 1)
-        } else {
-            newPlayer = this.players[
-                Math.floor(Math.random() * this.players.length)
-            ]
-        }
-        return newPlayer
-    }
-
     async game() {
         // Phase 1 questions
         await this.askAllPlayers(this.askColours)
@@ -80,6 +62,20 @@ export default class Bussen extends Game {
             () => this.bus && !this.bus.isFinished,
             this.playBus,
         )
+    }
+
+    getNewBusPlayer() {
+        let newPlayer
+        if (this.busPlayers.length > 0) {
+            const index = Math.floor(Math.random() * this.busPlayers.length)
+            newPlayer = this.busPlayers[index]
+            this.busPlayers.splice(index, 1)
+        } else {
+            newPlayer = this.players[
+                Math.floor(Math.random() * this.players.length)
+            ]
+        }
+        return newPlayer
     }
 
     getMessage(isEqual, isTrue, player, card) {
@@ -185,7 +181,7 @@ export default class Bussen extends Game {
         const pyramidSize = await this.loopForResponse(
             this.leader,
             `how tall should the pyramid be?`,
-            `1-9`,
+            `1,9`,
             true,
         )
         const reverseContent = await this.loopForResponse(
@@ -255,12 +251,12 @@ export default class Bussen extends Game {
         }
 
         let busSize
-        while (!busSize && this.leader) {
+        while (!busSize && this.hasPlayers()) {
             if (this.isPlayer(busPlayer)) {
                 busSize = await this.loopForResponse(
                     busPlayer,
                     `how long should the bus be?`,
-                    `1-19`,
+                    `1,20`,
                     true,
                 )
             } else {
@@ -268,8 +264,18 @@ export default class Bussen extends Game {
             }
         }
 
+        let checkpoints = 0
+        while (busSize > 1 && !checkpoints && this.hasPlayers()) {
+            checkpoints = await this.loopForResponse(
+                busPlayer,
+                `how many checkpoints should the bus have?`,
+                `0,${Math.floor(busSize / 3)}`,
+                true,
+            )
+        }
+
         if (busSize) {
-            this.bus = new Bus(busPlayer, busSize)
+            this.bus = new Bus(busPlayer, busSize, checkpoints)
         }
     }
 
@@ -300,7 +306,7 @@ export default class Bussen extends Game {
         } else {
             message = `${this.bus.player} drew ${newCard}, has to consume ${
                 this.bus.currentIndex + 1
-            } drinks and resets to the first card`
+            } drinks and resets to card ${this.bus.getCurrentCheckpoint() + 1}`
         }
 
         await this.channel.send(message)
@@ -313,15 +319,18 @@ class Bus {
     deck: Deck
     size: number
     sequence: Array<Card>
+    currentIndex: number
 
     discarded: Array<Card>
-    currentIndex: number
+
+    checkpoints: Array<number>
+    currentCheckpoint: number
     isFinished: boolean
 
     turns: number
     totalDrinks: number
 
-    constructor(player, size) {
+    constructor(player, size, checkpoints) {
         this.player = player
         this.deck = new Deck(BussenCard)
         this.sequence = []
@@ -332,6 +341,15 @@ class Bus {
         }
         this.discarded = []
         this.currentIndex = 0
+        this.checkpoints = [0]
+
+        for (let i = 0; i < checkpoints; i++) {
+            this.checkpoints.push(
+                Math.floor((size / (checkpoints + 1)) * (i + 1)),
+            )
+        }
+
+        this.currentCheckpoint = 0
         this.isFinished = false
 
         this.turns = 0
@@ -341,12 +359,22 @@ class Bus {
     incrementIndex(correct) {
         if (correct) {
             this.currentIndex = (this.currentIndex + 1) % this.sequence.length
+            if (
+                this.checkpoints.includes(this.currentIndex - 1) &&
+                this.getCurrentCheckpoint() < this.currentIndex - 1
+            ) {
+                this.currentCheckpoint += 1
+            }
             if (this.currentIndex === 0) {
                 this.isFinished = true
             }
         } else {
-            this.currentIndex = 0
+            this.currentIndex = this.getCurrentCheckpoint()
         }
+    }
+
+    getCurrentCheckpoint() {
+        return this.checkpoints[this.currentCheckpoint]
     }
 
     getCurrentCard() {
@@ -409,7 +437,7 @@ class Pyramid {
     getNextCard() {
         if (!this.isEmpty()) {
             const drinks = this.getDrinkCounts(this.index)
-            const card = this.deck.getRandomCard()
+            const card = this.cards[this.index]
             this.index++
             return { card, drinks }
         }

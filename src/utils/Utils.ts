@@ -6,9 +6,9 @@ const Fuse = require(`fuse.js`)
 
 export function createChecker(responseOptions, numeric) {
     if (numeric) {
-        const [s1, s2] = responseOptions[0].split('-')
+        const [s1, s2] = responseOptions[0].split(',') // splitting on , ensures negative numbers are supported
         const [start, end] = [parseInt(s1), parseInt(s2)]
-        responseOptions = [...new Array(end).keys()]
+        responseOptions = [...new Array(end - start + 1).keys()]
             .map(val => String(val + start))
             .join('|')
         return new RegExp(`^(${responseOptions})$`)
