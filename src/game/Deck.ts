@@ -1,9 +1,9 @@
 import { Suit, Value } from '../utils/Consts'
 
 export class Deck {
-    deck: Array<Card>
+    cards: Array<Card>
     constructor(CardType) {
-        this.deck = []
+        this.cards = []
 
         for (const value of Object.values(Value)) {
             for (const suit of Object.values(Suit)) {
@@ -14,28 +14,28 @@ export class Deck {
     }
 
     addCard(card) {
-        this.deck.push(card)
+        this.cards.push(card)
     }
 
     addCards(cards) {
-        this.deck.push(...cards)
+        this.cards.push(...cards)
     }
 
     removeCard(card) {
-        const index = this.deck.indexOf(card)
+        const index = this.cards.indexOf(card)
         if (index > -1) {
-            this.deck.splice(index, 1)
+            this.cards.splice(index, 1)
         }
     }
 
     isEmpty() {
-        return this.deck.length === 0
+        return this.cards.length === 0
     }
 
     getRandomCard() {
         if (!this.isEmpty()) {
-            const index = Math.floor(Math.random() * this.deck.length)
-            const card = this.deck[index]
+            const index = Math.floor(Math.random() * this.cards.length)
+            const card = this.cards[index]
             this.removeCard(card)
             return card
         } else {

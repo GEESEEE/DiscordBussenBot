@@ -4,6 +4,10 @@ import { CollectorError } from '../game/Errors'
 
 const Fuse = require(`fuse.js`)
 
+export function sum(n) {
+    return (Math.pow(n, 2) + n) / 2
+}
+
 export function createChecker(responseOptions, numeric) {
     if (numeric) {
         const [s1, s2] = responseOptions[0].split(',') // splitting on , ensures negative numbers are supported

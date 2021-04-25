@@ -1,4 +1,5 @@
 import { StringCouples, Strings, Suit, Value } from '../../utils/Consts'
+import { sum } from '../../utils/Utils'
 import { Card, Deck } from '../Deck'
 import { Game } from '../Game'
 const pluralize = require(`pluralize`)
@@ -52,7 +53,10 @@ export default class Bussen extends Game {
         // Phase 2 pyramid
         await this.initPyramid()
         await this.askWhile(
-            () => this.pyramid && !this.pyramid.isEmpty(),
+            () =>
+                this.pyramid &&
+                !this.pyramid.isEmpty() &&
+                !this.noOneHasCards(),
             this.playPyramid,
         )
 
@@ -178,10 +182,18 @@ export default class Bussen extends Game {
     }
 
     async initPyramid() {
+        const deckSize = this.deck.cards.length
+        let maxSize
+        for (let i = 1; i < 12; i++) {
+            if (sum(i) > deckSize) {
+                maxSize = i - 1
+            }
+        }
+
         const pyramidSize = await this.loopForResponse(
             this.leader,
             `how tall should the pyramid be?`,
-            `1,9`,
+            `1,${maxSize}`,
             true,
         )
         const reverseContent = await this.loopForResponse(
@@ -264,8 +276,8 @@ export default class Bussen extends Game {
             }
         }
 
-        let checkpoints = 0
-        while (busSize > 1 && !checkpoints && this.hasPlayers()) {
+        let checkpoints = -1
+        while (busSize > 2 && checkpoints < 0 && this.hasPlayers()) {
             checkpoints = await this.loopForResponse(
                 busPlayer,
                 `how many checkpoints should the bus have?`,
@@ -446,7 +458,7 @@ class Pyramid {
     getDrinkCounts(index) {
         if (this.reversed) {
             for (let i = 0; i < this.size; i++) {
-                if (this.sum(i) <= index && index < this.sum(i + 1)) {
+                if (sum(i) <= index && index < sum(i + 1)) {
                     return i + 1
                 }
             }
@@ -462,10 +474,6 @@ class Pyramid {
             }
         }
         return -1
-    }
-
-    sum(n) {
-        return (Math.pow(n, 2) + n) / 2
     }
 }
 

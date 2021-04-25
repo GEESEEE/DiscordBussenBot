@@ -68,6 +68,15 @@ export abstract class Game {
         }
     }
 
+    noOneHasCards() {
+        for (const player of this.players) {
+            if (player.hasCards()) {
+                return false
+            }
+        }
+        return true
+    }
+
     // if numeric is true, responseOptions should be 'x,y' as a string with x and y as numbers, also supports negative numbers
     async getResponse(player, string, responseOptions, numeric = false) {
         if (typeof responseOptions === 'string') {

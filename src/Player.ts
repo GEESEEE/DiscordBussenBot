@@ -31,7 +31,7 @@ export const Player = Structures.extend('User', User => {
         }
 
         hasCards() {
-            return this.cards.length !== 0
+            return this.cards.length > 0
         }
 
         hasValueInHand(card) {
