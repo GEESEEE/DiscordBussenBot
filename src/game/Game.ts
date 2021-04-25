@@ -24,7 +24,7 @@ export abstract class Game {
     }
 
     async init() {
-        let message = `Starting ${this.name} with ${this.leader}\n`
+        let message = `Starting ${this.name} with ${this.leader} as the leader\n`
         message += `Type '!join' to join the game\n`
         message += `${this.leader}, type '!play' to start the game when all players have joined`
         await this.channel.send(message)
@@ -111,15 +111,19 @@ export abstract class Game {
             this.collector.stop()
         }
 
-        const index = this.players.indexOf(player)
-        if (index > -1) {
-            this.players.splice(index, 1)
+        let message = `${player} decided to be a little bitch and quit ${this.name}\n`
+
+        const playerIndex = this.players.indexOf(player)
+        if (playerIndex > -1) {
+            this.players.splice(playerIndex, 1)
+        }
+
+        if (playerIndex === 0 && this.hasPlayers()) {
+            message += `${this.leader} is the new leader!\n`
         }
 
         this.deck.addCards(player.cards)
         player.removeAllCards()
-
-        let message = `${player} decided to be a little bitch and quit ${this.name}\n`
 
         const additionalMessage = this.onRemovePlayer(player)
 

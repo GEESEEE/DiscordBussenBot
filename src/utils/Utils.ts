@@ -1,4 +1,4 @@
-import { Message } from 'discord.js'
+import { DiscordAPIError, Message } from 'discord.js'
 
 import { CollectorError } from '../game/Errors'
 
@@ -10,6 +10,15 @@ export function sum(n) {
 
 export function capitalizeFirstLetter(string) {
     return string.charAt(0).toUpperCase() + string.slice(1)
+}
+
+export function inElementOf(list, query) {
+    for (const option of list) {
+        if (option.includes(query)) {
+            return option
+        }
+    }
+    return null
 }
 
 export function createChecker(responseOptions, numeric) {
@@ -91,11 +100,12 @@ export function getBinaryReactions(message, maxTime, options) {
     return { collected, collector }
 }
 
-export function inElementOf(list, query) {
-    for (const option of list) {
-        if (option.includes(query)) {
-            return option
+export async function failSilently(func) {
+    try {
+        await func()
+    } catch (err) {
+        if (!(err instanceof DiscordAPIError)) {
+            throw err
         }
     }
-    return null
 }

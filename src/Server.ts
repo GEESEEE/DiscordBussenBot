@@ -4,7 +4,7 @@ const { maxReactionTime } = require('../config.json')
 
 import { Game } from './game/Game'
 import { ReactionStrings } from './utils/Consts'
-import { getBinaryReactions } from './utils/Utils'
+import { failSilently, getBinaryReactions } from './utils/Utils'
 
 export const Server = Structures.extend('Guild', Guild => {
     class ServerClass extends Guild {
@@ -106,9 +106,16 @@ export const Server = Structures.extend('Guild', Guild => {
         }
 
         async removeGame(message) {
+            await failSilently(this.unsafeRemoveGame.bind(this, message))
+        }
+
+        async unsafeRemoveGame(message) {
             const options = ReactionStrings.YES_NO
+
             for (const option of options) {
-                await message.react(option)
+                if (message) {
+                    await message.react(option)
+                }
             }
 
             const gameName = this.currentGame.name
