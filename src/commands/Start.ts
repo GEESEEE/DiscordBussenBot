@@ -1,4 +1,5 @@
 import Bussen from '../game/games/Bussen'
+import { capitalizeFirstLetter } from '../utils/Utils'
 
 module.exports = {
     name: 'start',
@@ -12,7 +13,7 @@ module.exports = {
             if (game && client.games.has(game)) {
                 const gameClass = client.games.get(game).default
                 guild.currentGame = new gameClass(
-                    game.charAt(0).toUpperCase() + game.slice(1),
+                    capitalizeFirstLetter(game),
                     message.author,
                     message.channel,
                 )

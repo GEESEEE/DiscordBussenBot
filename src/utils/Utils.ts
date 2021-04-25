@@ -8,6 +8,10 @@ export function sum(n) {
     return (Math.pow(n, 2) + n) / 2
 }
 
+export function capitalizeFirstLetter(string) {
+    return string.charAt(0).toUpperCase() + string.slice(1)
+}
+
 export function createChecker(responseOptions, numeric) {
     if (numeric) {
         const [s1, s2] = responseOptions[0].split(',') // splitting on , ensures negative numbers are supported

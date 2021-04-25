@@ -101,6 +101,10 @@ export const Server = Structures.extend('Guild', Guild => {
             return this.validMessage(message) && this.gameExists()
         }
 
+        readyToShowGames(message) {
+            return this.validMessage(message)
+        }
+
         async removeGame(message) {
             const options = ReactionStrings.YES_NO
             for (const option of options) {
