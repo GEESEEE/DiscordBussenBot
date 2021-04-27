@@ -1,6 +1,7 @@
 import { DiscordAPIError, Message, ReactionEmoji } from 'discord.js'
 
 import { CollectorPlayerLeftError } from '../game/Errors'
+import { DiscordErrors } from './Consts'
 
 const Fuse = require(`fuse.js`)
 
@@ -136,4 +137,10 @@ export async function failSilently(func, errorCodes) {
             throw err
         }
     }
+}
+
+export async function removeMessage(message) {
+    return failSilently(message.delete.bind(message), [
+        DiscordErrors.UNKNOWN_MESSAGE,
+    ])
 }

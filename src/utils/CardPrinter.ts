@@ -9,36 +9,58 @@ export class CardPrinter {
 
     static print(cards) {
         if (cards.length > 0) {
-            const betweenCards = `  `
+            const betweenCards = ` `
             let string = '```\n'
 
-            for (const card of cards) {
+            for (let i = 0; i < cards.length; i++) {
                 string += `╭────╮`
-                string += betweenCards
+                if (i !== cards.length - 1) {
+                    string += betweenCards
+                }
             }
             string += `\n`
 
-            for (const card of cards) {
-                string += `│${card.stringSuit}  ${card.value.charAt(0)}│`
-                string += betweenCards
+            for (let i = 0; i < cards.length; i++) {
+                const card = cards[i]
+                if (card.value === `10`) {
+                    string += `│${card.stringSuit} ${card.value}│`
+                } else {
+                    string += `│${card.stringSuit}  ${card.value.charAt(0)}│`
+                }
+
+                if (i !== cards.length - 1) {
+                    string += betweenCards
+                }
             }
             string += `\n`
 
-            for (const card of cards) {
+            for (let i = 0; i < cards.length; i++) {
                 string += `│    │`
-                string += betweenCards
+                if (i !== cards.length - 1) {
+                    string += betweenCards
+                }
             }
             string += `\n`
 
-            for (const card of cards) {
-                string += `│${card.value.charAt(0)}  ${card.stringSuit}│`
-                string += betweenCards
+            for (let i = 0; i < cards.length; i++) {
+                const card = cards[i]
+                if (card.value === `10`) {
+                    string += `│${card.value} ${card.stringSuit}│`
+                } else {
+                    string += `│${card.value.charAt(0)}  ${card.stringSuit}│`
+                }
+
+                if (i !== cards.length - 1) {
+                    string += betweenCards
+                }
             }
             string += `\n`
 
-            for (const card of cards) {
+            for (let i = 0; i < cards.length; i++) {
                 string += `╰────╯`
-                string += betweenCards
+                if (i !== cards.length - 1) {
+                    string += betweenCards
+                }
             }
             string += `\n`
 

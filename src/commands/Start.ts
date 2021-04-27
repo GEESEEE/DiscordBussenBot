@@ -18,14 +18,14 @@ module.exports = {
                     message.author,
                     message.channel,
                 )
-                return server.currentGame.init()
+                return server.startGame()
             } else {
                 server.currentGame = new Bussen(
                     'Bussen',
                     message.author,
                     message.channel,
                 )
-                return server.currentGame.init()
+                return server.startGame()
             }
         }
     },

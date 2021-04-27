@@ -1,3 +1,5 @@
+import { Emoji } from './Emoji'
+
 export enum Suit {
     CLUBS = '<:clubs:834190252478300231>',
     DIAMONDS = '♦',
@@ -37,10 +39,11 @@ export const StringCouples = {
     HIGHER_LOWER: [Strings.HIGHER, Strings.LOWER],
 }
 
-export const ReactionStrings = {
-    YES_NO: ['<:y_:835169920404684812>', '<:n_:835169930722410537>'],
-    RED_BLACK: [Suit.HEARTS, Suit.SPADES],
-    HIGHER_LOWER: [`⬆`, '⬇'],
+export const ReactionEmojis = {
+    YES_NO: [Emoji.YES, Emoji.NO],
+    RED_BLACK: [Emoji.HEARTS, Emoji.SPADES],
+    HIGHER_LOWER: [Emoji.HIGHER, Emoji.LOWER],
+    JOIN_START: [Emoji.JOIN, Emoji.PLAY],
 }
 
 export const DiscordErrors = {

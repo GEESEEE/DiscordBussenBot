@@ -3,12 +3,13 @@ import { MessageEmbed } from 'discord.js'
 import { CardPrinter } from '../../utils/CardPrinter'
 import {
     EmptyString,
-    ReactionStrings,
+    ReactionEmojis,
     StringCouples,
     Strings,
     Suit,
     Value,
 } from '../../utils/Consts'
+import { Emoji } from '../../utils/Emoji'
 import { sum } from '../../utils/Utils'
 import { Card, Deck } from '../Deck'
 import { Game } from '../Game'
@@ -67,14 +68,14 @@ export default class Bussen extends Game {
         await this.askAllPlayers(this.askSuits)*/
 
         // Phase 2 pyramid
-        /* await this.initPyramid()
+        await this.initPyramid()
         await this.askWhile(
             () =>
                 this.pyramid &&
                 !this.pyramid.isEmpty() &&
                 !this.noOneHasCards(),
             this.playPyramid,
-        )*/
+        )
 
         // Phase 3 The Bus
         /*await this.ask(this.initBus)
@@ -115,7 +116,7 @@ export default class Bussen extends Game {
         const { reaction, sentMessage } = await this.getReaction(
             player,
             embed,
-            ReactionStrings.RED_BLACK,
+            ReactionEmojis.RED_BLACK,
         )
 
         const card = this.deck.getRandomCard()
@@ -124,8 +125,8 @@ export default class Bussen extends Game {
         const content = reaction.emoji.name
 
         const isTrue =
-            (content === Suit.HEARTS && card.isRed()) ||
-            (content === Suit.CLUBS && card.isBlack())
+            (content === Emoji.HEARTS && card.isRed()) ||
+            (content === Emoji.CLUBS && card.isBlack())
 
         await sentMessage.edit(
             sentMessage.embeds[0]
@@ -147,14 +148,14 @@ export default class Bussen extends Game {
         const { reaction, sentMessage } = await this.getReaction(
             player,
             embed,
-            ReactionStrings.HIGHER_LOWER,
+            ReactionEmojis.HIGHER_LOWER,
         )
         const card = this.deck.getRandomCard()
 
         const content = reaction.emoji.name
         const isTrue =
-            (content === '⬆' && card > playerCard) ||
-            (content === '⬇' && card < playerCard)
+            (Emoji.HIGHER.includes(content) && card > playerCard) ||
+            (Emoji.LOWER.includes(content) && card < playerCard)
 
         await sentMessage.edit(
             sentMessage.embeds[0]
@@ -186,7 +187,7 @@ export default class Bussen extends Game {
         const { reaction, sentMessage } = await this.getReaction(
             player,
             embed,
-            ReactionStrings.YES_NO,
+            ReactionEmojis.YES_NO,
         )
 
         const card = this.deck.getRandomCard()
@@ -196,8 +197,8 @@ export default class Bussen extends Game {
 
         const isBetween = card.isBetween(playerCard1, playerCard2)
         const isTrue =
-            ('<:y_:835169920404684812>'.includes(content) && isBetween) ||
-            ('<:n_:835169930722410537>'.includes(content) && !isBetween)
+            (Emoji.YES.includes(content) && isBetween) ||
+            (Emoji.NO.includes(content) && !isBetween)
 
         await sentMessage.edit(
             sentMessage.embeds[0]
@@ -222,14 +223,14 @@ export default class Bussen extends Game {
         const embed = new MessageEmbed()
             .setTitle(`${player.username}'s turn`)
             .setDescription(
-                `do you already have the suit, you have ${playerSuits}?`,
+                `${player}, do you already have the suit, you have ${playerSuits}?`,
             )
             .addField(`Your cards`, `${CardPrinter.print(player.cards)}`, true)
 
         const { reaction, sentMessage } = await this.getReaction(
             player,
             embed,
-            ReactionStrings.YES_NO,
+            ReactionEmojis.YES_NO,
         )
 
         const card = this.deck.getRandomCard()
@@ -238,8 +239,8 @@ export default class Bussen extends Game {
         const hasSameSuit = card.hasSameSuit(player.cards)
 
         const isTrue =
-            ('<:y_:835169920404684812>'.includes(content) && hasSameSuit) ||
-            ('<:n_:835169930722410537>'.includes(content) && !hasSameSuit)
+            (Emoji.YES.includes(content) && hasSameSuit) ||
+            (Emoji.NO.includes(content) && !hasSameSuit)
 
         await sentMessage.edit(
             sentMessage.embeds[0]

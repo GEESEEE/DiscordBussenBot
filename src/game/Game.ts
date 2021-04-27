@@ -6,7 +6,8 @@ import {
     TextChannel,
 } from 'discord.js'
 
-import { ReactionStrings } from '../utils/Consts'
+import { ReactionEmojis } from '../utils/Consts'
+import { Emoji } from '../utils/Emoji'
 import {
     createChecker,
     getFilter,
@@ -25,6 +26,7 @@ export abstract class Game {
     collector: MessageCollector & { player: any }
 
     players: Array<any>
+    lastMessages: Map<any, Message>
     hasStarted: boolean
     hasEnded: boolean
 
@@ -33,14 +35,8 @@ export abstract class Game {
         this.players = []
         this.hasStarted = false
         this.channel = channel
+        this.lastMessages = new Map<any, Message>()
         this.addPlayer(leader)
-    }
-
-    async init() {
-        let message = `Starting ${this.name} with ${this.leader} as the leader\n`
-        message += `Type '!join' to join the game\n`
-        message += `${this.leader}, type '!play' to start the game when all players have joined`
-        await this.channel.send(message)
     }
 
     //region Simple Functions
@@ -140,45 +136,59 @@ export abstract class Game {
             options,
         )
         this.collector = collector
+        collector.player = player
+        this.lastMessages.set(player, sentMessage)
         const reaction = await collected
         return { reaction, sentMessage }
     }
 
     async removePlayer(player) {
-        if (this.collector && player.equals(this.collector.player)) {
-            this.collector.stop()
-        }
+        if (this.isPlayer(player)) {
+            if (this.collector && player.equals(this.collector.player)) {
+                this.collector.stop()
+            }
 
-        let message = `${player} decided to be a little bitch and quit ${this.name}\n`
+            const title = `${player.username} decided to be a little bitch and quit ${this.name}\n`
+            let message = ``
 
-        const playerIndex = this.players.indexOf(player)
-        if (playerIndex > -1) {
-            this.players.splice(playerIndex, 1)
-        }
+            const playerIndex = this.players.indexOf(player)
+            if (playerIndex > -1) {
+                this.players.splice(playerIndex, 1)
+            }
 
-        if (playerIndex === 0 && this.hasPlayers()) {
-            message += `${this.leader} is the new leader!\n`
-        }
+            if (playerIndex === 0 && this.hasPlayers()) {
+                message += `${this.leader} is the new leader!\n`
+            }
 
-        this.deck.addCards(player.cards)
-        player.removeAllCards()
+            this.deck.addCards(player.cards)
+            player.removeAllCards()
 
-        const additionalMessage = this.onRemovePlayer(player)
+            const additionalMessage = this.onRemovePlayer(player)
 
-        if (additionalMessage) {
-            message += additionalMessage
-        }
+            if (additionalMessage) {
+                message += additionalMessage
+            }
 
-        await this.channel.send(message)
+            const embed = new MessageEmbed().setTitle(title)
+            if (message.length > 0) {
+                embed.setDescription(message)
+            }
 
-        if (!this.hasPlayers()) {
-            return this.endGame()
+            const lastMessage = this.lastMessages.get(player)
+            if (lastMessage) {
+                await lastMessage.edit(embed)
+            } else {
+                await this.channel.send(embed)
+            }
+
+            if (!this.hasPlayers()) {
+                return this.endGame()
+            }
         }
     }
 
     async play() {
         this.hasStarted = true
-        await this.channel.send(`${this.leader} has started ${this.name}!`)
         try {
             await this.game()
         } catch (err) {
@@ -188,6 +198,8 @@ export abstract class Game {
         }
 
         await this.channel.send(`${this.name} has finished`)
+        const server: any = this.channel.guild
+        server.currentGame = null
     }
 
     abstract game(): void

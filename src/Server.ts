@@ -1,10 +1,21 @@
-import { ReactionCollector, Structures, TextChannel } from 'discord.js'
+import {
+    MessageEmbed,
+    ReactionCollector,
+    Structures,
+    TextChannel,
+} from 'discord.js'
 
 const { maxReactionTime } = require('../config.json')
 
 import { Game } from './game/Game'
-import { DiscordErrors, ReactionStrings } from './utils/Consts'
-import { failSilently, getBinaryReactions } from './utils/Utils'
+import { DiscordErrors, ReactionEmojis } from './utils/Consts'
+import { Emoji } from './utils/Emoji'
+import {
+    failSilently,
+    getBinaryReactions,
+    inElementOf,
+    removeMessage,
+} from './utils/Utils'
 
 export const Server = Structures.extend('Guild', Guild => {
     class ServerClass extends Guild {
@@ -105,14 +116,97 @@ export const Server = Structures.extend('Guild', Guild => {
             return this.validMessage(message)
         }
 
-        async removeGame(message) {
-            await failSilently(this.unsafeRemoveGame.bind(this, message), [
+        getJoinEmbed() {
+            if (this.currentGame) {
+                return new MessageEmbed()
+                    .setTitle(
+                        `${this.currentGame.name} with ${this.currentGame.leader.username} as the leader`,
+                    )
+                    .setDescription(
+                        `Click ${Emoji.JOIN} to join the game\n${this.currentGame.leader} click ${Emoji.PLAY} to start the game when all players have joined`,
+                    )
+                    .addField(`Players`, this.currentGame.players.join(`\n`))
+            } else {
+                return null
+            }
+        }
+
+        async startGame() {
+            const reactionOptions = ReactionEmojis.JOIN_START
+            let embed = this.getJoinEmbed()
+            const sentMessage = await this.currentChannel.send(embed)
+
+            const collector = sentMessage.createReactionCollector(
+                (reaction, _) => {
+                    const emojiName = reaction.emoji.name
+                    return inElementOf(reactionOptions, emojiName)
+                },
+                { dispose: true },
+            )
+
+            collector.on('collect', async (reaction, user) => {
+                const newReactionName = reaction.emoji.name
+                const users = reaction.users.cache
+
+                if (Emoji.JOIN.includes(newReactionName) && !user.bot) {
+                    if (users.has(user.id)) {
+                        if (!this.currentGame.isPlayer(user)) {
+                            this.currentGame.addPlayer(user)
+                            embed.fields[0].value = this.currentGame.players.join(
+                                `\n`,
+                            )
+                            await sentMessage.edit(embed)
+                        }
+                    }
+                } else if (
+                    Emoji.PLAY.includes(newReactionName) &&
+                    user.equals(this.currentGame.leader)
+                ) {
+                    collector.stop()
+                    await this.currentGame.play()
+                    this.currentGame = null
+                }
+            })
+
+            collector.on(`remove`, async (reaction, user) => {
+                const reactionName = reaction.emoji.name
+                console.log(reactionName, user.username)
+                if (
+                    Emoji.JOIN.includes(reactionName) &&
+                    this.currentGame.isPlayer(user)
+                ) {
+                    const wasLeader = user.equals(this.currentGame.leader)
+                    await this.removePlayer(user)
+
+                    if (this.currentGame && this.currentGame.hasPlayers()) {
+                        if (wasLeader) {
+                            embed = this.getJoinEmbed()
+                        } else {
+                            embed.fields[0].value = this.currentGame.players.join(
+                                `\n`,
+                            )
+                        }
+                        await sentMessage.edit(embed)
+                    } else {
+                        collector.stop()
+                        await removeMessage(sentMessage)
+                    }
+                }
+            })
+
+            for (const emoji of reactionOptions) {
+                await sentMessage.react(emoji)
+            }
+        }
+
+        async removeGameVote(message) {
+            await failSilently(this.unsafeRemoveGameVote.bind(this, message), [
                 DiscordErrors.UNKNOWN_MESSAGE,
             ])
         }
 
-        async unsafeRemoveGame(message) {
-            const options = ReactionStrings.YES_NO
+        async unsafeRemoveGameVote(message) {
+            const options = ReactionEmojis.YES_NO
 
             for (const option of options) {
                 await message.react(option)
@@ -137,7 +231,7 @@ export const Server = Structures.extend('Guild', Guild => {
                 .first()?.emoji.name
 
             if (this.gameExists()) {
-                if (ReactionStrings.YES_NO[0].includes(maxEmoji)) {
+                if (ReactionEmojis.YES_NO[0].includes(maxEmoji)) {
                     await this.currentGame.endGame()
                     if (!this.currentGame.hasStarted) {
                         await this.currentChannel.send(
