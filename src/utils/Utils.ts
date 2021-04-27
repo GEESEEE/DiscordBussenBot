@@ -64,7 +64,7 @@ export function getPrompt(channel, filter): any {
     }
 }
 
-export async function getReaction(player, message, options) {
+export async function getSingleReaction(player, message, options) {
     const collector = message.createReactionCollector(
         (reaction, user) => {
             const emojiName = reaction.emoji.name

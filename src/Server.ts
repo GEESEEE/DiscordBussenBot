@@ -94,9 +94,9 @@ export const Server = Structures.extend('Guild', Guild => {
 
         async removePlayer(player) {
             await this.currentGame.removePlayer(player)
-            if (!this.currentGame.hasPlayers()) {
+            if (!this.currentGame?.hasPlayers()) {
                 this.collector?.stop()
-                this.currentGame = null
+                //this.currentGame = null
             }
         }
 
@@ -170,7 +170,6 @@ export const Server = Structures.extend('Guild', Guild => {
 
             collector.on(`remove`, async (reaction, user) => {
                 const reactionName = reaction.emoji.name
-                console.log(reactionName, user.username)
                 if (
                     Emoji.JOIN.includes(reactionName) &&
                     this.currentGame.isPlayer(user)

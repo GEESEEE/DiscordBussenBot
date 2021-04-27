@@ -78,25 +78,11 @@ export default class Bussen extends Game {
         )
 
         // Phase 3 The Bus
-        /*await this.ask(this.initBus)
+        await this.ask(this.initBus)
         await this.askWhile(
             () => this.bus && !this.bus.isFinished,
             this.playBus,
-        )*/
-    }
-
-    getNewBusPlayer() {
-        let newPlayer
-        if (this.busPlayers.length > 0) {
-            const index = Math.floor(Math.random() * this.busPlayers.length)
-            newPlayer = this.busPlayers[index]
-            this.busPlayers.splice(index, 1)
-        } else {
-            newPlayer = this.players[
-                Math.floor(Math.random() * this.players.length)
-            ]
-        }
-        return newPlayer
+        )
     }
 
     getMessage(isEqual, isTrue, player, card) {
@@ -107,13 +93,22 @@ export default class Bussen extends Game {
             : StringState.FALSE(player, card, this.drinks)
     }
 
+    async addVerdict(sentMessage, drawnCard, verdict) {
+        await sentMessage.edit(
+            sentMessage.embeds[0]
+                .addField(`Drawn card`, drawnCard, true)
+                .addField(`Verdict`, verdict),
+        )
+    }
+
+    //region Phase 1
     async askColour(player) {
         const embed = new MessageEmbed()
             .setTitle(`${player.username}'s turn`)
             .setDescription(`${player}, red or black?`)
             .addField(`Your cards`, `${CardPrinter.print(player.cards)}`, true)
 
-        const { reaction, sentMessage } = await this.getReaction(
+        const { reaction, sentMessage } = await this.getSingleReaction(
             player,
             embed,
             ReactionEmojis.RED_BLACK,
@@ -128,13 +123,10 @@ export default class Bussen extends Game {
             (content === Emoji.HEARTS && card.isRed()) ||
             (content === Emoji.CLUBS && card.isBlack())
 
-        await sentMessage.edit(
-            sentMessage.embeds[0]
-                .addField(`Drawn card`, `${CardPrinter.print([card])}`, true)
-                .addField(
-                    `Verdict`,
-                    this.getMessage(false, isTrue, player, card),
-                ),
+        await this.addVerdict(
+            sentMessage,
+            `${CardPrinter.print([card])}`,
+            this.getMessage(false, isTrue, player, card),
         )
     }
 
@@ -145,7 +137,7 @@ export default class Bussen extends Game {
             .setDescription(`${player}, higher or lower than ${playerCard}?`)
             .addField(`Your cards`, `${CardPrinter.print(player.cards)}`, true)
 
-        const { reaction, sentMessage } = await this.getReaction(
+        const { reaction, sentMessage } = await this.getSingleReaction(
             player,
             embed,
             ReactionEmojis.HIGHER_LOWER,
@@ -157,19 +149,12 @@ export default class Bussen extends Game {
             (Emoji.HIGHER.includes(content) && card > playerCard) ||
             (Emoji.LOWER.includes(content) && card < playerCard)
 
-        await sentMessage.edit(
-            sentMessage.embeds[0]
-                .addField(`Drawn card`, `${CardPrinter.print([card])}`, true)
-                .addField(
-                    `Verdict`,
-                    this.getMessage(
-                        playerCard.equals(card),
-                        isTrue,
-                        player,
-                        card,
-                    ),
-                ),
+        await this.addVerdict(
+            sentMessage,
+            `${CardPrinter.print([card])}`,
+            this.getMessage(playerCard.equals(card), isTrue, player, card),
         )
+
         player.addCard(card)
     }
 
@@ -184,7 +169,7 @@ export default class Bussen extends Game {
             )
             .addField(`Your cards`, `${CardPrinter.print(player.cards)}`, true)
 
-        const { reaction, sentMessage } = await this.getReaction(
+        const { reaction, sentMessage } = await this.getSingleReaction(
             player,
             embed,
             ReactionEmojis.YES_NO,
@@ -200,18 +185,15 @@ export default class Bussen extends Game {
             (Emoji.YES.includes(content) && isBetween) ||
             (Emoji.NO.includes(content) && !isBetween)
 
-        await sentMessage.edit(
-            sentMessage.embeds[0]
-                .addField(`Drawn card`, `${CardPrinter.print([card])}`, true)
-                .addField(
-                    `Verdict`,
-                    this.getMessage(
-                        card.equals(playerCard1) || card.equals(playerCard2),
-                        isTrue,
-                        player,
-                        card,
-                    ),
-                ),
+        await this.addVerdict(
+            sentMessage,
+            `${CardPrinter.print([card])}`,
+            this.getMessage(
+                card.equals(playerCard1) || card.equals(playerCard2),
+                isTrue,
+                player,
+                card,
+            ),
         )
     }
 
@@ -227,7 +209,7 @@ export default class Bussen extends Game {
             )
             .addField(`Your cards`, `${CardPrinter.print(player.cards)}`, true)
 
-        const { reaction, sentMessage } = await this.getReaction(
+        const { reaction, sentMessage } = await this.getSingleReaction(
             player,
             embed,
             ReactionEmojis.YES_NO,
@@ -242,23 +224,22 @@ export default class Bussen extends Game {
             (Emoji.YES.includes(content) && hasSameSuit) ||
             (Emoji.NO.includes(content) && !hasSameSuit)
 
-        await sentMessage.edit(
-            sentMessage.embeds[0]
-                .addField(`Drawn card`, `${CardPrinter.print([card])}`, true)
-                .addField(
-                    `Verdict`,
-                    this.getMessage(
-                        isTrue && content === 'no' && player.suitsCount() === 3,
-                        isTrue,
-                        player,
-                        card,
-                    ),
-                ),
+        await this.addVerdict(
+            sentMessage,
+            `${CardPrinter.print([card])}`,
+            this.getMessage(
+                isTrue && content === 'no' && player.suitsCount() === 3,
+                isTrue,
+                player,
+                card,
+            ),
         )
 
         player.addCard(card)
     }
+    //endregion
 
+    //region Old Phase 1
     async askColours(player) {
         const content = await this.getResponse(
             player,
@@ -350,7 +331,9 @@ export default class Bussen extends Game {
 
         player.addCard(card)
     }
+    //endregion
 
+    //region Phase 2 Pyramid
     async initPyramid() {
         const deckSize = this.deck.cards.length
         let maxSize
@@ -359,6 +342,14 @@ export default class Bussen extends Game {
                 maxSize = i - 1
             }
         }
+
+        const embed = new MessageEmbed()
+            .setTitle(`Pyramid`)
+            .setDescription(
+                `${this.leader}, how tall should the pyramid be? (1-${
+                    maxSize <= 7 ? maxSize : 7
+                })`,
+            )
 
         const pyramidSize = await this.loopForResponse(
             this.leader,
@@ -403,6 +394,22 @@ export default class Bussen extends Game {
             message += ` Cards left: ${player.cards.length}\n`
         }
         await this.channel.send(message)
+    }
+    //endregion
+
+    //region Phase 3 Bus
+    getNewBusPlayer() {
+        let newPlayer
+        if (this.busPlayers.length > 0) {
+            const index = Math.floor(Math.random() * this.busPlayers.length)
+            newPlayer = this.busPlayers[index]
+            this.busPlayers.splice(index, 1)
+        } else {
+            newPlayer = this.players[
+                Math.floor(Math.random() * this.players.length)
+            ]
+        }
+        return newPlayer
     }
 
     async initBus() {
@@ -494,6 +501,8 @@ export default class Bussen extends Game {
         await this.channel.send(message)
         this.bus.iterate(newCard, correct)
     }
+
+    //endregion
 }
 
 class Bus {

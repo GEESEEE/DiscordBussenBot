@@ -12,7 +12,7 @@ import {
     createChecker,
     getFilter,
     getPrompt,
-    getReaction,
+    getSingleReaction,
     inElementOf,
 } from '../utils/Utils'
 import { Deck } from './Deck'
@@ -26,7 +26,7 @@ export abstract class Game {
     collector: MessageCollector & { player: any }
 
     players: Array<any>
-    lastMessages: Map<any, Message>
+    lastMessage: Message
     hasStarted: boolean
     hasEnded: boolean
 
@@ -35,7 +35,6 @@ export abstract class Game {
         this.players = []
         this.hasStarted = false
         this.channel = channel
-        this.lastMessages = new Map<any, Message>()
         this.addPlayer(leader)
     }
 
@@ -93,6 +92,14 @@ export abstract class Game {
 
     // if numeric is true, responseOptions should be 'x,y' as a string with x and y as numbers, also supports negative numbers
     async getResponse(player, string, responseOptions, numeric = false) {
+        console.log(
+            `player`,
+            player.username,
+            `string`,
+            string,
+            `responseOptions`,
+            responseOptions,
+        )
         if (typeof responseOptions === 'string') {
             responseOptions = [responseOptions]
         }
@@ -105,14 +112,14 @@ export abstract class Game {
         const prompt = `${player}, ${string} (${responseOptions.join('/')})`
         await this.channel.send(prompt)
 
-        const { collector, message } = getPrompt(
+        const { collected, collector } = getPrompt(
             this.channel,
             getFilter(player, fuse),
         )
         this.collector = collector
         collector.player = player
-        const res = await message
-
+        const res = await collected
+        console.log(res)
         if (!numeric) {
             return fuse.search(res.content)[0].item
         } else {
@@ -120,32 +127,36 @@ export abstract class Game {
         }
     }
 
-    async getReaction(
+    async getSingleReaction(
         player,
         embed,
         options,
     ): Promise<{ reaction: any; sentMessage: Message }> {
         const sentMessage = await this.channel.send({ embed: embed })
 
-        for (const option of options) {
-            await sentMessage.react(option)
-        }
-        const { collected, collector } = await getReaction(
+        const { collected, collector } = await getSingleReaction(
             player,
             sentMessage,
             options,
         )
+
+        for (const option of options) {
+            await sentMessage.react(option)
+        }
+
         this.collector = collector
         collector.player = player
-        this.lastMessages.set(player, sentMessage)
+        this.lastMessage = sentMessage
         const reaction = await collected
         return { reaction, sentMessage }
     }
 
     async removePlayer(player) {
         if (this.isPlayer(player)) {
+            let fromCollector = false
             if (this.collector && player.equals(this.collector.player)) {
                 this.collector.stop()
+                fromCollector = true
             }
 
             const title = `${player.username} decided to be a little bitch and quit ${this.name}\n`
@@ -174,9 +185,8 @@ export abstract class Game {
                 embed.setDescription(message)
             }
 
-            const lastMessage = this.lastMessages.get(player)
-            if (lastMessage) {
-                await lastMessage.edit(embed)
+            if (fromCollector) {
+                await this.lastMessage.edit(embed)
             } else {
                 await this.channel.send(embed)
             }
