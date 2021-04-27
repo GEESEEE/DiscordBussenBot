@@ -1,6 +1,19 @@
-import { MessageCollector, TextChannel } from 'discord.js'
+import {
+    Message,
+    MessageCollector,
+    MessageEmbed,
+    MessageReaction,
+    TextChannel,
+} from 'discord.js'
 
-import { createChecker, getFilter, getPrompt } from '../utils/Utils'
+import { ReactionStrings } from '../utils/Consts'
+import {
+    createChecker,
+    getFilter,
+    getPrompt,
+    getReaction,
+    inElementOf,
+} from '../utils/Utils'
 import { Deck } from './Deck'
 import { CollectorPlayerLeftError, GameEnded } from './Errors'
 
@@ -109,6 +122,26 @@ export abstract class Game {
         } else {
             return parseInt(res.content)
         }
+    }
+
+    async getReaction(
+        player,
+        embed,
+        options,
+    ): Promise<{ reaction: any; sentMessage: Message }> {
+        const sentMessage = await this.channel.send({ embed: embed })
+
+        for (const option of options) {
+            await sentMessage.react(option)
+        }
+        const { collected, collector } = await getReaction(
+            player,
+            sentMessage,
+            options,
+        )
+        this.collector = collector
+        const reaction = await collected
+        return { reaction, sentMessage }
     }
 
     async removePlayer(player) {

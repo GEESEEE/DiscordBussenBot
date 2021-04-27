@@ -1,4 +1,4 @@
-import { DiscordAPIError, Message } from 'discord.js'
+import { DiscordAPIError, Message, ReactionEmoji } from 'discord.js'
 
 import { CollectorPlayerLeftError } from '../game/Errors'
 
@@ -49,7 +49,7 @@ export function getPrompt(channel, filter): any {
     const collector = channel.createMessageCollector(filter, { max: 1 })
 
     return {
-        message: new Promise((resolve, reject) => {
+        collected: new Promise((resolve, reject) => {
             collector.on('end', collected => {
                 if (collected.size === 0) {
                     reject(new CollectorPlayerLeftError(`Collector stopped`))
@@ -57,6 +57,30 @@ export function getPrompt(channel, filter): any {
                 }
 
                 resolve(collected.first() as Message)
+            })
+        }),
+        collector,
+    }
+}
+
+export async function getReaction(player, message, options) {
+    const collector = message.createReactionCollector(
+        (reaction, user) => {
+            const emojiName = reaction.emoji.name
+            return inElementOf(options, emojiName) && user.equals(player)
+        },
+        { max: 1 },
+    )
+
+    return {
+        collected: new Promise((resolve, reject) => {
+            collector.on('end', collected => {
+                if (collected.size === 0) {
+                    reject(new CollectorPlayerLeftError(`Collector stopped`))
+                    return
+                }
+
+                resolve(collected.first() as ReactionEmoji)
             })
         }),
         collector,
@@ -106,7 +130,9 @@ export async function failSilently(func, errorCodes) {
         await func()
     } catch (err) {
         console.log(err)
-        if (!(err instanceof DiscordAPIError && errorCodes.includes(err.code))) {
+        if (
+            !(err instanceof DiscordAPIError && errorCodes.includes(err.code))
+        ) {
             throw err
         }
     }

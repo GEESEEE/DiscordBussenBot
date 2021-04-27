@@ -1,4 +1,14 @@
-import { StringCouples, Strings, Suit, Value } from '../../utils/Consts'
+import { MessageEmbed } from 'discord.js'
+
+import { CardPrinter } from '../../utils/CardPrinter'
+import {
+    EmptyString,
+    ReactionStrings,
+    StringCouples,
+    Strings,
+    Suit,
+    Value,
+} from '../../utils/Consts'
 import { sum } from '../../utils/Utils'
 import { Card, Deck } from '../Deck'
 import { Game } from '../Game'
@@ -45,27 +55,33 @@ export default class Bussen extends Game {
 
     async game() {
         // Phase 1 questions
+        await this.askAllPlayers(this.askColour)
+        await this.askAllPlayers(this.askHigherLower)
+        await this.askAllPlayers(this.askBetween)
+        await this.askAllPlayers(this.askSuit)
+
+        /*// Phase 1 questions
         await this.askAllPlayers(this.askColours)
         await this.askAllPlayers(this.askHigherOrLower)
         await this.askAllPlayers(this.askInBetween)
-        await this.askAllPlayers(this.askSuits)
+        await this.askAllPlayers(this.askSuits)*/
 
         // Phase 2 pyramid
-        await this.initPyramid()
+        /* await this.initPyramid()
         await this.askWhile(
             () =>
                 this.pyramid &&
                 !this.pyramid.isEmpty() &&
                 !this.noOneHasCards(),
             this.playPyramid,
-        )
+        )*/
 
         // Phase 3 The Bus
-        await this.ask(this.initBus)
+        /*await this.ask(this.initBus)
         await this.askWhile(
             () => this.bus && !this.bus.isFinished,
             this.playBus,
-        )
+        )*/
     }
 
     getNewBusPlayer() {
@@ -88,6 +104,158 @@ export default class Bussen extends Game {
             : isTrue
             ? StringState.TRUE(player, card)
             : StringState.FALSE(player, card, this.drinks)
+    }
+
+    async askColour(player) {
+        const embed = new MessageEmbed()
+            .setTitle(`${player.username}'s turn`)
+            .setDescription(`${player}, red or black?`)
+            .addField(`Your cards`, `${CardPrinter.print(player.cards)}`, true)
+
+        const { reaction, sentMessage } = await this.getReaction(
+            player,
+            embed,
+            ReactionStrings.RED_BLACK,
+        )
+
+        const card = this.deck.getRandomCard()
+        player.addCard(card)
+
+        const content = reaction.emoji.name
+
+        const isTrue =
+            (content === Suit.HEARTS && card.isRed()) ||
+            (content === Suit.CLUBS && card.isBlack())
+
+        await sentMessage.edit(
+            sentMessage.embeds[0]
+                .addField(`Drawn card`, `${CardPrinter.print([card])}`, true)
+                .addField(
+                    `Verdict`,
+                    this.getMessage(false, isTrue, player, card),
+                ),
+        )
+    }
+
+    async askHigherLower(player) {
+        const playerCard = player.cards[0]
+        const embed = new MessageEmbed()
+            .setTitle(`${player.username}'s turn`)
+            .setDescription(`${player}, higher or lower than ${playerCard}?`)
+            .addField(`Your cards`, `${CardPrinter.print(player.cards)}`, true)
+
+        const { reaction, sentMessage } = await this.getReaction(
+            player,
+            embed,
+            ReactionStrings.HIGHER_LOWER,
+        )
+        const card = this.deck.getRandomCard()
+
+        const content = reaction.emoji.name
+        const isTrue =
+            (content === '⬆' && card > playerCard) ||
+            (content === '⬇' && card < playerCard)
+
+        await sentMessage.edit(
+            sentMessage.embeds[0]
+                .addField(`Drawn card`, `${CardPrinter.print([card])}`, true)
+                .addField(
+                    `Verdict`,
+                    this.getMessage(
+                        playerCard.equals(card),
+                        isTrue,
+                        player,
+                        card,
+                    ),
+                ),
+        )
+        player.addCard(card)
+    }
+
+    async askBetween(player) {
+        const playerCard1 = player.cards[0]
+        const playerCard2 = player.cards[1]
+
+        const embed = new MessageEmbed()
+            .setTitle(`${player.username}'s turn`)
+            .setDescription(
+                `${player}, is it between ${playerCard1} and ${playerCard2}?`,
+            )
+            .addField(`Your cards`, `${CardPrinter.print(player.cards)}`, true)
+
+        const { reaction, sentMessage } = await this.getReaction(
+            player,
+            embed,
+            ReactionStrings.YES_NO,
+        )
+
+        const card = this.deck.getRandomCard()
+        player.addCard(card)
+
+        const content = reaction.emoji.name
+
+        const isBetween = card.isBetween(playerCard1, playerCard2)
+        const isTrue =
+            ('<:y_:835169920404684812>'.includes(content) && isBetween) ||
+            ('<:n_:835169930722410537>'.includes(content) && !isBetween)
+
+        await sentMessage.edit(
+            sentMessage.embeds[0]
+                .addField(`Drawn card`, `${CardPrinter.print([card])}`, true)
+                .addField(
+                    `Verdict`,
+                    this.getMessage(
+                        card.equals(playerCard1) || card.equals(playerCard2),
+                        isTrue,
+                        player,
+                        card,
+                    ),
+                ),
+        )
+    }
+
+    async askSuit(player) {
+        const playerSuits = [
+            ...new Set(player.cards.map(cards => cards.suit)),
+        ].join(', ')
+
+        const embed = new MessageEmbed()
+            .setTitle(`${player.username}'s turn`)
+            .setDescription(
+                `do you already have the suit, you have ${playerSuits}?`,
+            )
+            .addField(`Your cards`, `${CardPrinter.print(player.cards)}`, true)
+
+        const { reaction, sentMessage } = await this.getReaction(
+            player,
+            embed,
+            ReactionStrings.YES_NO,
+        )
+
+        const card = this.deck.getRandomCard()
+
+        const content = reaction.emoji.name
+        const hasSameSuit = card.hasSameSuit(player.cards)
+
+        const isTrue =
+            ('<:y_:835169920404684812>'.includes(content) && hasSameSuit) ||
+            ('<:n_:835169930722410537>'.includes(content) && !hasSameSuit)
+
+        await sentMessage.edit(
+            sentMessage.embeds[0]
+                .addField(`Drawn card`, `${CardPrinter.print([card])}`, true)
+                .addField(
+                    `Verdict`,
+                    this.getMessage(
+                        isTrue && content === 'no' && player.suitsCount() === 3,
+                        isTrue,
+                        player,
+                        card,
+                    ),
+                ),
+        )
+
+        player.addCard(card)
     }
 
     async askColours(player) {
@@ -117,6 +285,7 @@ export default class Bussen extends Game {
         const isTrue =
             (content === 'higher' && newCard > playerCard) ||
             (content === 'lower' && newCard < playerCard)
+
         await this.channel.send(
             this.getMessage(
                 playerCard.equals(newCard),
@@ -193,7 +362,7 @@ export default class Bussen extends Game {
         const pyramidSize = await this.loopForResponse(
             this.leader,
             `how tall should the pyramid be?`,
-            `1,${maxSize}`,
+            `1,${maxSize <= 7 ? maxSize : 7}`,
             true,
         )
         const reverseContent = await this.loopForResponse(

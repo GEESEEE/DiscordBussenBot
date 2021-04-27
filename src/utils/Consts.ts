@@ -1,7 +1,7 @@
 export enum Suit {
     CLUBS = '<:clubs:834190252478300231>',
-    DIAMONDS = ':diamonds:',
-    HEARTS = ':heart:',
+    DIAMONDS = '♦',
+    HEARTS = '♥',
     SPADES = '<:spades:834190269482008614>',
 }
 
@@ -39,8 +39,12 @@ export const StringCouples = {
 
 export const ReactionStrings = {
     YES_NO: ['<:y_:835169920404684812>', '<:n_:835169930722410537>'],
+    RED_BLACK: [Suit.HEARTS, Suit.SPADES],
+    HIGHER_LOWER: [`⬆`, '⬇'],
 }
 
 export const DiscordErrors = {
     UNKNOWN_MESSAGE: 10008,
 }
+
+export const EmptyString = `\u200B`

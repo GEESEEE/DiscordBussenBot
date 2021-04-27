@@ -12,7 +12,11 @@ export const Player = Structures.extend('User', User => {
         }
 
         equals(player) {
-            return this.id === player.id
+            if (player) {
+                return this.id === player.id
+            } else {
+                return false
+            }
         }
 
         addCard(card) {

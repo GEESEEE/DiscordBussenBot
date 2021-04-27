@@ -93,6 +93,15 @@ export abstract class Card {
         return string
     }
 
+    get stringSuit() {
+        if (this.suit === Suit.SPADES) {
+            return `♠`
+        } else if (this.suit === Suit.CLUBS) {
+            return `♣`
+        }
+        return this.suit
+    }
+
     toString() {
         return `${this.prefix} **${this.value}** of ${this.suit}`
     }
