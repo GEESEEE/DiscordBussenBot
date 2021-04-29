@@ -14,6 +14,7 @@ import {
     getPrompt,
     getSingleReaction,
     inElementOf,
+    reactOptions,
 } from '../utils/Utils'
 import { Deck } from './Deck'
 import { CollectorPlayerLeftError, GameEnded } from './Errors'
@@ -127,28 +128,67 @@ export abstract class Game {
         }
     }
 
-    async getSingleReaction(
-        player,
-        embed,
-        options,
-    ): Promise<{ reaction: any; sentMessage: Message }> {
-        const sentMessage = await this.channel.send({ embed: embed })
-
-        const { collected, collector } = await getSingleReaction(
+    async getSingleReaction(player, sentMessage, options) {
+        const { collected, collector } = getSingleReaction(
             player,
             sentMessage,
             options,
         )
 
-        for (const option of options) {
-            await sentMessage.react(option)
-        }
+        await reactOptions(sentMessage, options)
 
         this.collector = collector
         collector.player = player
         this.lastMessage = sentMessage
-        const reaction = await collected
-        return { reaction, sentMessage }
+
+        return collected
+    }
+
+    incSize(min, max, current, toAdd) {
+        const newVal = current + toAdd
+        if (newVal > max) {
+            return max
+        } else if (newVal < min) {
+            return min
+        } else {
+            return newVal
+        }
+    }
+
+    waitForValue(
+        collector,
+        val,
+        min,
+        max,
+        sentMessage,
+        embed,
+        field,
+    ): Promise<number> {
+        return new Promise((resolve, _) => {
+            collector.on(`collect`, async (reaction, user) => {
+                const reactEmoji = reaction.emoji.name
+
+                if (user.equals(this.leader)) {
+                    if (Emoji.PLAY.includes(reactEmoji)) {
+                        collector.stop()
+                        resolve(val)
+                    } else {
+                        if (Emoji.HIGHER.includes(reactEmoji)) {
+                            val = this.incSize(1, max, val, 1)
+                        } else if (Emoji.HIGHER2.includes(reactEmoji)) {
+                            val = this.incSize(1, max, val, 3)
+                        } else if (Emoji.LOWER.includes(reactEmoji)) {
+                            val = this.incSize(1, max, val, -1)
+                        } else if (Emoji.LOWER2.includes(reactEmoji)) {
+                            val = this.incSize(1, max, val, -3)
+                        }
+                        field.value = `${val}`
+                        await sentMessage.edit(embed)
+                        await reaction.users.remove(user)
+                    }
+                }
+            })
+        })
     }
 
     async removePlayer(player) {

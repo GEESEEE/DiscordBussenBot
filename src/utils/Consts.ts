@@ -44,7 +44,13 @@ export const ReactionEmojis = {
     RED_BLACK: [Emoji.HEARTS, Emoji.SPADES],
     HIGHER_LOWER: [Emoji.HIGHER, Emoji.LOWER],
     JOIN_START: [Emoji.JOIN, Emoji.PLAY],
-    HIGHER_LOWER2: [Emoji.HIGHER, Emoji.HIGHER2, Emoji.LOWER, Emoji.LOWER2],
+    HIGHER_LOWER2: [
+        Emoji.HIGHER,
+        Emoji.HIGHER2,
+        Emoji.LOWER,
+        Emoji.LOWER2,
+        Emoji.PLAY,
+    ],
 }
 
 export const DiscordErrors = {

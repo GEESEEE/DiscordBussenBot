@@ -1,4 +1,4 @@
-import { MessageEmbed } from 'discord.js'
+import { MessageEmbed, MessageReaction } from 'discord.js'
 
 import { CardPrinter } from '../../utils/CardPrinter'
 import {
@@ -10,7 +10,13 @@ import {
     Value,
 } from '../../utils/Consts'
 import { Emoji } from '../../utils/Emoji'
-import { sum } from '../../utils/Utils'
+import {
+    getReactionsCollector,
+    getSingleReaction,
+    inElementOf,
+    reactOptions,
+    sum,
+} from '../../utils/Utils'
 import { Card, Deck } from '../Deck'
 import { Game } from '../Game'
 const pluralize = require(`pluralize`)
@@ -67,22 +73,25 @@ export default class Bussen extends Game {
         await this.askAllPlayers(this.askInBetween)
         await this.askAllPlayers(this.askSuits)*/
 
+        // Phase 2 Pyramid
+        await this.iniPyramid()
+
         // Phase 2 pyramid
-        await this.initPyramid()
+        /*await this.initPyramid()
         await this.askWhile(
             () =>
                 this.pyramid &&
                 !this.pyramid.isEmpty() &&
                 !this.noOneHasCards(),
             this.playPyramid,
-        )
+        )*/
 
         // Phase 3 The Bus
-        await this.ask(this.initBus)
+        /*await this.ask(this.initBus)
         await this.askWhile(
             () => this.bus && !this.bus.isFinished,
             this.playBus,
-        )
+        )*/
     }
 
     getMessage(isEqual, isTrue, player, card) {
@@ -108,11 +117,13 @@ export default class Bussen extends Game {
             .setDescription(`${player}, red or black?`)
             .addField(`Your cards`, `${CardPrinter.print(player.cards)}`, true)
 
-        const { reaction, sentMessage } = await this.getSingleReaction(
+        const sentMessage = await this.channel.send(embed)
+
+        const reaction = (await this.getSingleReaction(
             player,
-            embed,
+            sentMessage,
             ReactionEmojis.RED_BLACK,
-        )
+        )) as MessageReaction
 
         const card = this.deck.getRandomCard()
         player.addCard(card)
@@ -137,11 +148,13 @@ export default class Bussen extends Game {
             .setDescription(`${player}, higher or lower than ${playerCard}?`)
             .addField(`Your cards`, `${CardPrinter.print(player.cards)}`, true)
 
-        const { reaction, sentMessage } = await this.getSingleReaction(
+        const sentMessage = await this.channel.send(embed)
+
+        const reaction = (await this.getSingleReaction(
             player,
-            embed,
+            sentMessage,
             ReactionEmojis.HIGHER_LOWER,
-        )
+        )) as MessageReaction
         const card = this.deck.getRandomCard()
 
         const content = reaction.emoji.name
@@ -169,11 +182,13 @@ export default class Bussen extends Game {
             )
             .addField(`Your cards`, `${CardPrinter.print(player.cards)}`, true)
 
-        const { reaction, sentMessage } = await this.getSingleReaction(
+        const sentMessage = await this.channel.send(embed)
+
+        const reaction = (await this.getSingleReaction(
             player,
-            embed,
+            sentMessage,
             ReactionEmojis.YES_NO,
-        )
+        )) as MessageReaction
 
         const card = this.deck.getRandomCard()
         player.addCard(card)
@@ -209,11 +224,13 @@ export default class Bussen extends Game {
             )
             .addField(`Your cards`, `${CardPrinter.print(player.cards)}`, true)
 
-        const { reaction, sentMessage } = await this.getSingleReaction(
+        const sentMessage = await this.channel.send(embed)
+
+        const reaction = (await this.getSingleReaction(
             player,
-            embed,
+            sentMessage,
             ReactionEmojis.YES_NO,
-        )
+        )) as MessageReaction
 
         const card = this.deck.getRandomCard()
 
@@ -239,101 +256,72 @@ export default class Bussen extends Game {
     }
     //endregion
 
-    //region Old Phase 1
-    async askColours(player) {
-        const content = await this.getResponse(
-            player,
-            `red or black?`,
-            StringCouples.RED_BLACK,
-        )
-        const card = this.deck.getRandomCard()
-        player.addCard(card)
+    async iniPyramid() {
+        const deckSize = this.deck.cards.length
+        let maxSize
+        for (let i = 1; i < 8; i++) {
+            if (sum(i) <= deckSize) {
+                maxSize = i
+            }
+        }
 
-        const isTrue =
-            (content === 'red' && card.isRed()) ||
-            (content === 'black' && card.isBlack())
-        await this.channel.send(this.getMessage(false, isTrue, player, card))
+        const sizeOptions = ReactionEmojis.HIGHER_LOWER2
+        let pyramidSize = 1
+
+        const embed = new MessageEmbed()
+            .setTitle(`Pyramid`)
+            .setDescription(
+                `${this.leader}, how tall should the pyramid be? (1-${maxSize})`,
+            )
+            .addField(`Pyramid Size`, `${pyramidSize}`, true)
+
+        const sentMessage = await this.channel.send(embed)
+        const sizeCollector = getReactionsCollector(
+            this.leader,
+            sentMessage,
+            sizeOptions,
+        )
+
+        const col = this.waitForValue(
+            sizeCollector,
+            pyramidSize,
+            1,
+            maxSize,
+            sentMessage,
+            embed,
+            embed.fields[0],
+        )
+
+        await reactOptions(sentMessage, sizeOptions)
+
+        pyramidSize = await col
+
+        await Promise.all(
+            sentMessage.reactions.cache.map(react => react.remove()),
+        )
+
+        embed
+            .setDescription(`${this.leader}, should the pyramid be reversed?`)
+            .addField(`Reversed`, EmptyString, true)
+
+        await sentMessage.edit(embed)
+
+        const reverseOptions = ReactionEmojis.YES_NO
+        const collected = (await this.getSingleReaction(
+            this.leader,
+            sentMessage,
+            reverseOptions,
+        )) as MessageReaction
+
+        const reverseEmoji = collected.emoji.name
+        const reverse = Emoji.YES.includes(reverseEmoji)
+
+        embed.fields[1].value = `${reverse}`
+        await sentMessage.edit(embed)
+        this.pyramid = new Pyramid(this.deck, reverse, pyramidSize)
     }
 
-    async askHigherOrLower(player) {
-        const playerCard = player.cards[0]
-        const content = await this.getResponse(
-            player,
-            `higher or lower than ${playerCard}?`,
-            StringCouples.HIGHER_LOWER,
-        )
-        const newCard = this.deck.getRandomCard()
-
-        const isTrue =
-            (content === 'higher' && newCard > playerCard) ||
-            (content === 'lower' && newCard < playerCard)
-
-        await this.channel.send(
-            this.getMessage(
-                playerCard.equals(newCard),
-                isTrue,
-                player,
-                newCard,
-            ),
-        )
-        player.addCard(newCard)
-    }
-
-    async askInBetween(player) {
-        const playerCard1 = player.cards[0]
-        const playerCard2 = player.cards[1]
-        const content = await this.getResponse(
-            player,
-            `is it between ${playerCard1} and ${playerCard2}?`,
-            StringCouples.YES_NO,
-        )
-
-        const card = this.deck.getRandomCard()
-        player.addCard(card)
-
-        const isBetween = card.isBetween(playerCard1, playerCard2)
-        const isTrue =
-            (content === 'yes' && isBetween) || (content === 'no' && !isBetween)
-        await this.channel.send(
-            this.getMessage(
-                card.equals(playerCard1) || card.equals(playerCard2),
-                isTrue,
-                player,
-                card,
-            ),
-        )
-    }
-
-    async askSuits(player) {
-        const playerSuits = [
-            ...new Set(player.cards.map(cards => cards.suit)),
-        ].join(', ')
-        const content = await this.getResponse(
-            player,
-            `do you already have the suit, you have ${playerSuits}?`,
-            StringCouples.YES_NO,
-        )
-
-        const card = this.deck.getRandomCard()
-
-        const hasSameSuit = card.hasSameSuit(player.cards)
-        const isTrue =
-            (content === 'yes' && hasSameSuit) ||
-            (content === 'no' && !hasSameSuit)
-        await this.channel.send(
-            this.getMessage(
-                isTrue && content === 'no' && player.suitsCount() === 3,
-                isTrue,
-                player,
-                card,
-            ),
-        )
-
-        player.addCard(card)
-    }
-    //endregion
-
-    //region Phase 2 Pyramid
+    //region Old Phase 2 Pyramid
     async initPyramid() {
         const deckSize = this.deck.cards.length
         let maxSize
@@ -342,14 +330,6 @@ export default class Bussen extends Game {
                 maxSize = i - 1
             }
         }
-
-        const embed = new MessageEmbed()
-            .setTitle(`Pyramid`)
-            .setDescription(
-                `${this.leader}, how tall should the pyramid be? (1-${
-                    maxSize <= 7 ? maxSize : 7
-                })`,
-            )
 
         const pyramidSize = await this.loopForResponse(
             this.leader,
@@ -494,7 +474,7 @@ export default class Bussen extends Game {
             }
         } else {
             message = `${this.bus.player} drew ${newCard}, has to consume ${
-                this.bus.currentIndex + 1
+                this.bus.currentIndex + 1 - this.bus.getCurrentCheckpoint()
             } drinks and resets to card ${this.bus.getCurrentCheckpoint() + 1}`
         }
 

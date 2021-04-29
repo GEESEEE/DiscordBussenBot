@@ -14,6 +14,7 @@ import {
     failSilently,
     getBinaryReactions,
     inElementOf,
+    reactOptions,
     removeMessage,
 } from './utils/Utils'
 
@@ -193,9 +194,7 @@ export const Server = Structures.extend('Guild', Guild => {
                 }
             })
 
-            for (const emoji of reactionOptions) {
-                await sentMessage.react(emoji)
-            }
+            await reactOptions(sentMessage, reactionOptions)
         }
 
         async removeGameVote(message) {

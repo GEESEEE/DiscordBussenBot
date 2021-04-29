@@ -64,7 +64,7 @@ export function getPrompt(channel, filter): any {
     }
 }
 
-export async function getSingleReaction(player, message, options) {
+export function getSingleReaction(player, message, options) {
     const collector = message.createReactionCollector(
         (reaction, user) => {
             const emojiName = reaction.emoji.name
@@ -86,6 +86,13 @@ export async function getSingleReaction(player, message, options) {
         }),
         collector,
     }
+}
+
+export function getReactionsCollector(player, message, options) {
+    return message.createReactionCollector((reaction, user) => {
+        const emojiName = reaction.emoji.name
+        return inElementOf(options, emojiName) && user.equals(player)
+    }, {})
 }
 
 export function getBinaryReactions(message, maxTime, options) {
@@ -143,4 +150,10 @@ export async function removeMessage(message) {
     return failSilently(message.delete.bind(message), [
         DiscordErrors.UNKNOWN_MESSAGE,
     ])
+}
+
+export async function reactOptions(message, options) {
+    for (const option of options) {
+        await message.react(option)
+    }
 }
