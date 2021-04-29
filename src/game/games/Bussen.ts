@@ -317,7 +317,7 @@ export default class Bussen extends Game {
             }
         } else {
             message = `${this.bus.player} drew ${newCard}, has to consume ${
-                this.bus.currentIndex + 1
+                this.bus.currentIndex + 1 - this.bus.getCurrentCheckpoint()
             } drinks and resets to card ${this.bus.getCurrentCheckpoint() + 1}`
         }
 
