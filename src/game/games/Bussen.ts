@@ -1,4 +1,5 @@
-import { MessageEmbed, MessageReaction } from 'discord.js'
+import Discord, { MessageEmbed, MessageReaction } from 'discord.js'
+import * as fs from 'fs'
 
 import { CardPrinter } from '../../utils/CardPrinter'
 import {
@@ -60,12 +61,74 @@ export default class Bussen extends Game {
         }
     }
 
+    async test() {
+        const player = this.leader
+
+        const cardPrinter = new CardPrinter(
+            [
+                this.deck.getRandomCard(),
+                this.deck.getRandomCard(),
+                this.deck.getRandomCard(),
+                this.deck.getRandomCard(),
+                this.deck.getRandomCard(),
+                this.deck.getRandomCard(),
+                this.deck.getRandomCard(),
+                this.deck.getRandomCard(),
+                this.deck.getRandomCard(),
+                this.deck.getRandomCard(),
+                this.deck.getRandomCard(),
+                this.deck.getRandomCard(),
+                this.deck.getRandomCard(),
+                this.deck.getRandomCard(),
+                this.deck.getRandomCard(),
+                this.deck.getRandomCard(),
+                this.deck.getRandomCard(),
+            ],
+            [0, 1, 5],
+        )
+        await cardPrinter.printCards()
+
+        const attachment = new Discord.MessageAttachment(
+            cardPrinter.canvas.toBuffer('image/png'),
+            `image.png`,
+        )
+
+        const embed = new MessageEmbed()
+            .setTitle(`${player.username}'s turn`)
+            .attachFiles([attachment])
+            .setImage(`attachment://image.png`)
+
+        const sentMessage = await this.channel.send(embed)
+
+        const reaction = (await this.getSingleReaction(
+            player,
+            sentMessage,
+            ReactionEmojis.RED_BLACK,
+        )) as MessageReaction
+
+        const card = this.deck.getRandomCard()
+        player.addCard(card)
+
+        const content = reaction.emoji.name
+
+        const isTrue =
+            (content === Emoji.HEARTS && card.isRed()) ||
+            (content === Emoji.CLUBS && card.isBlack())
+
+        await this.addVerdict(
+            sentMessage,
+            `${CardPrinter.print([card])}`,
+            this.getMessage(false, isTrue, player, card),
+        )
+    }
+
     async game() {
+        await this.test()
         // Phase 1 questions
-        await this.askAllPlayers(this.askColour)
-        await this.askAllPlayers(this.askHigherLower)
-        await this.askAllPlayers(this.askBetween)
-        await this.askAllPlayers(this.askSuit)
+        // await this.askAllPlayers(this.askColour)
+        // await this.askAllPlayers(this.askHigherLower)
+        // await this.askAllPlayers(this.askBetween)
+        // await this.askAllPlayers(this.askSuit)
 
         /*// Phase 1 questions
         await this.askAllPlayers(this.askColours)
@@ -74,7 +137,7 @@ export default class Bussen extends Game {
         await this.askAllPlayers(this.askSuits)*/
 
         // Phase 2 Pyramid
-        await this.iniPyramid()
+        // await this.iniPyramid()
 
         // Phase 2 pyramid
         /*await this.initPyramid()
