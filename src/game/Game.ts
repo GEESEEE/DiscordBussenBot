@@ -174,13 +174,13 @@ export abstract class Game {
                         resolve(val)
                     } else {
                         if (Emoji.HIGHER.includes(reactEmoji)) {
-                            val = this.incSize(1, max, val, 1)
+                            val = this.incSize(min, max, val, 1)
                         } else if (Emoji.HIGHER2.includes(reactEmoji)) {
-                            val = this.incSize(1, max, val, 3)
+                            val = this.incSize(min, max, val, 3)
                         } else if (Emoji.LOWER.includes(reactEmoji)) {
-                            val = this.incSize(1, max, val, -1)
+                            val = this.incSize(min, max, val, -1)
                         } else if (Emoji.LOWER2.includes(reactEmoji)) {
-                            val = this.incSize(1, max, val, -3)
+                            val = this.incSize(min, max, val, -3)
                         }
                         field.value = `${val}`
                         await sentMessage.edit(embed)
