@@ -73,18 +73,9 @@ export default class Bussen extends Game {
                 this.deck.getRandomCard(),
                 this.deck.getRandomCard(),
                 this.deck.getRandomCard(),
-                this.deck.getRandomCard(),
-                this.deck.getRandomCard(),
-                this.deck.getRandomCard(),
-                this.deck.getRandomCard(),
-                this.deck.getRandomCard(),
-                this.deck.getRandomCard(),
-                this.deck.getRandomCard(),
-                this.deck.getRandomCard(),
-                this.deck.getRandomCard(),
-                this.deck.getRandomCard(),
             ],
-            [0, 1, 5],
+            [0, 1, 5, 10, 11],
+            true,
         )
         await cardPrinter.printCards()
 

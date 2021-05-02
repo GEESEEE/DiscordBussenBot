@@ -8,79 +8,70 @@ import {
 import { Card } from '../game/Deck'
 
 export class CardPrinter {
-    cards: Array<Card>
+    cards: Array<Array<Card>>
     canvas: Canvas
     ctx: CanvasRenderingContext2D
-    rows: Array<number>
     center: boolean
 
     readonly cardWidth = 80
     readonly cardHeight = 120
 
-    readonly betweenCards = 5
+    readonly betweenCards = 4
 
     constructor(cards, rows: Array<number> = [0], center = false) {
-        this.cards = cards
-        this.rows = rows
+        this.cards = this.createRows(cards, rows)
         this.center = center
 
-        const maxRowSize = this.maxRows()
-        const width =
-            maxRowSize * (this.cardWidth + this.betweenCards) -
-            this.betweenCards
+        const maxRowSize = Math.max(...this.cards.map(row => row.length))
+
+        const width = maxRowSize * (this.cardWidth + this.betweenCards)
 
         const height =
-            rows.length * (this.cardHeight + this.betweenCards) -
+            this.cards.length * (this.cardHeight + this.betweenCards) -
             this.betweenCards
 
         this.canvas = createCanvas(width, height)
         this.ctx = this.canvas.getContext(`2d`)
     }
 
-    createRows(cards): Array<Array<Card>> {
-        return null
-    }
+    createRows(cards, rowIndices): Array<Array<Card>> {
+        const rows = []
+        let currentRow = []
 
-    maxRows() {
-        let maxRowSize = 0
-
-        if (this.rows.length > 1) {
-            let lastRow = 0
-            for (let i = 0; i < this.rows.length; i++) {
-                const currentRow = this.rows[i]
-                if (
-                    i === this.rows.length - 1 &&
-                    this.cards.length - currentRow + 1 > maxRowSize
-                ) {
-                    maxRowSize = this.cards.length - currentRow + 1
-                } else if (lastRow && currentRow - lastRow > maxRowSize) {
-                    maxRowSize = currentRow - lastRow
-                }
-
-                lastRow = currentRow
+        for (let i = 0; i < cards.length; i++) {
+            if (rowIndices.includes(i) && i !== 0) {
+                rows.push(currentRow)
+                currentRow = []
             }
-        } else {
-            maxRowSize = this.cards.length
+            currentRow.push(cards[i])
         }
-        return maxRowSize
+        rows.push(currentRow)
+
+        return rows
     }
 
     async printCards() {
         let x = 0
         let y = 0
 
-        const rowSize = 0
-
         for (let i = 0; i < this.cards.length; i++) {
-            if (i != 0 && this.rows.includes(i)) {
-                y += this.cardHeight + this.betweenCards
+            const row = this.cards[i]
+            y = i * (this.cardHeight + this.betweenCards)
+            if (this.center) {
+                x =
+                    this.canvas.width / 2 -
+                    (row.length * (this.cardWidth + this.betweenCards)) / 2 -
+                    this.betweenCards / 2
+            } else {
                 x = 0
             }
-            const card = this.cards[i]
-            const image = await this.getImage(card)
 
-            this.ctx.drawImage(image, x, y, this.cardWidth, this.cardHeight)
-            x += this.cardWidth + this.betweenCards
+            for (let j = 0; j < row.length; j++) {
+                const card = row[j]
+                const image = await this.getImage(card)
+                this.ctx.drawImage(image, x, y, this.cardWidth, this.cardHeight)
+                x += this.cardWidth + this.betweenCards
+            }
         }
     }
 
