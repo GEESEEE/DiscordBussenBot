@@ -1,8 +1,4 @@
-import Discord, {
-    GuildEmojiRoleManager,
-    MessageEmbed,
-    MessageReaction,
-} from 'discord.js'
+import Discord, { MessageEmbed, MessageReaction } from 'discord.js'
 
 import { CardPrinter } from '../../utils/CardPrinter'
 import {
@@ -86,32 +82,24 @@ export default class Bussen extends Game {
             () => this.bus && !this.bus.isFinished,
             this.playBus,
         )
-
-        // Phase 2 pyramid
-        /*await this.initPyramid()
-        await this.askWhile(
-            () =>
-                this.pyramid &&
-                !this.pyramid.isEmpty() &&
-                !this.noOneHasCards(),
-            this.playPyramid,
-        )*/
-
-        // Phase 3 The Bus
-        /*await this.ask(this.initBus)
-        await this.askWhile(
-            () => this.bus && !this.bus.isFinished,
-            this.playBus,
-        )*/
     }
 
-    async getAttachment(name, cards, text?, rows?, center?, cardCount?) {
+    async getAttachment(
+        name,
+        cards,
+        text?,
+        rows?,
+        center?,
+        cardCount?,
+        focusedCard?,
+    ) {
         const playerCardPrinter = new CardPrinter(
             cards,
             rows,
             center,
             text,
             cardCount,
+            focusedCard,
         )
         await playerCardPrinter.printCards()
 
@@ -184,12 +172,11 @@ export default class Bussen extends Game {
         const question = `red or black?`
         const embed1 = await this.createEmbed(player, question)
         const sentMessage = await this.channel.send(embed1)
-
-        const reaction = (await this.getSingleReaction(
+        const reaction = await this.getSingleReaction(
             player,
             sentMessage,
             ReactionEmojis.RED_BLACK,
-        )) as MessageReaction
+        )
 
         const card = this.deck.getRandomCard()
         player.addCard(card)
@@ -209,11 +196,11 @@ export default class Bussen extends Game {
         const embed1 = await this.createEmbed(player, question)
         const sentMessage = await this.channel.send(embed1)
 
-        const reaction = (await this.getSingleReaction(
+        const reaction = await this.getSingleReaction(
             player,
             sentMessage,
             ReactionEmojis.HIGHER_LOWER,
-        )) as MessageReaction
+        )
         const card = this.deck.getRandomCard()
 
         const content = reaction.emoji.name
@@ -319,9 +306,8 @@ export default class Bussen extends Game {
             sentMessage,
             embed,
             embed.fields[0],
+            sizeOptions,
         )
-
-        await reactOptions(sentMessage, sizeOptions)
 
         pyramidSize = await col
 
@@ -333,11 +319,11 @@ export default class Bussen extends Game {
         sentMessage = await this.channel.send(embed)
 
         const reverseOptions = ReactionEmojis.YES_NO
-        const collected = (await this.getSingleReaction(
+        const collected = await this.getSingleReaction(
             this.leader,
             sentMessage,
             reverseOptions,
-        )) as MessageReaction
+        )
 
         const reverseEmoji = collected.emoji.name
         const reverse = Emoji.YES.includes(reverseEmoji)
@@ -366,6 +352,7 @@ export default class Bussen extends Game {
             ``,
             this.pyramid.rows,
             true,
+            this.pyramid.index,
             this.pyramid.index,
         )
 
@@ -469,9 +456,8 @@ export default class Bussen extends Game {
             sentMessage,
             embed,
             embed.fields[1],
+            sizeOptions,
         )
-
-        await reactOptions(sentMessage, sizeOptions)
 
         busSize = await col
 
@@ -496,6 +482,7 @@ export default class Bussen extends Game {
                 sentMessage,
                 embed,
                 embed.fields[2],
+                sizeOptions,
             )
         }
 
@@ -507,9 +494,10 @@ export default class Bussen extends Game {
                 this.bus.sequence,
                 ``,
                 this.bus.checkpoints,
+                false,
+                -1,
             )
             embed.attachFiles([attachment]).setImage(`attachment://bus.png`)
-
             await removeMessage(sentMessage)
 
             await this.channel.send(embed)
@@ -524,6 +512,9 @@ export default class Bussen extends Game {
             this.bus.sequence,
             ``,
             this.bus.checkpoints,
+            false,
+            -1,
+            this.bus.sequence.length - this.bus.currentIndex,
         )
 
         const embed1 = new MessageEmbed()
@@ -562,9 +553,11 @@ export default class Bussen extends Game {
                 message = `${this.bus.player} managed to escape the BUSS in ${this.bus.turns} turns, while consuming ${this.bus.totalDrinks} drinks in total`
             }
         } else {
-            message = `${this.bus.player} drew ${newCard}, has to consume ${
+            message = `${this.bus.player} drew ${newCard}, has to consume **${
                 this.bus.currentIndex + 1 - this.bus.getCurrentCheckpoint()
-            } drinks and resets to card ${this.bus.getCurrentCheckpoint() + 1}`
+            } drinks** and resets to card ${
+                this.bus.getCurrentCheckpoint() + 1
+            }`
         }
 
         const drawnCardAttachment = await this.getAttachment(

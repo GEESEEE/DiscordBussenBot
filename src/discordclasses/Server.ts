@@ -5,18 +5,18 @@ import {
     TextChannel,
 } from 'discord.js'
 
-const { maxReactionTime } = require('../config.json')
+const { maxReactionTime } = require('../../config.json')
 
-import { Game } from './game/Game'
-import { DiscordErrors, ReactionEmojis } from './utils/Consts'
-import { Emoji } from './utils/Emoji'
+import { Game } from '../game/Game'
+import { DiscordErrors, ReactionEmojis } from '../utils/Consts'
+import { Emoji } from '../utils/Emoji'
 import {
     failSilently,
     getBinaryReactions,
     inElementOf,
     reactOptions,
     removeMessage,
-} from './utils/Utils'
+} from '../utils/Utils'
 
 export const Server = Structures.extend('Guild', Guild => {
     class ServerClass extends Guild {

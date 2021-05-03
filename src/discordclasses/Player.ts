@@ -1,6 +1,6 @@
 import { Client, Structures } from 'discord.js'
 
-import { Card } from './game/Deck'
+import { Card } from '../game/Deck'
 
 export const Player = Structures.extend('User', User => {
     class PlayerClass extends User {

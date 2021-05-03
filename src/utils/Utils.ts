@@ -1,7 +1,9 @@
 import {
     DiscordAPIError,
     Message,
+    MessageCollector,
     MessageReaction,
+    ReactionCollector,
     ReactionEmoji,
     ReactionManager,
 } from 'discord.js'
@@ -87,10 +89,10 @@ export function getSingleReaction(player, message, options) {
                     return
                 }
 
-                resolve(collected.first() as ReactionEmoji)
+                resolve(collected.first() as MessageReaction)
             })
-        }),
-        collector,
+        }) as Promise<MessageReaction>,
+        collector: collector as ReactionCollector,
     }
 }
 

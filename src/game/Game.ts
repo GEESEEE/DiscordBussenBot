@@ -1,9 +1,12 @@
 import {
+    Collector,
     Message,
     MessageCollector,
     MessageEmbed,
     MessageReaction,
+    ReactionCollector,
     TextChannel,
+    User,
 } from 'discord.js'
 
 import { ReactionEmojis } from '../utils/Consts'
@@ -25,10 +28,9 @@ export abstract class Game {
 
     deck: Deck
     channel: TextChannel
-    collector: MessageCollector & { player: any }
+    collector: MessageCollector | ReactionCollector
 
-    players: Array<any>
-    lastMessage: Message
+    players: Array<User>
     hasStarted: boolean
     hasEnded: boolean
 
@@ -94,14 +96,6 @@ export abstract class Game {
 
     // if numeric is true, responseOptions should be 'x,y' as a string with x and y as numbers, also supports negative numbers
     async getResponse(player, string, responseOptions, numeric = false) {
-        console.log(
-            `player`,
-            player.username,
-            `string`,
-            string,
-            `responseOptions`,
-            responseOptions,
-        )
         if (typeof responseOptions === 'string') {
             responseOptions = [responseOptions]
         }
@@ -121,7 +115,7 @@ export abstract class Game {
         this.collector = collector
         collector.player = player
         const res = await collected
-        console.log(res)
+
         if (!numeric) {
             return fuse.search(res.content)[0].item
         } else {
@@ -129,20 +123,32 @@ export abstract class Game {
         }
     }
 
-    async getSingleReaction(player, sentMessage, options) {
-        const { collected, collector } = getSingleReaction(
-            player,
-            sentMessage,
-            options,
-        )
+    async getSingleReaction(
+        player,
+        sentMessage,
+        options,
+    ): Promise<MessageReaction> {
+        let col
+        try {
+            const { collected, collector } = getSingleReaction(
+                player,
+                sentMessage,
+                options,
+            )
+            this.collector = collector
+            collector.player = player
+            col = collected
 
-        await reactOptions(sentMessage, options)
+            await reactOptions(sentMessage, options)
+        } catch (err) {
+            if (err instanceof CollectorPlayerLeftError) {
+                this.isEnded()
+            } else {
+                throw err
+            }
+        }
 
-        this.collector = collector
-        collector.player = player
-        this.lastMessage = sentMessage
-
-        return collected
+        return col
     }
 
     incSize(min, max, current, toAdd) {
@@ -156,7 +162,7 @@ export abstract class Game {
         }
     }
 
-    waitForValue(
+    async waitForValue(
         collector,
         val,
         min,
@@ -164,40 +170,51 @@ export abstract class Game {
         sentMessage,
         embed,
         field,
+        sizeOptions,
     ): Promise<number> {
-        return new Promise((resolve, _) => {
-            collector.on(`collect`, async (reaction, user) => {
-                const reactEmoji = reaction.emoji.name
+        let promise
+        try {
+            promise = new Promise((resolve, _) => {
+                collector.on(`collect`, async (reaction, user) => {
+                    const reactEmoji = reaction.emoji.name
 
-                if (user.equals(this.leader)) {
-                    if (Emoji.PLAY.includes(reactEmoji)) {
-                        collector.stop()
-                        resolve(val)
-                    } else {
-                        if (Emoji.HIGHER.includes(reactEmoji)) {
-                            val = this.incSize(min, max, val, 1)
-                        } else if (Emoji.HIGHER2.includes(reactEmoji)) {
-                            val = this.incSize(min, max, val, 3)
-                        } else if (Emoji.LOWER.includes(reactEmoji)) {
-                            val = this.incSize(min, max, val, -1)
-                        } else if (Emoji.LOWER2.includes(reactEmoji)) {
-                            val = this.incSize(min, max, val, -3)
+                    if (user.equals(this.leader)) {
+                        if (Emoji.PLAY.includes(reactEmoji)) {
+                            collector.stop()
+                            resolve(val)
+                        } else {
+                            if (Emoji.HIGHER.includes(reactEmoji)) {
+                                val = this.incSize(min, max, val, 1)
+                            } else if (Emoji.HIGHER2.includes(reactEmoji)) {
+                                val = this.incSize(min, max, val, 3)
+                            } else if (Emoji.LOWER.includes(reactEmoji)) {
+                                val = this.incSize(min, max, val, -1)
+                            } else if (Emoji.LOWER2.includes(reactEmoji)) {
+                                val = this.incSize(min, max, val, -3)
+                            }
+                            field.value = `${val}`
+                            await sentMessage.edit(embed)
                         }
-                        field.value = `${val}`
-                        await sentMessage.edit(embed)
+                        await removeReaction(reaction, user)
                     }
-                    await removeReaction(reaction, user)
-                }
+                })
             })
-        })
+            await reactOptions(sentMessage, sizeOptions)
+        } catch (err) {
+            if (err instanceof CollectorPlayerLeftError) {
+                this.isEnded()
+            } else {
+                throw err
+            }
+        }
+
+        return promise
     }
 
     async removePlayer(player) {
         if (this.isPlayer(player)) {
-            let fromCollector = false
             if (this.collector && player.equals(this.collector.player)) {
                 this.collector.stop()
-                fromCollector = true
             }
 
             const title = `${player.username} decided to be a little bitch and quit ${this.name}\n`
@@ -226,12 +243,7 @@ export abstract class Game {
                 embed.setDescription(message)
             }
 
-            if (fromCollector) {
-                await this.lastMessage.edit(embed)
-            } else {
-                await this.channel.send(embed)
-            }
-
+            await this.channel.send(embed)
             if (!this.hasPlayers()) {
                 return this.endGame()
             }
@@ -243,7 +255,12 @@ export abstract class Game {
         try {
             await this.game()
         } catch (err) {
-            if (!(err instanceof GameEnded)) {
+            if (
+                !(
+                    err instanceof GameEnded ||
+                    err instanceof CollectorPlayerLeftError
+                )
+            ) {
                 throw err
             }
         }

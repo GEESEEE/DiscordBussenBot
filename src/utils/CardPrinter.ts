@@ -13,10 +13,13 @@ export class CardPrinter {
     cards: Array<Array<Card>>
     canvas: Canvas
     ctx: CanvasRenderingContext2D
+
     center: boolean
     text: string
     yOffset: number
+    xOffset: number
     firstCardIndex: number
+    focusedCard: number
 
     readonly cardWidth = 80
     readonly cardHeight = 120
@@ -29,6 +32,7 @@ export class CardPrinter {
         center = false,
         text = ``,
         cardCount = -1,
+        focusedCard = -1,
     ) {
         this.cards = this.createRows(cards, rows)
         this.center = center
@@ -67,6 +71,22 @@ export class CardPrinter {
         } else {
             this.firstCardIndex = 0
         }
+
+        if (focusedCard >= 0) {
+            this.focusedCard = cards.length - focusedCard
+        } else {
+            this.focusedCard = -1
+        }
+    }
+
+    get backImage() {
+        return loadImage(`./assets/Cards/card_back.png`)
+    }
+
+    async getImage(card) {
+        const imgName = card.valueToString() + card.suitToString().charAt(0)
+        const imgPath = `./assets/Cards/${imgName}.png`
+        return loadImage(imgPath)
     }
 
     createRows(cards, rowIndices): Array<Array<Card>> {
@@ -89,6 +109,7 @@ export class CardPrinter {
         let x = 0
         let y = 0
         let current = 0
+
         for (let i = 0; i < this.cards.length; i++) {
             const row = this.cards[i]
             y = i * (this.cardHeight + this.betweenCards) + this.yOffset
@@ -107,88 +128,24 @@ export class CardPrinter {
                 if (current >= this.firstCardIndex) {
                     const card = row[j]
                     image = await this.getImage(card)
+
+                    if (
+                        current === this.focusedCard ||
+                        this.focusedCard === -1
+                    ) {
+                        this.ctx.globalAlpha = 1
+                    } else {
+                        this.ctx.globalAlpha = 0.5
+                    }
                 } else {
                     image = await this.backImage
+                    this.ctx.globalAlpha = 1
                 }
 
                 this.ctx.drawImage(image, x, y, this.cardWidth, this.cardHeight)
                 x += this.cardWidth + this.betweenCards
                 current += 1
             }
-        }
-    }
-
-    get backImage() {
-        return loadImage(`./assets/Cards/card_back.png`)
-    }
-
-    async getImage(card) {
-        const imgName = card.valueToString() + card.suitToString().charAt(0)
-        const imgPath = `./assets/Cards/${imgName}.png`
-        return loadImage(imgPath)
-    }
-
-    static print(cards) {
-        if (cards.length > 0) {
-            const betweenCards = ` `
-            let string = '```\n'
-
-            for (let i = 0; i < cards.length; i++) {
-                string += `╭────╮`
-                if (i !== cards.length - 1) {
-                    string += betweenCards
-                }
-            }
-            string += `\n`
-
-            for (let i = 0; i < cards.length; i++) {
-                const card = cards[i]
-                if (card.value === `10`) {
-                    string += `│${card.stringSuit} ${card.value}│`
-                } else {
-                    string += `│${card.stringSuit}  ${card.value.charAt(0)}│`
-                }
-
-                if (i !== cards.length - 1) {
-                    string += betweenCards
-                }
-            }
-            string += `\n`
-
-            for (let i = 0; i < cards.length; i++) {
-                string += `│    │`
-                if (i !== cards.length - 1) {
-                    string += betweenCards
-                }
-            }
-            string += `\n`
-
-            for (let i = 0; i < cards.length; i++) {
-                const card = cards[i]
-                if (card.value === `10`) {
-                    string += `│${card.value} ${card.stringSuit}│`
-                } else {
-                    string += `│${card.value.charAt(0)}  ${card.stringSuit}│`
-                }
-
-                if (i !== cards.length - 1) {
-                    string += betweenCards
-                }
-            }
-            string += `\n`
-
-            for (let i = 0; i < cards.length; i++) {
-                string += `╰────╯`
-                if (i !== cards.length - 1) {
-                    string += betweenCards
-                }
-            }
-            string += `\n`
-
-            string += '```\n'
-            return string
-        } else {
-            return `None\n`
         }
     }
 }
