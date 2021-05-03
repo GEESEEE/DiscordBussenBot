@@ -84,6 +84,19 @@ export default class Bussen extends Game {
         )
     }
 
+    getMessage(isEqual, isTrue, player, card) {
+        return isEqual
+            ? StringState.EQUAL(player, card, this.drinks)
+            : isTrue
+            ? StringState.TRUE(player, card)
+            : StringState.FALSE(player, card, this.drinks)
+    }
+
+    async replaceMessage(sentMessage, newMessage) {
+        await this.channel.send(newMessage)
+        return removeMessage(sentMessage)
+    }
+
     async getAttachment(
         name,
         cards,
@@ -107,19 +120,6 @@ export default class Bussen extends Game {
             playerCardPrinter.canvas.toBuffer('image/png'),
             name,
         )
-    }
-
-    getMessage(isEqual, isTrue, player, card) {
-        return isEqual
-            ? StringState.EQUAL(player, card, this.drinks)
-            : isTrue
-            ? StringState.TRUE(player, card)
-            : StringState.FALSE(player, card, this.drinks)
-    }
-
-    async replaceMessage(sentMessage, newMessage) {
-        await removeMessage(sentMessage)
-        return this.channel.send(newMessage)
     }
 
     async createEmbed(player, question, card?, verdict?) {
@@ -172,6 +172,7 @@ export default class Bussen extends Game {
         const question = `red or black?`
         const embed1 = await this.createEmbed(player, question)
         const sentMessage = await this.channel.send(embed1)
+
         const reaction = await this.getSingleReaction(
             player,
             sentMessage,
@@ -221,11 +222,11 @@ export default class Bussen extends Game {
         const embed1 = await this.createEmbed(player, question)
         const sentMessage = await this.channel.send(embed1)
 
-        const reaction = (await this.getSingleReaction(
+        const reaction = await this.getSingleReaction(
             player,
             sentMessage,
             ReactionEmojis.YES_NO,
-        )) as MessageReaction
+        )
 
         const card = this.deck.getRandomCard()
         player.addCard(card)
@@ -249,11 +250,11 @@ export default class Bussen extends Game {
         const embed1 = await this.createEmbed(player, question)
         const sentMessage = await this.channel.send(embed1)
 
-        const reaction = (await this.getSingleReaction(
+        const reaction = await this.getSingleReaction(
             player,
             sentMessage,
             ReactionEmojis.YES_NO,
-        )) as MessageReaction
+        )
 
         const card = this.deck.getRandomCard()
 
@@ -527,13 +528,11 @@ export default class Bussen extends Game {
 
         const sentMessage = await this.channel.send(embed1)
         const options = ReactionEmojis.HIGHER_LOWER
-        const collected = this.getSingleReaction(
+        const reaction = await this.getSingleReaction(
             this.bus.player,
             sentMessage,
             options,
         )
-        await reactOptions(sentMessage, options)
-        const reaction = (await collected) as MessageReaction
 
         const content = reaction.emoji.name
         const newCard = this.bus.getRandomCard()

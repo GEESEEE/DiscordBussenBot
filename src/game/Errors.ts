@@ -1,4 +1,4 @@
-export class GameEnded extends Error {
+export class GameEndedError extends Error {
     constructor(message) {
         super(message)
     }

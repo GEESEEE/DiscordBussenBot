@@ -1,5 +1,6 @@
 import {
     Collector,
+    Guild,
     Message,
     MessageCollector,
     MessageEmbed,
@@ -8,6 +9,7 @@ import {
     TextChannel,
     User,
 } from 'discord.js'
+import { isArray } from 'util'
 
 import { ReactionEmojis } from '../utils/Consts'
 import { Emoji } from '../utils/Emoji'
@@ -21,7 +23,7 @@ import {
     removeReaction,
 } from '../utils/Utils'
 import { Deck } from './Deck'
-import { CollectorPlayerLeftError, GameEnded } from './Errors'
+import { CollectorPlayerLeftError, GameEndedError } from './Errors'
 
 export abstract class Game {
     name: string
@@ -72,12 +74,14 @@ export abstract class Game {
 
     endGame() {
         this.hasEnded = true
+        console.log(`en`)
         this.collector?.stop()
+        console.log(`een`)
     }
 
     isEnded() {
         if (this.hasEnded) {
-            throw new GameEnded(`${this.name} has ended`)
+            throw new GameEndedError(`${this.name} has ended`)
         }
     }
 
@@ -128,27 +132,20 @@ export abstract class Game {
         sentMessage,
         options,
     ): Promise<MessageReaction> {
-        let col
-        try {
-            const { collected, collector } = getSingleReaction(
-                player,
-                sentMessage,
-                options,
-            )
-            this.collector = collector
-            collector.player = player
-            col = collected
+        const { collected, collector } = getSingleReaction(
+            player,
+            sentMessage,
+            options,
+        )
+        this.collector = collector
+        collector.player = player
 
-            await reactOptions(sentMessage, options)
-        } catch (err) {
-            if (err instanceof CollectorPlayerLeftError) {
-                this.isEnded()
-            } else {
-                throw err
-            }
-        }
+        const col = await Promise.all([
+            collected,
+            reactOptions(sentMessage, options),
+        ])
 
-        return col
+        return col[0]
     }
 
     incSize(min, max, current, toAdd) {
@@ -214,7 +211,7 @@ export abstract class Game {
     async removePlayer(player) {
         if (this.isPlayer(player)) {
             if (this.collector && player.equals(this.collector.player)) {
-                this.collector.stop()
+                this.collector?.stop()
             }
 
             const title = `${player.username} decided to be a little bitch and quit ${this.name}\n`
@@ -244,8 +241,9 @@ export abstract class Game {
             }
 
             await this.channel.send(embed)
+            console.log(`y`)
             if (!this.hasPlayers()) {
-                return this.endGame()
+                this.endGame()
             }
         }
     }
@@ -255,18 +253,14 @@ export abstract class Game {
         try {
             await this.game()
         } catch (err) {
-            if (
-                !(
-                    err instanceof GameEnded ||
-                    err instanceof CollectorPlayerLeftError
-                )
-            ) {
+            if (!(err instanceof GameEndedError)) {
                 throw err
             }
         }
 
-        await this.channel.send(`${this.name} has finished`)
-        const server: any = this.channel.guild
+        const embed = new MessageEmbed().setTitle(`${this.name} has finished`)
+        await this.channel.send(embed)
+        const server: Guild = this.channel.guild
         server.currentGame = null
     }
 
@@ -303,8 +297,8 @@ export abstract class Game {
 
     async askAllPlayers(func) {
         for (let i = 0; i < this.players.length; i++) {
-            const player = this.players[i]
             try {
+                const player = this.players[i]
                 await func.call(this, player)
             } catch (err) {
                 if (err instanceof CollectorPlayerLeftError) {
