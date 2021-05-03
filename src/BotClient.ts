@@ -13,7 +13,7 @@ const gameFiles = fs
     .readdirSync('./src/game/games')
     .filter(file => file.endsWith('.ts'))
 
-class BotClient extends Discord.Client {
+export class BotClient extends Discord.Client {
     commands
     games
 
@@ -68,5 +68,3 @@ class BotClient extends Discord.Client {
         }
     }
 }
-
-module.exports = BotClient

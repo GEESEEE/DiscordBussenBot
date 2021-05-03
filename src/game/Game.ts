@@ -15,6 +15,7 @@ import {
     getSingleReaction,
     inElementOf,
     reactOptions,
+    removeReaction,
 } from '../utils/Utils'
 import { Deck } from './Deck'
 import { CollectorPlayerLeftError, GameEnded } from './Errors'
@@ -184,8 +185,8 @@ export abstract class Game {
                         }
                         field.value = `${val}`
                         await sentMessage.edit(embed)
-                        await reaction.users.remove(user)
                     }
+                    await removeReaction(reaction, user)
                 }
             })
         })

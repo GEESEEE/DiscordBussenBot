@@ -1,4 +1,10 @@
-import { DiscordAPIError, Message, ReactionEmoji } from 'discord.js'
+import {
+    DiscordAPIError,
+    Message,
+    MessageReaction,
+    ReactionEmoji,
+    ReactionManager,
+} from 'discord.js'
 
 import { CollectorPlayerLeftError } from '../game/Errors'
 import { DiscordErrors } from './Consts'
@@ -148,6 +154,12 @@ export async function failSilently(func, errorCodes) {
 
 export async function removeMessage(message) {
     return failSilently(message.delete.bind(message), [
+        DiscordErrors.UNKNOWN_MESSAGE,
+    ])
+}
+
+export async function removeReaction(reaction: MessageReaction, user) {
+    return failSilently(reaction.users.remove.bind(reaction.users, user), [
         DiscordErrors.UNKNOWN_MESSAGE,
     ])
 }

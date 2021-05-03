@@ -1,4 +1,8 @@
-import Discord, { MessageEmbed, MessageReaction } from 'discord.js'
+import Discord, {
+    GuildEmojiRoleManager,
+    MessageEmbed,
+    MessageReaction,
+} from 'discord.js'
 
 import { CardPrinter } from '../../utils/CardPrinter'
 import {
@@ -67,21 +71,21 @@ export default class Bussen extends Game {
         await this.askAllPlayers(this.askSuit)
 
         // Phase 2 Pyramid
-        await this.ask(this.iniPyramid)
+        await this.ask(this.initPyramid)
         await this.askWhile(
             () =>
                 this.pyramid &&
                 !this.pyramid.isEmpty() &&
                 !this.noOneHasCards(),
-            this.plaPyramid,
+            this.playPyramid,
         )
 
         // Phase 3 The Bus
-        await this.ask(this.iniBus)
-        /* await this.askWhile(
+        await this.ask(this.initBus)
+        await this.askWhile(
             () => this.bus && !this.bus.isFinished,
             this.playBus,
-        )*/
+        )
 
         // Phase 2 pyramid
         /*await this.initPyramid()
@@ -125,7 +129,10 @@ export default class Bussen extends Game {
             : StringState.FALSE(player, card, this.drinks)
     }
 
-    //region Phase 1
+    async replaceMessage(sentMessage, newMessage) {
+        await removeMessage(sentMessage)
+        return this.channel.send(newMessage)
+    }
 
     async createEmbed(player, question, card?, verdict?) {
         const attachments = []
@@ -168,9 +175,10 @@ export default class Bussen extends Game {
         const verdict = this.getMessage(false, isTrue, player, card)
         const embed2 = await this.createEmbed(player, question, card, verdict)
 
-        await removeMessage(sentMessage)
-        await this.channel.send(embed2)
+        await this.replaceMessage(sentMessage, embed2)
     }
+
+    //region Phase 1
 
     async askColour(player) {
         const question = `red or black?`
@@ -277,7 +285,7 @@ export default class Bussen extends Game {
 
     //region Phase 2 Pyramid
 
-    async iniPyramid() {
+    async initPyramid() {
         const deckSize = this.deck.cards.length
         let maxSize
         for (let i = 1; i < 12; i++) {
@@ -335,7 +343,6 @@ export default class Bussen extends Game {
         const reverse = Emoji.YES.includes(reverseEmoji)
 
         this.pyramid = new Pyramid(this.deck, reverse, pyramidSize)
-
         const attachment = await this.getAttachment(
             `pyramid.png`,
             this.pyramid.cards,
@@ -347,11 +354,10 @@ export default class Bussen extends Game {
         embed.fields[1].value = `${reverse ? Emoji.YES : Emoji.NO}`
         embed.attachFiles([attachment]).setImage(`attachment://pyramid.png`)
 
-        await removeMessage(sentMessage)
-        await this.channel.send(embed)
+        await this.replaceMessage(sentMessage, embed)
     }
 
-    async plaPyramid() {
+    async playPyramid() {
         const { card, drinks } = this.pyramid.getNextCard()
 
         const pyramidAttachment = await this.getAttachment(
@@ -412,7 +418,7 @@ export default class Bussen extends Game {
         return newPlayer
     }
 
-    async iniBus() {
+    async initBus() {
         const maxCards = Math.max(
             ...this.players.map(player => player.cards.length),
         )
@@ -495,21 +501,54 @@ export default class Bussen extends Game {
 
         if (busSize) {
             this.bus = new Bus(busPlayer, busSize, checkpoints)
+
+            const attachment = await this.getAttachment(
+                `bus.png`,
+                this.bus.sequence,
+                ``,
+                this.bus.checkpoints,
+            )
+            embed.attachFiles([attachment]).setImage(`attachment://bus.png`)
+
+            await removeMessage(sentMessage)
+
+            await this.channel.send(embed)
         }
     }
 
     async playBus() {
         const oldCard = this.bus.getCurrentCard()
-        const newCard = this.bus.getRandomCard()
-        const content = await this.getResponse(
-            this.bus.player,
-            `Card ${this.bus.currentIndex + 1} is ${oldCard}, higher or lower?`,
-            StringCouples.HIGHER_LOWER,
+
+        const busAttachment = await this.getAttachment(
+            `bus.png`,
+            this.bus.sequence,
+            ``,
+            this.bus.checkpoints,
         )
 
+        const embed1 = new MessageEmbed()
+            .setTitle(`BUSSS Card ${this.bus.currentIndex + 1}`)
+            .setDescription(
+                `${this.bus.player}, higher or lower than ${oldCard}?`,
+            )
+            .attachFiles([busAttachment])
+            .setImage(`attachment://bus.png`)
+
+        const sentMessage = await this.channel.send(embed1)
+        const options = ReactionEmojis.HIGHER_LOWER
+        const collected = this.getSingleReaction(
+            this.bus.player,
+            sentMessage,
+            options,
+        )
+        await reactOptions(sentMessage, options)
+        const reaction = (await collected) as MessageReaction
+
+        const content = reaction.emoji.name
+        const newCard = this.bus.getRandomCard()
         const correct =
-            (content === 'higher' && newCard > oldCard) ||
-            (content === 'lower' && newCard < oldCard)
+            (Emoji.HIGHER.includes(content) && newCard > oldCard) ||
+            (Emoji.LOWER.includes(content) && newCard < oldCard)
 
         let message
         if (correct) {
@@ -528,7 +567,26 @@ export default class Bussen extends Game {
             } drinks and resets to card ${this.bus.getCurrentCheckpoint() + 1}`
         }
 
-        await this.channel.send(message)
+        const drawnCardAttachment = await this.getAttachment(
+            `dcard.png`,
+            [newCard],
+            `Drawn`,
+        )
+
+        embed1.files = []
+        const embed2 = new MessageEmbed()
+            .setTitle(`BUSSS Card ${this.bus.currentIndex + 1}`)
+            .setDescription(
+                `${this.bus.player}, higher or lower than ${oldCard}?`,
+            )
+            .addField(`Verdict`, message)
+            .attachFiles([busAttachment, drawnCardAttachment])
+            .setImage(`attachment://bus.png`)
+            .setThumbnail(`attachment://dcard.png`)
+
+        await removeMessage(sentMessage)
+        await this.channel.send(embed2)
+
         this.bus.iterate(newCard, correct)
     }
 
