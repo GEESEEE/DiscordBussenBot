@@ -1,6 +1,16 @@
-import { DiscordAPIError, Message } from 'discord.js'
+import {
+    Collection,
+    DiscordAPIError,
+    Message,
+    MessageCollector,
+    MessageReaction,
+    ReactionCollector,
+    ReactionEmoji,
+    ReactionManager,
+} from 'discord.js'
 
 import { CollectorPlayerLeftError } from '../game/Errors'
+import { DiscordErrors } from './Consts'
 
 const Fuse = require(`fuse.js`)
 
@@ -49,7 +59,7 @@ export function getPrompt(channel, filter): any {
     const collector = channel.createMessageCollector(filter, { max: 1 })
 
     return {
-        message: new Promise((resolve, reject) => {
+        collected: new Promise((resolve, reject) => {
             collector.on('end', collected => {
                 if (collected.size === 0) {
                     reject(new CollectorPlayerLeftError(`Collector stopped`))
@@ -63,7 +73,38 @@ export function getPrompt(channel, filter): any {
     }
 }
 
-export function getBinaryReactions(message, maxTime, options) {
+export function getSingleReaction(player, message, options) {
+    const collector = message.createReactionCollector(
+        (reaction, user) => {
+            const emojiName = reaction.emoji.name
+            return inElementOf(options, emojiName) && user.equals(player)
+        },
+        { max: 1 },
+    )
+
+    return {
+        collected: new Promise((resolve, reject) => {
+            collector.on('end', collected => {
+                if (collected.size === 0) {
+                    reject(new CollectorPlayerLeftError(`Collector stopped`))
+                    return
+                }
+
+                resolve(collected.first() as MessageReaction)
+            })
+        }) as Promise<MessageReaction>,
+        collector: collector as ReactionCollector,
+    }
+}
+
+export function getReactionsCollector(player, message, options) {
+    return message.createReactionCollector((reaction, user) => {
+        const emojiName = reaction.emoji.name
+        return inElementOf(options, emojiName) && user.equals(player)
+    }, {})
+}
+
+export async function getBinaryReactions(message, maxTime, options) {
     const collector = message.createReactionCollector(
         (reaction, _) => {
             const emojiName = reaction.emoji.name
@@ -97,7 +138,12 @@ export function getBinaryReactions(message, maxTime, options) {
         }
     })
 
-    return { collected, collector }
+    await reactOptions(message, options)
+
+    return {
+        collected: collected as Promise<Collection<string, MessageReaction>>,
+        collector,
+    }
 }
 
 // Fails the given function silently if the caught error is in the given errorCodes
@@ -106,8 +152,30 @@ export async function failSilently(func, errorCodes) {
         await func()
     } catch (err) {
         console.log(err)
-        if (!(err instanceof DiscordAPIError && errorCodes.includes(err.code))) {
+        if (
+            !(err instanceof DiscordAPIError && errorCodes.includes(err.code))
+        ) {
             throw err
         }
+    }
+}
+
+export async function removeMessage(message) {
+    return failSilently(message.delete.bind(message), [
+        DiscordErrors.UNKNOWN_MESSAGE,
+    ])
+}
+
+export async function removeReaction(reaction: MessageReaction, user) {
+    return failSilently(reaction.users.remove.bind(reaction.users, user), [
+        DiscordErrors.UNKNOWN_MESSAGE,
+    ])
+}
+
+export async function reactOptions(message, options) {
+    for (const option of options) {
+        await failSilently(message.react.bind(message, option), [
+            DiscordErrors.UNKNOWN_MESSAGE,
+        ])
     }
 }

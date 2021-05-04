@@ -47,11 +47,11 @@ module.exports = {
          */
         'simple-import-sort/imports': 'warn',
         'simple-import-sort/exports': 'warn',
-        //'sort-keys-fix/sort-keys-fix': 'warn',
-        'typescript-sort-keys/interface': 'warn',
-        'typescript-sort-keys/string-enum': 'warn',
+        'sort-keys-fix/sort-keys-fix': 'off',
+        'typescript-sort-keys/interface': 'off',
+        'typescript-sort-keys/string-enum': 'off',
         'sort-destructure-keys/sort-destructure-keys': [
-            'warn',
+            'off',
             { caseSensitive: false },
         ],
     },

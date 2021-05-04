@@ -1,19 +1,39 @@
-import { MessageCollector, TextChannel } from 'discord.js'
+import {
+    Collector,
+    Guild,
+    Message,
+    MessageCollector,
+    MessageEmbed,
+    MessageReaction,
+    ReactionCollector,
+    TextChannel,
+    User,
+} from 'discord.js'
+import { isArray } from 'util'
 
-import { createChecker, getFilter, getPrompt } from '../utils/Utils'
+import { ReactionEmojis } from '../utils/Consts'
+import { Emoji } from '../utils/Emoji'
+import {
+    createChecker,
+    getFilter,
+    getPrompt,
+    getSingleReaction,
+    inElementOf,
+    reactOptions,
+    removeReaction,
+} from '../utils/Utils'
 import { Deck } from './Deck'
-import { CollectorPlayerLeftError, GameEnded } from './Errors'
+import { CollectorPlayerLeftError, GameEndedError } from './Errors'
 
 export abstract class Game {
     name: string
 
     deck: Deck
     channel: TextChannel
-    collector: MessageCollector & { player: any }
+    collector: MessageCollector | ReactionCollector
 
-    players: Array<any>
+    players: Array<User>
     hasStarted: boolean
-    hasEnded: boolean
 
     protected constructor(name, leader, channel) {
         this.name = name
@@ -21,13 +41,6 @@ export abstract class Game {
         this.hasStarted = false
         this.channel = channel
         this.addPlayer(leader)
-    }
-
-    async init() {
-        let message = `Starting ${this.name} with ${this.leader} as the leader\n`
-        message += `Type '!join' to join the game\n`
-        message += `${this.leader}, type '!play' to start the game when all players have joined`
-        await this.channel.send(message)
     }
 
     //region Simple Functions
@@ -59,13 +72,14 @@ export abstract class Game {
     }
 
     endGame() {
-        this.hasEnded = true
-        this.collector?.stop()
+        this.collector?.stop(`endgame`)
+
+        throw new GameEndedError(`${this.name} has ended`)
     }
 
-    isEnded() {
-        if (this.hasEnded) {
-            throw new GameEnded(`${this.name} has ended`)
+    hasEnded() {
+        if (!this.hasPlayers()) {
+            this.endGame()
         }
     }
 
@@ -96,13 +110,13 @@ export abstract class Game {
         const prompt = `${player}, ${string} (${responseOptions.join('/')})`
         await this.channel.send(prompt)
 
-        const { collector, message } = getPrompt(
+        const { collected, collector } = getPrompt(
             this.channel,
             getFilter(player, fuse),
         )
         this.collector = collector
         collector.player = player
-        const res = await message
+        const res = await collected
 
         if (!numeric) {
             return fuse.search(res.content)[0].item
@@ -111,50 +125,145 @@ export abstract class Game {
         }
     }
 
+    async getSingleReaction(
+        player,
+        sentMessage,
+        options,
+    ): Promise<MessageReaction> {
+        const { collected, collector } = getSingleReaction(
+            player,
+            sentMessage,
+            options,
+        )
+        this.collector = collector
+        collector.player = player
+
+        const col = await Promise.all([
+            collected,
+            reactOptions(sentMessage, options),
+        ])
+
+        return col[0]
+    }
+
+    incSize(min, max, current, toAdd) {
+        const newVal = current + toAdd
+        if (newVal > max) {
+            return max
+        } else if (newVal < min) {
+            return min
+        } else {
+            return newVal
+        }
+    }
+
+    async waitForValue(
+        collector,
+        val,
+        min,
+        max,
+        sentMessage,
+        embed,
+        field,
+        sizeOptions,
+        player?,
+    ): Promise<number> {
+        if (!player) {
+            player = this.leader
+        }
+        const collected = new Promise((resolve, reject) => {
+            collector.on(`collect`, async (reaction, user) => {
+                const reactEmoji = reaction.emoji.name
+
+                if (user.equals(player)) {
+                    if (Emoji.PLAY.includes(reactEmoji)) {
+                        collector.stop()
+                        resolve(val)
+                    } else {
+                        if (Emoji.HIGHER.includes(reactEmoji)) {
+                            val = this.incSize(min, max, val, 1)
+                        } else if (Emoji.HIGHER2.includes(reactEmoji)) {
+                            val = this.incSize(min, max, val, 3)
+                        } else if (Emoji.LOWER.includes(reactEmoji)) {
+                            val = this.incSize(min, max, val, -1)
+                        } else if (Emoji.LOWER2.includes(reactEmoji)) {
+                            val = this.incSize(min, max, val, -3)
+                        }
+                        field.value = `${val}`
+                        await sentMessage.edit(embed)
+                    }
+                    await removeReaction(reaction, user)
+                }
+            })
+
+            collector.on(`end`, (collected, reason) => {
+                console.log(`reason`, reason)
+                if (reason === `removeplayer`) {
+                    reject(new CollectorPlayerLeftError(``))
+                }
+            })
+        })
+        this.collector = collector
+        collector.player = player
+
+        const col = await Promise.all([
+            collected,
+            reactOptions(sentMessage, sizeOptions),
+        ])
+
+        return col[0] as number
+    }
+
     async removePlayer(player) {
-        if (this.collector && player.equals(this.collector.player)) {
-            this.collector.stop()
-        }
+        if (this.isPlayer(player)) {
+            if (this.collector && player.equals(this.collector.player)) {
+                this.collector?.stop(`removeplayer`)
+            }
 
-        let message = `${player} decided to be a little bitch and quit ${this.name}\n`
+            const title = `${player.username} decided to be a little bitch and quit ${this.name}\n`
+            let message = ``
 
-        const playerIndex = this.players.indexOf(player)
-        if (playerIndex > -1) {
-            this.players.splice(playerIndex, 1)
-        }
+            const playerIndex = this.players.indexOf(player)
+            if (playerIndex > -1) {
+                this.players.splice(playerIndex, 1)
+            }
 
-        if (playerIndex === 0 && this.hasPlayers()) {
-            message += `${this.leader} is the new leader!\n`
-        }
+            if (playerIndex === 0 && this.hasPlayers()) {
+                message += `${this.leader} is the new leader!\n`
+            }
 
-        this.deck.addCards(player.cards)
-        player.removeAllCards()
+            this.deck.addCards(player.cards)
+            player.removeAllCards()
 
-        const additionalMessage = this.onRemovePlayer(player)
+            const additionalMessage = this.onRemovePlayer(player)
 
-        if (additionalMessage) {
-            message += additionalMessage
-        }
+            if (additionalMessage) {
+                message += additionalMessage
+            }
 
-        await this.channel.send(message)
+            const embed = new MessageEmbed().setTitle(title)
+            if (message.length > 0) {
+                embed.setDescription(message)
+            }
 
-        if (!this.hasPlayers()) {
-            return this.endGame()
+            await this.channel.send(embed)
         }
     }
 
     async play() {
         this.hasStarted = true
-        await this.channel.send(`${this.leader} has started ${this.name}!`)
         try {
             await this.game()
         } catch (err) {
-            if (!(err instanceof GameEnded)) {
+            if (!(err instanceof GameEndedError)) {
                 throw err
             }
         }
 
-        await this.channel.send(`${this.name} has finished`)
+        const embed = new MessageEmbed().setTitle(`${this.name} has finished`)
+        await this.channel.send(embed)
+        const server: Guild = this.channel.guild
+        server.currentGame = null
     }
 
     abstract game(): void
@@ -166,20 +275,17 @@ export abstract class Game {
 
     // This will continually ask the given player for a response using getResponse
     // if the player leaves during this, it returns undefined
-    async loopForResponse(player, string, responseOptions, numeric = false) {
+    async loopForResponse(func) {
         let succes
         let val
-        while (!succes && this.isPlayer(player)) {
+        while (!succes && this.hasPlayers()) {
             try {
-                val = await this.getResponse(
-                    player,
-                    string,
-                    responseOptions,
-                    numeric,
-                )
+                val = await func.call(this)
                 succes = true
             } catch (err) {
-                if (!(err instanceof CollectorPlayerLeftError)) {
+                if (err instanceof CollectorPlayerLeftError) {
+                    this.hasEnded()
+                } else {
                     throw err
                 }
             }
@@ -195,7 +301,7 @@ export abstract class Game {
                 await func.call(this, player)
             } catch (err) {
                 if (err instanceof CollectorPlayerLeftError) {
-                    this.isEnded()
+                    this.hasEnded()
                     i--
                 } else {
                     throw err
@@ -210,7 +316,7 @@ export abstract class Game {
                 await func.call(this)
             } catch (err) {
                 if (err instanceof CollectorPlayerLeftError) {
-                    this.isEnded()
+                    this.hasEnded()
                 } else {
                     throw err
                 }
@@ -221,10 +327,10 @@ export abstract class Game {
     async ask(func) {
         if (this.hasPlayers()) {
             try {
-                await func.call(this)
+                return func.call(this)
             } catch (err) {
                 if (err instanceof CollectorPlayerLeftError) {
-                    this.isEnded()
+                    this.hasEnded()
                 } else {
                     throw err
                 }

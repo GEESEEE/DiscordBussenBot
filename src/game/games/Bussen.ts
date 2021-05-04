@@ -1,7 +1,24 @@
-import { StringCouples, Strings, Suit, Value } from '../../utils/Consts'
-import { sum } from '../../utils/Utils'
+import Discord, { MessageEmbed, MessageReaction, User } from 'discord.js'
+
+import { CardPrinter } from '../../utils/CardPrinter'
+import {
+    EmptyString,
+    ReactionEmojis,
+    StringCouples,
+    Strings,
+    Value,
+} from '../../utils/Consts'
+import { Emoji } from '../../utils/Emoji'
+import {
+    getReactionsCollector,
+    reactOptions,
+    removeMessage,
+    sum,
+} from '../../utils/Utils'
 import { Card, Deck } from '../Deck'
+import { CollectorPlayerLeftError } from '../Errors'
 import { Game } from '../Game'
+
 const pluralize = require(`pluralize`)
 
 const StringState = {
@@ -24,7 +41,7 @@ export default class Bussen extends Game {
     drinks: number
     pyramid: Pyramid
     bus: Bus
-    busPlayers: Array<any>
+    busPlayers: Array<User>
 
     constructor(name, leader, channel) {
         super(name, leader, channel)
@@ -45,29 +62,342 @@ export default class Bussen extends Game {
 
     async game() {
         // Phase 1 questions
-        await this.askAllPlayers(this.askColours)
-        await this.askAllPlayers(this.askHigherOrLower)
-        await this.askAllPlayers(this.askInBetween)
-        await this.askAllPlayers(this.askSuits)
+        // await this.askAllPlayers(this.askColour)
+        // await this.askAllPlayers(this.askHigherLower)
+        // await this.askAllPlayers(this.askBetween)
+        // await this.askAllPlayers(this.askSuit)
 
-        // Phase 2 pyramid
-        await this.initPyramid()
+        // Phase 2 Pyramid
+        /*        await this.loopForResponse(this.initPyramid)
         await this.askWhile(
             () =>
                 this.pyramid &&
                 !this.pyramid.isEmpty() &&
                 !this.noOneHasCards(),
             this.playPyramid,
-        )
+        )*/
 
         // Phase 3 The Bus
-        await this.ask(this.initBus)
+        await this.loopForResponse(this.initBus)
         await this.askWhile(
             () => this.bus && !this.bus.isFinished,
             this.playBus,
         )
     }
 
+    getMessage(isEqual, isTrue, player, card) {
+        return isEqual
+            ? StringState.EQUAL(player, card, this.drinks)
+            : isTrue
+            ? StringState.TRUE(player, card)
+            : StringState.FALSE(player, card, this.drinks)
+    }
+
+    async replaceMessage(sentMessage, newMessage) {
+        const message = await this.channel.send(newMessage)
+        await removeMessage(sentMessage)
+        return message
+    }
+
+    async getAttachment(
+        name,
+        cards,
+        text?,
+        rows?,
+        center?,
+        cardCount?,
+        focusedCard?,
+    ) {
+        const playerCardPrinter = new CardPrinter(
+            cards,
+            rows,
+            center,
+            text,
+            cardCount,
+            focusedCard,
+        )
+        await playerCardPrinter.printCards()
+
+        return new Discord.MessageAttachment(
+            playerCardPrinter.canvas.toBuffer('image/png'),
+            name,
+        )
+    }
+
+    async createEmbed(player, question, card?, verdict?) {
+        const attachments = []
+        if (player.cards.length > 0) {
+            const playerCardAttachment = await this.getAttachment(
+                `pcards.png`,
+                player.cards,
+                `Your Cards`,
+            )
+            attachments.push(playerCardAttachment)
+        }
+
+        if (card) {
+            const drawnCardAttachment = await this.getAttachment(
+                `dcard.png`,
+                [card],
+                `Drawn`,
+            )
+            attachments.push(drawnCardAttachment)
+        }
+
+        const embed = new MessageEmbed()
+            .setTitle(`${player.username}'s turn`)
+            .setDescription(`${player}, ${question}`)
+
+        if (attachments.length > 0) {
+            embed.attachFiles(attachments).setImage(`attachment://pcards.png`)
+        }
+
+        if (card) {
+            embed
+                .setThumbnail(`attachment://dcard.png`)
+                .addField(`Verdict`, verdict)
+        }
+
+        return embed
+    }
+
+    async addVerdict(sentMessage, isTrue, player, question, card) {
+        const verdict = this.getMessage(false, isTrue, player, card)
+        const embed2 = await this.createEmbed(player, question, card, verdict)
+
+        await this.replaceMessage(sentMessage, embed2)
+    }
+
+    //region Phase 1
+
+    async askColour(player) {
+        const question = `red or black?`
+        const embed1 = await this.createEmbed(player, question)
+        const sentMessage = await this.channel.send(embed1)
+
+        const reaction = await this.getSingleReaction(
+            player,
+            sentMessage,
+            ReactionEmojis.RED_BLACK,
+        )
+
+        const card = this.deck.getRandomCard()
+        player.addCard(card)
+
+        const content = reaction.emoji.name
+
+        const isTrue =
+            (content.includes(Emoji.HEARTS) && card.isRed()) ||
+            (content.includes(Emoji.SPADES) && card.isBlack())
+
+        await this.addVerdict(sentMessage, isTrue, player, question, card)
+    }
+
+    async askHigherLower(player) {
+        const playerCard = player.cards[0]
+        const question = `higher or lower than ${playerCard}?`
+        const embed1 = await this.createEmbed(player, question)
+        const sentMessage = await this.channel.send(embed1)
+
+        const reaction = await this.getSingleReaction(
+            player,
+            sentMessage,
+            ReactionEmojis.HIGHER_LOWER,
+        )
+        const card = this.deck.getRandomCard()
+
+        const content = reaction.emoji.name
+        const isTrue =
+            (Emoji.HIGHER.includes(content) && card > playerCard) ||
+            (Emoji.LOWER.includes(content) && card < playerCard)
+
+        player.addCard(card)
+
+        await this.addVerdict(sentMessage, isTrue, player, question, card)
+    }
+
+    async askBetween(player) {
+        const playerCard1 = player.cards[0]
+        const playerCard2 = player.cards[1]
+
+        const question = `is it between ${playerCard1} and ${playerCard2}?`
+        const embed1 = await this.createEmbed(player, question)
+        const sentMessage = await this.channel.send(embed1)
+
+        const reaction = await this.getSingleReaction(
+            player,
+            sentMessage,
+            ReactionEmojis.YES_NO,
+        )
+
+        const card = this.deck.getRandomCard()
+        player.addCard(card)
+
+        const content = reaction.emoji.name
+
+        const isBetween = card.isBetween(playerCard1, playerCard2)
+        const isTrue =
+            (Emoji.YES.includes(content) && isBetween) ||
+            (Emoji.NO.includes(content) && !isBetween)
+
+        await this.addVerdict(sentMessage, isTrue, player, question, card)
+    }
+
+    async askSuit(player) {
+        const playerSuits = [
+            ...new Set(player.cards.map(cards => cards.suit)),
+        ].join(', ')
+
+        const question = `do you already have the suit, you have ${playerSuits}?`
+        const embed1 = await this.createEmbed(player, question)
+        const sentMessage = await this.channel.send(embed1)
+
+        const reaction = await this.getSingleReaction(
+            player,
+            sentMessage,
+            ReactionEmojis.YES_NO,
+        )
+
+        const card = this.deck.getRandomCard()
+
+        const content = reaction.emoji.name
+        const hasSameSuit = card.hasSameSuit(player.cards)
+
+        const isTrue =
+            (Emoji.YES.includes(content) && hasSameSuit) ||
+            (Emoji.NO.includes(content) && !hasSameSuit)
+
+        player.addCard(card)
+
+        await this.addVerdict(sentMessage, isTrue, player, question, card)
+    }
+    //endregion
+
+    //region Phase 2 Pyramid
+
+    async initPyramid() {
+        const deckSize = this.deck.cards.length
+        let maxSize
+        for (let i = 1; i < 12; i++) {
+            if (sum(i) <= deckSize) {
+                maxSize = i
+            }
+        }
+
+        const sizeOptions = ReactionEmojis.HIGHER_LOWER2
+        let pyramidSize = 1
+        const embed = new MessageEmbed()
+            .setTitle(`Pyramid`)
+            .setDescription(
+                `${this.leader}, how tall should the pyramid be? (1-${maxSize})`,
+            )
+            .addField(`Pyramid Size`, `${pyramidSize}`, true)
+
+        let sentMessage = await this.channel.send(embed)
+        const sizeCollector = getReactionsCollector(
+            this.leader,
+            sentMessage,
+            sizeOptions,
+        )
+
+        pyramidSize = await this.waitForValue(
+            sizeCollector,
+            pyramidSize,
+            1,
+            maxSize,
+            sentMessage,
+            embed,
+            embed.fields[0],
+            sizeOptions,
+        )
+
+        if (pyramidSize) {
+            embed
+                .setDescription(
+                    `${this.leader}, should the pyramid be reversed?`,
+                )
+                .addField(`Reversed`, EmptyString, true)
+            sentMessage = await this.replaceMessage(sentMessage, embed)
+
+            const reverseOptions = ReactionEmojis.YES_NO
+
+            const collected = await this.getSingleReaction(
+                this.leader,
+                sentMessage,
+                reverseOptions,
+            )
+
+            if (collected) {
+                const reverseEmoji = collected.emoji.name
+                const reverse = Emoji.YES.includes(reverseEmoji)
+
+                this.pyramid = new Pyramid(this.deck, reverse, pyramidSize)
+                const attachment = await this.getAttachment(
+                    `pyramid.png`,
+                    this.pyramid.cards,
+                    ``,
+                    this.pyramid.rows,
+                    true,
+                    0,
+                )
+                embed.fields[1].value = `${reverse ? Emoji.YES : Emoji.NO}`
+                embed
+                    .attachFiles([attachment])
+                    .setImage(`attachment://pyramid.png`)
+
+                await this.replaceMessage(sentMessage, embed)
+            }
+        }
+    }
+
+    async playPyramid() {
+        const { card, drinks } = this.pyramid.getNextCard()
+
+        const pyramidAttachment = await this.getAttachment(
+            `pyramid.png`,
+            this.pyramid.cards,
+            ``,
+            this.pyramid.rows,
+            true,
+            this.pyramid.index,
+            this.pyramid.index,
+        )
+
+        const drawnCardAttachment = await this.getAttachment(
+            `dcard.png`,
+            [card],
+            `Drawn`,
+        )
+
+        let message = `Drew ${card}\n`
+        for (const player of this.players) {
+            if (player.hasValueInHand(card)) {
+                const playerCards = player.getCardsWithValue(card)
+                const playerCardsString = playerCards.join(', ')
+                message += `${player} put down ${playerCardsString} and can give **${
+                    drinks * playerCards.length
+                } drinks** to other players.`
+            } else {
+                message += `${player} has no card with value ${card.value} to put down.`
+            }
+            message += ` Cards left: ${player.cards.length}\n`
+        }
+
+        const embed = new MessageEmbed()
+            .setTitle(`Pyramid Card ${this.pyramid.index}`)
+            .setDescription(message)
+            .attachFiles([pyramidAttachment, drawnCardAttachment])
+            .setImage(`attachment://pyramid.png`)
+            .setThumbnail(`attachment://dcard.png`)
+
+        const sentMessage = await this.channel.send(embed)
+
+        await this.getSingleReaction(this.leader, sentMessage, [Emoji.PLAY])
+    }
+
+    //endregion
+
+    //region Phase 3 Bus
     getNewBusPlayer() {
         let newPlayer
         if (this.busPlayers.length > 0) {
@@ -82,159 +412,6 @@ export default class Bussen extends Game {
         return newPlayer
     }
 
-    getMessage(isEqual, isTrue, player, card) {
-        return isEqual
-            ? StringState.EQUAL(player, card, this.drinks)
-            : isTrue
-            ? StringState.TRUE(player, card)
-            : StringState.FALSE(player, card, this.drinks)
-    }
-
-    async askColours(player) {
-        const content = await this.getResponse(
-            player,
-            `red or black?`,
-            StringCouples.RED_BLACK,
-        )
-        const card = this.deck.getRandomCard()
-        player.addCard(card)
-
-        const isTrue =
-            (content === 'red' && card.isRed()) ||
-            (content === 'black' && card.isBlack())
-        await this.channel.send(this.getMessage(false, isTrue, player, card))
-    }
-
-    async askHigherOrLower(player) {
-        const playerCard = player.cards[0]
-        const content = await this.getResponse(
-            player,
-            `higher or lower than ${playerCard}?`,
-            StringCouples.HIGHER_LOWER,
-        )
-        const newCard = this.deck.getRandomCard()
-
-        const isTrue =
-            (content === 'higher' && newCard > playerCard) ||
-            (content === 'lower' && newCard < playerCard)
-        await this.channel.send(
-            this.getMessage(
-                playerCard.equals(newCard),
-                isTrue,
-                player,
-                newCard,
-            ),
-        )
-        player.addCard(newCard)
-    }
-
-    async askInBetween(player) {
-        const playerCard1 = player.cards[0]
-        const playerCard2 = player.cards[1]
-        const content = await this.getResponse(
-            player,
-            `is it between ${playerCard1} and ${playerCard2}?`,
-            StringCouples.YES_NO,
-        )
-
-        const card = this.deck.getRandomCard()
-        player.addCard(card)
-
-        const isBetween = card.isBetween(playerCard1, playerCard2)
-        const isTrue =
-            (content === 'yes' && isBetween) || (content === 'no' && !isBetween)
-        await this.channel.send(
-            this.getMessage(
-                card.equals(playerCard1) || card.equals(playerCard2),
-                isTrue,
-                player,
-                card,
-            ),
-        )
-    }
-
-    async askSuits(player) {
-        const playerSuits = [
-            ...new Set(player.cards.map(cards => cards.suit)),
-        ].join(', ')
-        const content = await this.getResponse(
-            player,
-            `do you already have the suit, you have ${playerSuits}?`,
-            StringCouples.YES_NO,
-        )
-
-        const card = this.deck.getRandomCard()
-
-        const hasSameSuit = card.hasSameSuit(player.cards)
-        const isTrue =
-            (content === 'yes' && hasSameSuit) ||
-            (content === 'no' && !hasSameSuit)
-        await this.channel.send(
-            this.getMessage(
-                isTrue && content === 'no' && player.suitsCount() === 3,
-                isTrue,
-                player,
-                card,
-            ),
-        )
-
-        player.addCard(card)
-    }
-
-    async initPyramid() {
-        const deckSize = this.deck.cards.length
-        let maxSize
-        for (let i = 1; i < 12; i++) {
-            if (sum(i) > deckSize) {
-                maxSize = i - 1
-            }
-        }
-
-        const pyramidSize = await this.loopForResponse(
-            this.leader,
-            `how tall should the pyramid be?`,
-            `1,${maxSize}`,
-            true,
-        )
-        const reverseContent = await this.loopForResponse(
-            this.leader,
-            `should the pyramid be reversed?`,
-            StringCouples.YES_NO,
-        )
-
-        if (pyramidSize && reverseContent) {
-            this.pyramid = new Pyramid(
-                this.deck,
-                reverseContent === 'yes',
-                pyramidSize,
-            )
-        }
-    }
-
-    async playPyramid() {
-        await this.getResponse(
-            this.leader,
-            `type 'next' to draw the next card`,
-            Strings.NEXT,
-        )
-        const { card, drinks } = this.pyramid.getNextCard()
-
-        let message = `Drew ${card}\n`
-        for (const player of this.players) {
-            if (player.hasValueInHand(card)) {
-                const playerCards = player.getCardsWithValue(card)
-                const playerCardsString = playerCards.join(', ')
-                message += `${player} put down ${playerCardsString} and can give ${
-                    drinks * playerCards.length
-                } drinks to other players.`
-            } else {
-                message += `${player} has no card with value ${card.value} to put down.`
-            }
-            message += ` Cards left: ${player.cards.length}\n`
-        }
-        await this.channel.send(message)
-    }
-
     async initBus() {
         const maxCards = Math.max(
             ...this.players.map(player => player.cards.length),
@@ -242,14 +419,14 @@ export default class Bussen extends Game {
         this.busPlayers = this.players.filter(
             player => player.cards.length === maxCards,
         )
-        let busPlayer = this.busPlayers[
-            Math.floor(Math.random() * this.busPlayers.length)
-        ]
-        await this.channel.send(
-            `${this.busPlayers.join(
-                ', ',
-            )} all have ${maxCards} cards, but ${busPlayer} has been selected as the bus driver!`,
-        )
+        const busPlayer = this.getNewBusPlayer()
+
+        const message = `${(this.busPlayers.length > 0
+            ? this.busPlayers
+            : this.players
+        ).join(
+            ', ',
+        )} all have ${maxCards} cards, but ${busPlayer} has been selected as the bus driver!`
 
         // Removing chosen player from options
         const index = this.busPlayers.indexOf(busPlayer)
@@ -262,47 +439,116 @@ export default class Bussen extends Game {
             player.removeAllCards()
         }
 
-        let busSize
-        while (!busSize && this.hasPlayers()) {
-            if (this.isPlayer(busPlayer)) {
-                busSize = await this.loopForResponse(
-                    busPlayer,
-                    `how long should the bus be?`,
-                    `1,20`,
-                    true,
-                )
-            } else {
-                busPlayer = this.getNewBusPlayer()
-            }
-        }
-
-        let checkpoints = -1
-        while (busSize > 2 && checkpoints < 0 && this.hasPlayers()) {
-            checkpoints = await this.loopForResponse(
-                busPlayer,
-                `how many checkpoints should the bus have?`,
-                `0,${Math.floor(busSize / 3)}`,
-                true,
+        const sizeOptions = ReactionEmojis.HIGHER_LOWER2
+        let busSize = 1
+        const embed = new MessageEmbed()
+            .setTitle(`The BUSSS`)
+            .setDescription(message)
+            .addField(
+                EmptyString,
+                `${busPlayer}, how long should the bus be? (1-20)`,
             )
-        }
+            .addField(`Bus Size`, `${busSize}`, true)
+
+        const sentMessage = await this.channel.send(embed)
+        const busSizeCollector = getReactionsCollector(
+            busPlayer,
+            sentMessage,
+            sizeOptions,
+        )
+
+        busSize = await this.waitForValue(
+            busSizeCollector,
+            busSize,
+            1,
+            20,
+            sentMessage,
+            embed,
+            embed.fields[1],
+            sizeOptions,
+            busPlayer,
+        )
 
         if (busSize) {
-            this.bus = new Bus(busPlayer, busSize, checkpoints)
+            let checkpoints = 0
+            if (busSize > 2) {
+                const maxCheckPoints = Math.floor(busSize / 3)
+                embed.fields[0].value = `${busPlayer}, how many checkpoints should the bus have? (0-${maxCheckPoints})`
+                embed.addField(`Checkpoints`, `${checkpoints}`, true)
+                await sentMessage.edit(embed)
+
+                const checkpointCollector = getReactionsCollector(
+                    busPlayer,
+                    sentMessage,
+                    sizeOptions,
+                )
+
+                checkpoints = await this.waitForValue(
+                    checkpointCollector,
+                    checkpoints,
+                    0,
+                    maxCheckPoints,
+                    sentMessage,
+                    embed,
+                    embed.fields[2],
+                    sizeOptions,
+                    busPlayer,
+                )
+            }
+
+            if (checkpoints >= 0) {
+                this.bus = new Bus(busPlayer, busSize, checkpoints)
+
+                const attachment = await this.getAttachment(
+                    `bus.png`,
+                    this.bus.sequence,
+                    ``,
+                    this.bus.checkpoints,
+                    false,
+                    -1,
+                )
+                embed.attachFiles([attachment]).setImage(`attachment://bus.png`)
+                await removeMessage(sentMessage)
+
+                await this.channel.send(embed)
+            }
         }
     }
 
     async playBus() {
         const oldCard = this.bus.getCurrentCard()
-        const newCard = this.bus.getRandomCard()
-        const content = await this.getResponse(
-            this.bus.player,
-            `Card ${this.bus.currentIndex + 1} is ${oldCard}, higher or lower?`,
-            StringCouples.HIGHER_LOWER,
+
+        const busAttachment = await this.getAttachment(
+            `bus.png`,
+            this.bus.sequence,
+            ``,
+            this.bus.checkpoints,
+            false,
+            -1,
+            this.bus.sequence.length - this.bus.currentIndex,
         )
 
+        const embed1 = new MessageEmbed()
+            .setTitle(`BUSSS Card ${this.bus.currentIndex + 1}`)
+            .setDescription(
+                `${this.bus.player}, higher or lower than ${oldCard}?`,
+            )
+            .attachFiles([busAttachment])
+            .setImage(`attachment://bus.png`)
+
+        const sentMessage = await this.channel.send(embed1)
+        const options = ReactionEmojis.HIGHER_LOWER
+        const reaction = await this.getSingleReaction(
+            this.bus.player,
+            sentMessage,
+            options,
+        )
+
+        const content = reaction.emoji.name
+        const newCard = this.bus.getRandomCard()
         const correct =
-            (content === 'higher' && newCard > oldCard) ||
-            (content === 'lower' && newCard < oldCard)
+            (Emoji.HIGHER.includes(content) && newCard > oldCard) ||
+            (Emoji.LOWER.includes(content) && newCard < oldCard)
 
         let message
         if (correct) {
@@ -316,18 +562,41 @@ export default class Bussen extends Game {
                 message = `${this.bus.player} managed to escape the BUSS in ${this.bus.turns} turns, while consuming ${this.bus.totalDrinks} drinks in total`
             }
         } else {
-            message = `${this.bus.player} drew ${newCard}, has to consume ${
+            message = `${this.bus.player} drew ${newCard}, has to consume **${
                 this.bus.currentIndex + 1 - this.bus.getCurrentCheckpoint()
-            } drinks and resets to card ${this.bus.getCurrentCheckpoint() + 1}`
+            } drinks** and resets to card ${
+                this.bus.getCurrentCheckpoint() + 1
+            }`
         }
 
-        await this.channel.send(message)
+        const drawnCardAttachment = await this.getAttachment(
+            `dcard.png`,
+            [newCard],
+            `Drawn`,
+        )
+
+        embed1.files = []
+        const embed2 = new MessageEmbed()
+            .setTitle(`BUSSS Card ${this.bus.currentIndex + 1}`)
+            .setDescription(
+                `${this.bus.player}, higher or lower than ${oldCard}?`,
+            )
+            .addField(`Verdict`, message)
+            .attachFiles([busAttachment, drawnCardAttachment])
+            .setImage(`attachment://bus.png`)
+            .setThumbnail(`attachment://dcard.png`)
+
+        await removeMessage(sentMessage)
+        await this.channel.send(embed2)
+
         this.bus.iterate(newCard, correct)
     }
+
+    //endregion
 }
 
 class Bus {
-    player: any
+    player: User
     deck: Deck
     size: number
     sequence: Array<Card>
@@ -419,22 +688,30 @@ class Pyramid {
     size: number
     cards: Array<Card>
     index: number
+    rows: Array<number>
 
     constructor(deck, reversed, size) {
         this.deck = deck
         this.reversed = reversed
         this.size = size
         this.cards = []
-        if (reversed) {
+        this.rows = []
+
+        let index = 0
+        if (!reversed) {
             for (let i = 0; i < size; i++) {
+                this.rows.push(index)
                 for (let j = 0; j <= i; j++) {
                     this.cards.push(deck.getRandomCard())
+                    index++
                 }
             }
         } else {
             for (let i = size; i > 0; i--) {
+                this.rows.push(index)
                 for (let j = 0; j < i; j++) {
                     this.cards.push(deck.getRandomCard())
+                    index++
                 }
             }
         }
@@ -449,7 +726,7 @@ class Pyramid {
     getNextCard() {
         if (!this.isEmpty()) {
             const drinks = this.getDrinkCounts(this.index)
-            const card = this.cards[this.index]
+            const card = this.cards[this.cards.length - 1 - this.index]
             this.index++
             return { card, drinks }
         }

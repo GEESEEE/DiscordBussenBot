@@ -1,6 +1,6 @@
 import Discord, { TextChannel } from 'discord.js'
 const fs = require('fs')
-const { prefix } = require('../config.json')
+const { prefix } = require('../../config.json')
 
 require('./Player')
 require('./Server')
@@ -13,7 +13,7 @@ const gameFiles = fs
     .readdirSync('./src/game/games')
     .filter(file => file.endsWith('.ts'))
 
-class BotClient extends Discord.Client {
+export class BotClient extends Discord.Client {
     commands
     games
 
@@ -23,12 +23,12 @@ class BotClient extends Discord.Client {
         this.games = new Discord.Collection()
 
         for (const file of commandFiles) {
-            const command = require(`./commands/${file}`)
+            const command = require(`../commands/${file}`)
             this.commands.set(command.name, command)
         }
 
         for (const file of gameFiles) {
-            const game = require(`./game/games/${file}`)
+            const game = require(`../game/games/${file}`)
             this.games.set(file.toLowerCase().slice(0, -3), game)
         }
 
@@ -68,5 +68,3 @@ class BotClient extends Discord.Client {
         }
     }
 }
-
-module.exports = BotClient

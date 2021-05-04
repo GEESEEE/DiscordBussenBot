@@ -93,6 +93,35 @@ export abstract class Card {
         return string
     }
 
+    get suitEmoji() {
+        if (this.suit === Suit.SPADES) {
+            return `♠`
+        } else if (this.suit === Suit.CLUBS) {
+            return `♣`
+        }
+        return this.suit
+    }
+
+    suitToString() {
+        if (this.suit === Suit.SPADES) {
+            return `Spades`
+        } else if (this.suit === Suit.CLUBS) {
+            return `Clubs`
+        } else if (this.suit === Suit.HEARTS) {
+            return `Hearts`
+        } else if (this.suit === Suit.DIAMONDS) {
+            return `Diamonds`
+        }
+    }
+
+    valueToString() {
+        if (this.value === `10`) {
+            return this.value
+        } else {
+            return this.value.charAt(0)
+        }
+    }
+
     toString() {
         return `${this.prefix} **${this.value}** of ${this.suit}`
     }
