@@ -17,7 +17,7 @@ module.exports = {
 
                 const args =
                     command.args && command.args.length > 0
-                        ? `***${command.args.join(' ')}***`
+                        ? '`' + `${command.args.join(' ')}` + '`'
                         : ``
 
                 commands.push(

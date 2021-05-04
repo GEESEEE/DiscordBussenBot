@@ -54,26 +54,6 @@ export const Server = Structures.extend('Guild', Guild => {
             return this.validMessage(message) && !this.gameExists()
         }
 
-        readyToJoin(message) {
-            return (
-                this.validMessage(message) &&
-                this.gameExists() &&
-                !this.currentGame.hasStarted &&
-                !this.currentGame.players.some(player =>
-                    player.equals(message.author),
-                )
-            )
-        }
-
-        readyToPlay(message) {
-            return (
-                this.validMessage(message) &&
-                this.gameExists() &&
-                this.currentGame.isLeader(message.author) &&
-                !this.currentGame.hasStarted
-            )
-        }
-
         readyToQuit(message) {
             return (
                 this.validMessage(message) &&
@@ -97,7 +77,6 @@ export const Server = Structures.extend('Guild', Guild => {
             await this.currentGame.removePlayer(player)
             if (!this.currentGame?.hasPlayers()) {
                 this.collector?.stop()
-                //this.currentGame = null
             }
         }
 
@@ -178,7 +157,7 @@ export const Server = Structures.extend('Guild', Guild => {
                     const wasLeader = user.equals(this.currentGame.leader)
                     await this.removePlayer(user)
 
-                    if (this.currentGame && this.currentGame.hasPlayers()) {
+                    if (this.gameExists() && this.currentGame.hasPlayers()) {
                         if (wasLeader) {
                             embed = this.getJoinEmbed()
                         } else {
@@ -190,6 +169,7 @@ export const Server = Structures.extend('Guild', Guild => {
                     } else {
                         collector.stop()
                         await removeMessage(sentMessage)
+                        this.currentGame = null
                     }
                 }
             })

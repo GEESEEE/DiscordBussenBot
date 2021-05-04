@@ -39,8 +39,6 @@ declare module 'discord.js' {
 
         readyToKick(message, user): boolean
 
-        readyToPlay(message): boolean
-
         readyToQuit(message): boolean
 
         readyToRemove(message): Game
