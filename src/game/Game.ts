@@ -34,7 +34,6 @@ export abstract class Game {
 
     players: Array<User>
     hasStarted: boolean
-    hasEnded: boolean
 
     protected constructor(name, leader, channel) {
         this.name = name
@@ -73,15 +72,14 @@ export abstract class Game {
     }
 
     endGame() {
-        this.hasEnded = true
-        console.log(`en`)
-        this.collector?.stop()
-        console.log(`een`)
+        this.collector?.stop(`endgame`)
+
+        throw new GameEndedError(`${this.name} has ended`)
     }
 
-    isEnded() {
-        if (this.hasEnded) {
-            throw new GameEndedError(`${this.name} has ended`)
+    hasEnded() {
+        if (!this.hasPlayers()) {
+            this.endGame()
         }
     }
 
@@ -168,50 +166,58 @@ export abstract class Game {
         embed,
         field,
         sizeOptions,
+        player?,
     ): Promise<number> {
-        let promise
-        try {
-            promise = new Promise((resolve, _) => {
-                collector.on(`collect`, async (reaction, user) => {
-                    const reactEmoji = reaction.emoji.name
-
-                    if (user.equals(this.leader)) {
-                        if (Emoji.PLAY.includes(reactEmoji)) {
-                            collector.stop()
-                            resolve(val)
-                        } else {
-                            if (Emoji.HIGHER.includes(reactEmoji)) {
-                                val = this.incSize(min, max, val, 1)
-                            } else if (Emoji.HIGHER2.includes(reactEmoji)) {
-                                val = this.incSize(min, max, val, 3)
-                            } else if (Emoji.LOWER.includes(reactEmoji)) {
-                                val = this.incSize(min, max, val, -1)
-                            } else if (Emoji.LOWER2.includes(reactEmoji)) {
-                                val = this.incSize(min, max, val, -3)
-                            }
-                            field.value = `${val}`
-                            await sentMessage.edit(embed)
-                        }
-                        await removeReaction(reaction, user)
-                    }
-                })
-            })
-            await reactOptions(sentMessage, sizeOptions)
-        } catch (err) {
-            if (err instanceof CollectorPlayerLeftError) {
-                this.isEnded()
-            } else {
-                throw err
-            }
+        if (!player) {
+            player = this.leader
         }
+        const collected = new Promise((resolve, reject) => {
+            collector.on(`collect`, async (reaction, user) => {
+                const reactEmoji = reaction.emoji.name
 
-        return promise
+                if (user.equals(player)) {
+                    if (Emoji.PLAY.includes(reactEmoji)) {
+                        collector.stop()
+                        resolve(val)
+                    } else {
+                        if (Emoji.HIGHER.includes(reactEmoji)) {
+                            val = this.incSize(min, max, val, 1)
+                        } else if (Emoji.HIGHER2.includes(reactEmoji)) {
+                            val = this.incSize(min, max, val, 3)
+                        } else if (Emoji.LOWER.includes(reactEmoji)) {
+                            val = this.incSize(min, max, val, -1)
+                        } else if (Emoji.LOWER2.includes(reactEmoji)) {
+                            val = this.incSize(min, max, val, -3)
+                        }
+                        field.value = `${val}`
+                        await sentMessage.edit(embed)
+                    }
+                    await removeReaction(reaction, user)
+                }
+            })
+
+            collector.on(`end`, (collected, reason) => {
+                console.log(`reason`, reason)
+                if (reason === `removeplayer`) {
+                    reject(new CollectorPlayerLeftError(``))
+                }
+            })
+        })
+        this.collector = collector
+        collector.player = player
+
+        const col = await Promise.all([
+            collected,
+            reactOptions(sentMessage, sizeOptions),
+        ])
+
+        return col[0] as number
     }
 
     async removePlayer(player) {
         if (this.isPlayer(player)) {
             if (this.collector && player.equals(this.collector.player)) {
-                this.collector?.stop()
+                this.collector?.stop(`removeplayer`)
             }
 
             const title = `${player.username} decided to be a little bitch and quit ${this.name}\n`
@@ -241,10 +247,6 @@ export abstract class Game {
             }
 
             await this.channel.send(embed)
-            console.log(`y`)
-            if (!this.hasPlayers()) {
-                this.endGame()
-            }
         }
     }
 
@@ -273,20 +275,17 @@ export abstract class Game {
 
     // This will continually ask the given player for a response using getResponse
     // if the player leaves during this, it returns undefined
-    async loopForResponse(player, string, responseOptions, numeric = false) {
+    async loopForResponse(func) {
         let succes
         let val
-        while (!succes && this.isPlayer(player)) {
+        while (!succes && this.hasPlayers()) {
             try {
-                val = await this.getResponse(
-                    player,
-                    string,
-                    responseOptions,
-                    numeric,
-                )
+                val = await func.call(this)
                 succes = true
             } catch (err) {
-                if (!(err instanceof CollectorPlayerLeftError)) {
+                if (err instanceof CollectorPlayerLeftError) {
+                    this.hasEnded()
+                } else {
                     throw err
                 }
             }
@@ -297,12 +296,12 @@ export abstract class Game {
 
     async askAllPlayers(func) {
         for (let i = 0; i < this.players.length; i++) {
+            const player = this.players[i]
             try {
-                const player = this.players[i]
                 await func.call(this, player)
             } catch (err) {
                 if (err instanceof CollectorPlayerLeftError) {
-                    this.isEnded()
+                    this.hasEnded()
                     i--
                 } else {
                     throw err
@@ -317,7 +316,7 @@ export abstract class Game {
                 await func.call(this)
             } catch (err) {
                 if (err instanceof CollectorPlayerLeftError) {
-                    this.isEnded()
+                    this.hasEnded()
                 } else {
                     throw err
                 }
@@ -328,10 +327,10 @@ export abstract class Game {
     async ask(func) {
         if (this.hasPlayers()) {
             try {
-                await func.call(this)
+                return func.call(this)
             } catch (err) {
                 if (err instanceof CollectorPlayerLeftError) {
-                    this.isEnded()
+                    this.hasEnded()
                 } else {
                     throw err
                 }

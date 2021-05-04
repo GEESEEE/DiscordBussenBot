@@ -1,4 +1,5 @@
 import {
+    Collection,
     DiscordAPIError,
     Message,
     MessageCollector,
@@ -103,7 +104,7 @@ export function getReactionsCollector(player, message, options) {
     }, {})
 }
 
-export function getBinaryReactions(message, maxTime, options) {
+export async function getBinaryReactions(message, maxTime, options) {
     const collector = message.createReactionCollector(
         (reaction, _) => {
             const emojiName = reaction.emoji.name
@@ -137,7 +138,12 @@ export function getBinaryReactions(message, maxTime, options) {
         }
     })
 
-    return { collected, collector }
+    await reactOptions(message, options)
+
+    return {
+        collected: collected as Promise<Collection<string, MessageReaction>>,
+        collector,
+    }
 }
 
 // Fails the given function silently if the caught error is in the given errorCodes
@@ -168,6 +174,8 @@ export async function removeReaction(reaction: MessageReaction, user) {
 
 export async function reactOptions(message, options) {
     for (const option of options) {
-        await message.react(option)
+        await failSilently(message.react.bind(message, option), [
+            DiscordErrors.UNKNOWN_MESSAGE,
+        ])
     }
 }

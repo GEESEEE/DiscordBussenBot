@@ -1,4 +1,4 @@
-import Discord, { MessageEmbed, MessageReaction } from 'discord.js'
+import Discord, { MessageEmbed, MessageReaction, User } from 'discord.js'
 
 import { CardPrinter } from '../../utils/CardPrinter'
 import {
@@ -16,6 +16,7 @@ import {
     sum,
 } from '../../utils/Utils'
 import { Card, Deck } from '../Deck'
+import { CollectorPlayerLeftError } from '../Errors'
 import { Game } from '../Game'
 
 const pluralize = require(`pluralize`)
@@ -40,7 +41,7 @@ export default class Bussen extends Game {
     drinks: number
     pyramid: Pyramid
     bus: Bus
-    busPlayers: Array<any>
+    busPlayers: Array<User>
 
     constructor(name, leader, channel) {
         super(name, leader, channel)
@@ -61,23 +62,23 @@ export default class Bussen extends Game {
 
     async game() {
         // Phase 1 questions
-        await this.askAllPlayers(this.askColour)
-        await this.askAllPlayers(this.askHigherLower)
-        await this.askAllPlayers(this.askBetween)
-        await this.askAllPlayers(this.askSuit)
+        // await this.askAllPlayers(this.askColour)
+        // await this.askAllPlayers(this.askHigherLower)
+        // await this.askAllPlayers(this.askBetween)
+        // await this.askAllPlayers(this.askSuit)
 
         // Phase 2 Pyramid
-        await this.ask(this.initPyramid)
+        /*        await this.loopForResponse(this.initPyramid)
         await this.askWhile(
             () =>
                 this.pyramid &&
                 !this.pyramid.isEmpty() &&
                 !this.noOneHasCards(),
             this.playPyramid,
-        )
+        )*/
 
         // Phase 3 The Bus
-        await this.ask(this.initBus)
+        await this.loopForResponse(this.initBus)
         await this.askWhile(
             () => this.bus && !this.bus.isFinished,
             this.playBus,
@@ -93,8 +94,9 @@ export default class Bussen extends Game {
     }
 
     async replaceMessage(sentMessage, newMessage) {
-        await this.channel.send(newMessage)
-        return removeMessage(sentMessage)
+        const message = await this.channel.send(newMessage)
+        await removeMessage(sentMessage)
+        return message
     }
 
     async getAttachment(
@@ -284,7 +286,6 @@ export default class Bussen extends Game {
 
         const sizeOptions = ReactionEmojis.HIGHER_LOWER2
         let pyramidSize = 1
-
         const embed = new MessageEmbed()
             .setTitle(`Pyramid`)
             .setDescription(
@@ -299,7 +300,7 @@ export default class Bussen extends Game {
             sizeOptions,
         )
 
-        const col = this.waitForValue(
+        pyramidSize = await this.waitForValue(
             sizeCollector,
             pyramidSize,
             1,
@@ -310,38 +311,43 @@ export default class Bussen extends Game {
             sizeOptions,
         )
 
-        pyramidSize = await col
+        if (pyramidSize) {
+            embed
+                .setDescription(
+                    `${this.leader}, should the pyramid be reversed?`,
+                )
+                .addField(`Reversed`, EmptyString, true)
+            sentMessage = await this.replaceMessage(sentMessage, embed)
 
-        embed
-            .setDescription(`${this.leader}, should the pyramid be reversed?`)
-            .addField(`Reversed`, EmptyString, true)
+            const reverseOptions = ReactionEmojis.YES_NO
 
-        await removeMessage(sentMessage)
-        sentMessage = await this.channel.send(embed)
+            const collected = await this.getSingleReaction(
+                this.leader,
+                sentMessage,
+                reverseOptions,
+            )
 
-        const reverseOptions = ReactionEmojis.YES_NO
-        const collected = await this.getSingleReaction(
-            this.leader,
-            sentMessage,
-            reverseOptions,
-        )
+            if (collected) {
+                const reverseEmoji = collected.emoji.name
+                const reverse = Emoji.YES.includes(reverseEmoji)
 
-        const reverseEmoji = collected.emoji.name
-        const reverse = Emoji.YES.includes(reverseEmoji)
+                this.pyramid = new Pyramid(this.deck, reverse, pyramidSize)
+                const attachment = await this.getAttachment(
+                    `pyramid.png`,
+                    this.pyramid.cards,
+                    ``,
+                    this.pyramid.rows,
+                    true,
+                    0,
+                )
+                embed.fields[1].value = `${reverse ? Emoji.YES : Emoji.NO}`
+                embed
+                    .attachFiles([attachment])
+                    .setImage(`attachment://pyramid.png`)
 
-        this.pyramid = new Pyramid(this.deck, reverse, pyramidSize)
-        const attachment = await this.getAttachment(
-            `pyramid.png`,
-            this.pyramid.cards,
-            ``,
-            this.pyramid.rows,
-            true,
-            0,
-        )
-        embed.fields[1].value = `${reverse ? Emoji.YES : Emoji.NO}`
-        embed.attachFiles([attachment]).setImage(`attachment://pyramid.png`)
-
-        await this.replaceMessage(sentMessage, embed)
+                await this.replaceMessage(sentMessage, embed)
+            }
+        }
     }
 
     async playPyramid() {
@@ -413,10 +419,12 @@ export default class Bussen extends Game {
         this.busPlayers = this.players.filter(
             player => player.cards.length === maxCards,
         )
-        const busPlayer = this.busPlayers[
-            Math.floor(Math.random() * this.busPlayers.length)
-        ]
-        const message = `${this.busPlayers.join(
+        const busPlayer = this.getNewBusPlayer()
+
+        const message = `${(this.busPlayers.length > 0
+            ? this.busPlayers
+            : this.players
+        ).join(
             ', ',
         )} all have ${maxCards} cards, but ${busPlayer} has been selected as the bus driver!`
 
@@ -449,7 +457,7 @@ export default class Bussen extends Game {
             sizeOptions,
         )
 
-        const col = this.waitForValue(
+        busSize = await this.waitForValue(
             busSizeCollector,
             busSize,
             1,
@@ -458,50 +466,52 @@ export default class Bussen extends Game {
             embed,
             embed.fields[1],
             sizeOptions,
+            busPlayer,
         )
 
-        busSize = await col
-
-        let checkpoints = 0
-        if (busSize > 2) {
-            const maxCheckPoints = Math.floor(busSize / 3)
-            embed.fields[0].value = `${busPlayer}, how many checkpoints should the bus have? (0-${maxCheckPoints})`
-            embed.addField(`Checkpoints`, `${checkpoints}`, true)
-            await sentMessage.edit(embed)
-
-            const checkpointCollector = getReactionsCollector(
-                busPlayer,
-                sentMessage,
-                sizeOptions,
-            )
-
-            checkpoints = await this.waitForValue(
-                checkpointCollector,
-                checkpoints,
-                0,
-                maxCheckPoints,
-                sentMessage,
-                embed,
-                embed.fields[2],
-                sizeOptions,
-            )
-        }
-
         if (busSize) {
-            this.bus = new Bus(busPlayer, busSize, checkpoints)
+            let checkpoints = 0
+            if (busSize > 2) {
+                const maxCheckPoints = Math.floor(busSize / 3)
+                embed.fields[0].value = `${busPlayer}, how many checkpoints should the bus have? (0-${maxCheckPoints})`
+                embed.addField(`Checkpoints`, `${checkpoints}`, true)
+                await sentMessage.edit(embed)
 
-            const attachment = await this.getAttachment(
-                `bus.png`,
-                this.bus.sequence,
-                ``,
-                this.bus.checkpoints,
-                false,
-                -1,
-            )
-            embed.attachFiles([attachment]).setImage(`attachment://bus.png`)
-            await removeMessage(sentMessage)
+                const checkpointCollector = getReactionsCollector(
+                    busPlayer,
+                    sentMessage,
+                    sizeOptions,
+                )
 
-            await this.channel.send(embed)
+                checkpoints = await this.waitForValue(
+                    checkpointCollector,
+                    checkpoints,
+                    0,
+                    maxCheckPoints,
+                    sentMessage,
+                    embed,
+                    embed.fields[2],
+                    sizeOptions,
+                    busPlayer,
+                )
+            }
+
+            if (checkpoints >= 0) {
+                this.bus = new Bus(busPlayer, busSize, checkpoints)
+
+                const attachment = await this.getAttachment(
+                    `bus.png`,
+                    this.bus.sequence,
+                    ``,
+                    this.bus.checkpoints,
+                    false,
+                    -1,
+                )
+                embed.attachFiles([attachment]).setImage(`attachment://bus.png`)
+                await removeMessage(sentMessage)
+
+                await this.channel.send(embed)
+            }
         }
     }
 
@@ -586,7 +596,7 @@ export default class Bussen extends Game {
 }
 
 class Bus {
-    player: any
+    player: User
     deck: Deck
     size: number
     sequence: Array<Card>

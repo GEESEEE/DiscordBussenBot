@@ -206,10 +206,6 @@ export const Server = Structures.extend('Guild', Guild => {
         async unsafeRemoveGameVote(message) {
             const options = ReactionEmojis.YES_NO
 
-            for (const option of options) {
-                await message.react(option)
-            }
-
             const gameName = this.currentGame.name
 
             const { collected, collector } = await getBinaryReactions(
@@ -218,31 +214,33 @@ export const Server = Structures.extend('Guild', Guild => {
                 options,
             )
             this.collector = collector
-            const col: any = await collected
+            const col = await collected
 
             const max = Math.max(
                 ...col.map(collection => collection.users.cache.size),
             )
-
             const maxEmoji = col
                 .filter(collection => collection.users.cache.size === max)
                 .first()?.emoji.name
-
+            let response
             if (this.gameExists()) {
-                if (ReactionEmojis.YES_NO[0].includes(maxEmoji)) {
-                    await this.currentGame.endGame()
-                    if (!this.currentGame.hasStarted) {
-                        await this.currentChannel.send(
-                            `${gameName} has been removed`,
-                        )
-                    }
+                if (options[0].includes(maxEmoji)) {
+                    try {
+                        await this.currentGame.endGame()
+                    } catch {}
+
+                    response = `${gameName} has been removed`
+
                     this.currentGame = null
                 } else {
-                    await this.currentChannel.send(`${gameName} will continue`)
+                    response = `${gameName} will continue`
                 }
             } else {
-                await this.currentChannel.send(`${gameName} is already gone`)
+                response = `${gameName} is already gone`
             }
+            await this.currentChannel.send(
+                new MessageEmbed().setTitle(response),
+            )
         }
     }
 
