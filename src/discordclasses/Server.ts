@@ -58,6 +58,7 @@ export const Server = Structures.extend('Guild', Guild => {
             return (
                 this.validMessage(message) &&
                 this.gameExists() &&
+                this.currentGame.hasStarted &&
                 this.currentGame.isPlayer(message.author)
             )
         }
