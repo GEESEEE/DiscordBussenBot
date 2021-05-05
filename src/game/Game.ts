@@ -275,6 +275,14 @@ export abstract class Game {
 
     //region User Input Error Handling
 
+    handleError(err) {
+        if (err instanceof CollectorPlayerLeftError) {
+            this.hasEnded()
+        } else {
+            throw err
+        }
+    }
+
     // This will continually ask the given player for a response using getResponse
     // if the player leaves during this, it returns undefined
     async loopForResponse(func) {
@@ -285,11 +293,7 @@ export abstract class Game {
                 val = await func.call(this)
                 succes = true
             } catch (err) {
-                if (err instanceof CollectorPlayerLeftError) {
-                    this.hasEnded()
-                } else {
-                    throw err
-                }
+                this.handleError(err)
             }
         }
 
@@ -317,11 +321,7 @@ export abstract class Game {
             try {
                 await func.call(this)
             } catch (err) {
-                if (err instanceof CollectorPlayerLeftError) {
-                    this.hasEnded()
-                } else {
-                    throw err
-                }
+                this.handleError(err)
             }
         }
     }
@@ -331,14 +331,12 @@ export abstract class Game {
             try {
                 return func.call(this)
             } catch (err) {
-                if (err instanceof CollectorPlayerLeftError) {
-                    this.hasEnded()
-                } else {
-                    throw err
-                }
+                this.handleError(err)
             }
         }
     }
+
+
 
     //endregion
 }
