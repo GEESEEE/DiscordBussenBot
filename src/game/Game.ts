@@ -246,7 +246,9 @@ export abstract class Game {
                 embed.setDescription(message)
             }
 
-            await this.channel.send(embed)
+            if (this.hasStarted) {
+                await this.channel.send(embed)
+            }
         }
     }
 

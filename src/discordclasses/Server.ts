@@ -211,7 +211,6 @@ export const Server = Structures.extend('Guild', Guild => {
                     } catch {}
 
                     response = `${gameName} has been removed`
-
                     this.currentGame = null
                 } else {
                     response = `${gameName} will continue`

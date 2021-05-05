@@ -62,20 +62,20 @@ export default class Bussen extends Game {
 
     async game() {
         // Phase 1 questions
-        await this.askAllPlayers(this.askColour)
+        /*await this.askAllPlayers(this.askColour)
         await this.askAllPlayers(this.askHigherLower)
         await this.askAllPlayers(this.askBetween)
         await this.askAllPlayers(this.askSuit)
 
         // Phase 2 Pyramid
-                await this.loopForResponse(this.initPyramid)
+        await this.loopForResponse(this.initPyramid)
         await this.askWhile(
             () =>
                 this.pyramid &&
                 !this.pyramid.isEmpty() &&
                 !this.noOneHasCards(),
             this.playPyramid,
-        )
+        )*/
 
         // Phase 3 The Bus
         await this.loopForResponse(this.initBus)
@@ -419,14 +419,17 @@ export default class Bussen extends Game {
         this.busPlayers = this.players.filter(
             player => player.cards.length === maxCards,
         )
-        const busPlayer = this.getNewBusPlayer()
 
-        const message = `${(this.busPlayers.length > 0
-            ? this.busPlayers
-            : this.players
+        let message = `${(this.busPlayers.length > 0
+                ? this.busPlayers
+                : this.players
         ).join(
             ', ',
-        )} all have ${maxCards} cards, but ${busPlayer} has been selected as the bus driver!`
+        )} all have ${maxCards} cards`
+
+        const busPlayer = this.getNewBusPlayer()
+
+        message += `, but ${busPlayer} has been selected as the bus driver!`
 
         // Removing chosen player from options
         const index = this.busPlayers.indexOf(busPlayer)
@@ -563,7 +566,7 @@ export default class Bussen extends Game {
             }
         } else {
             message = `${this.bus.player} drew ${newCard}, has to consume **${
-                this.bus.currentIndex + 1 - this.bus.getCurrentCheckpoint()
+                this.bus.drinkCount
             } drinks** and resets to card ${
                 this.bus.getCurrentCheckpoint() + 1
             }`
@@ -637,6 +640,10 @@ class Bus {
         this.totalDrinks = 0
     }
 
+    get drinkCount() {
+        return this.currentIndex + 1 - this.getCurrentCheckpoint()
+    }
+
     incrementIndex(correct) {
         if (correct) {
             this.currentIndex = (this.currentIndex + 1) % this.sequence.length
@@ -675,7 +682,7 @@ class Bus {
         this.sequence[this.currentIndex] = newCard
 
         if (!correct) {
-            this.totalDrinks = this.totalDrinks + this.currentIndex + 1
+            this.totalDrinks = this.totalDrinks + this.drinkCount
         }
         this.incrementIndex(correct)
         this.turns++
