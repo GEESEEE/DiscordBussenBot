@@ -107,8 +107,6 @@ export const Server = Structures.extend('Guild', Guild => {
                         `Click ${Emoji.JOIN} to join the game\n${this.currentGame.leader} click ${Emoji.PLAY} to start the game when all players have joined`,
                     )
                     .addField(`Players`, this.currentGame.players.join(`\n`))
-            } else {
-                return null
             }
         }
 

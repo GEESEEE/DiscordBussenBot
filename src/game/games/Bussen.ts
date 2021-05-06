@@ -68,7 +68,7 @@ export default class Bussen extends Game {
         await this.askAllPlayers(this.askSuit)
 
         // Phase 2 Pyramid
-                await this.loopForResponse(this.initPyramid)
+        await this.loopForResponse(this.initPyramid)
         await this.askWhile(
             () =>
                 this.pyramid &&

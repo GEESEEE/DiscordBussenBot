@@ -151,7 +151,6 @@ export async function failSilently(func, errorCodes) {
     try {
         await func()
     } catch (err) {
-        console.log(err)
         if (
             !(err instanceof DiscordAPIError && errorCodes.includes(err.code))
         ) {

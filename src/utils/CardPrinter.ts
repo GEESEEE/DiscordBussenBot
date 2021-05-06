@@ -17,7 +17,6 @@ export class CardPrinter {
     center: boolean
     text: string
     yOffset: number
-    xOffset: number
     firstCardIndex: number
     focusedCard: number
 
