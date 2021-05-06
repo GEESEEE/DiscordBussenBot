@@ -1,4 +1,4 @@
-import Discord, { MessageEmbed, MessageReaction, User } from 'discord.js'
+import Discord, {MessageAttachment, MessageEmbed, MessageReaction, User} from 'discord.js'
 
 import { CardPrinter } from '../../utils/CardPrinter'
 import {
@@ -124,23 +124,46 @@ export default class Bussen extends Game {
         )
     }
 
+    async playerCardAttachment(player) {
+        const cardPrinter = new CardPrinter(player.cards, [0], false, `${player.username}'s Cards`)
+        await cardPrinter.printCards()
+        return new Discord.MessageAttachment(
+            cardPrinter.canvas.toBuffer('image/png'),
+            `pcards.png`,
+        )
+    }
+
+    async drawnCardAttachment(card) {
+        const cardPrinter = new CardPrinter([card], [0], false, `Drawn`)
+        await cardPrinter.printCards()
+        return new Discord.MessageAttachment(
+            cardPrinter.canvas.toBuffer('image/png'),
+            `dcard.png`,
+        )
+    }
+
+    async setImages(embed, imageAttachment, thumbnailAttachment?) {
+        const attachments = [imageAttachment]
+
+        if (thumbnailAttachment) {
+            attachments.push(thumbnailAttachment)
+        }
+        embed.attachFiles(attachments).setImage(`attachment://${imageAttachment.name}`)
+
+        if (thumbnailAttachment) {
+            embed.setThumbnail(`attachment://${thumbnailAttachment.name}`)
+        }
+    }
+
     async createEmbed(player, question, card?, verdict?) {
         const attachments = []
         if (player.cards.length > 0) {
-            const playerCardAttachment = await this.getAttachment(
-                `pcards.png`,
-                player.cards,
-                `Your Cards`,
-            )
+            const playerCardAttachment = await this.playerCardAttachment(player)
             attachments.push(playerCardAttachment)
         }
 
         if (card) {
-            const drawnCardAttachment = await this.getAttachment(
-                `dcard.png`,
-                [card],
-                `Drawn`,
-            )
+            const drawnCardAttachment = await this.drawnCardAttachment(card)
             attachments.push(drawnCardAttachment)
         }
 
@@ -149,12 +172,11 @@ export default class Bussen extends Game {
             .setDescription(`${player}, ${question}`)
 
         if (attachments.length > 0) {
-            embed.attachFiles(attachments).setImage(`attachment://pcards.png`)
+            await this.setImages(embed, attachments[0], attachments.length === 2 ? attachments[1] : null)
         }
 
         if (card) {
             embed
-                .setThumbnail(`attachment://dcard.png`)
                 .addField(`Verdict`, verdict)
         }
 
@@ -341,9 +363,7 @@ export default class Bussen extends Game {
                     0,
                 )
                 embed.fields[1].value = `${reverse ? Emoji.YES : Emoji.NO}`
-                embed
-                    .attachFiles([attachment])
-                    .setImage(`attachment://pyramid.png`)
+                await this.setImages(embed, attachment)
 
                 await this.replaceMessage(sentMessage, embed)
             }
@@ -363,11 +383,7 @@ export default class Bussen extends Game {
             this.pyramid.index,
         )
 
-        const drawnCardAttachment = await this.getAttachment(
-            `dcard.png`,
-            [card],
-            `Drawn`,
-        )
+        const drawnCardAttachment = await this.drawnCardAttachment(card)
 
         let message = `Drew ${card}\n`
         for (const player of this.players) {
@@ -386,9 +402,7 @@ export default class Bussen extends Game {
         const embed = new MessageEmbed()
             .setTitle(`Pyramid Card ${this.pyramid.index}`)
             .setDescription(message)
-            .attachFiles([pyramidAttachment, drawnCardAttachment])
-            .setImage(`attachment://pyramid.png`)
-            .setThumbnail(`attachment://dcard.png`)
+        await this.setImages(embed, pyramidAttachment, drawnCardAttachment)
 
         const sentMessage = await this.channel.send(embed)
 
@@ -413,20 +427,22 @@ export default class Bussen extends Game {
     }
 
     async initBus() {
-        const maxCards = Math.max(
+        const maxCardCount = Math.max(
             ...this.players.map(player => player.cards.length),
         )
         this.busPlayers = this.players.filter(
-            player => player.cards.length === maxCards,
+            player => player.cards.length === maxCardCount,
         )
-        const busPlayer = this.getNewBusPlayer()
 
-        const message = `${(this.busPlayers.length > 0
-            ? this.busPlayers
-            : this.players
+        let message = `${(this.busPlayers.length > 0
+                ? this.busPlayers
+                : this.players
         ).join(
             ', ',
-        )} all have ${maxCards} cards, but ${busPlayer} has been selected as the bus driver!`
+        )} all have ${maxCardCount} cards`
+
+        const busPlayer = this.getNewBusPlayer()
+        message += `, but ${busPlayer} has been selected as the bus driver!`
 
         // Removing chosen player from options
         const index = this.busPlayers.indexOf(busPlayer)
@@ -507,7 +523,7 @@ export default class Bussen extends Game {
                     false,
                     -1,
                 )
-                embed.attachFiles([attachment]).setImage(`attachment://bus.png`)
+                await this.setImages(embed, attachment)
                 await removeMessage(sentMessage)
 
                 await this.channel.send(embed)
@@ -533,8 +549,7 @@ export default class Bussen extends Game {
             .setDescription(
                 `${this.bus.player}, higher or lower than ${oldCard}?`,
             )
-            .attachFiles([busAttachment])
-            .setImage(`attachment://bus.png`)
+        await this.setImages(embed1, busAttachment)
 
         const sentMessage = await this.channel.send(embed1)
         const options = ReactionEmojis.HIGHER_LOWER
@@ -563,17 +578,13 @@ export default class Bussen extends Game {
             }
         } else {
             message = `${this.bus.player} drew ${newCard}, has to consume **${
-                this.bus.currentIndex + 1 - this.bus.getCurrentCheckpoint()
+                this.bus.drinkCount
             } drinks** and resets to card ${
                 this.bus.getCurrentCheckpoint() + 1
             }`
         }
 
-        const drawnCardAttachment = await this.getAttachment(
-            `dcard.png`,
-            [newCard],
-            `Drawn`,
-        )
+        const drawnCardAttachment = await this.drawnCardAttachment(newCard)
 
         embed1.files = []
         const embed2 = new MessageEmbed()
@@ -582,9 +593,7 @@ export default class Bussen extends Game {
                 `${this.bus.player}, higher or lower than ${oldCard}?`,
             )
             .addField(`Verdict`, message)
-            .attachFiles([busAttachment, drawnCardAttachment])
-            .setImage(`attachment://bus.png`)
-            .setThumbnail(`attachment://dcard.png`)
+        await this.setImages(embed2, busAttachment, drawnCardAttachment)
 
         await removeMessage(sentMessage)
         await this.channel.send(embed2)
@@ -637,6 +646,10 @@ class Bus {
         this.totalDrinks = 0
     }
 
+    get drinkCount() {
+        return this.currentIndex + 1 - this.getCurrentCheckpoint()
+    }
+
     incrementIndex(correct) {
         if (correct) {
             this.currentIndex = (this.currentIndex + 1) % this.sequence.length
@@ -675,7 +688,7 @@ class Bus {
         this.sequence[this.currentIndex] = newCard
 
         if (!correct) {
-            this.totalDrinks = this.totalDrinks + this.currentIndex + 1
+            this.totalDrinks = this.totalDrinks + this.drinkCount
         }
         this.incrementIndex(correct)
         this.turns++

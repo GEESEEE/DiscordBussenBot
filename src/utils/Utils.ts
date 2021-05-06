@@ -130,7 +130,8 @@ export async function getBinaryReactions(message, maxTime, options) {
                 if (
                     newReactionName !== oldReactionName &&
                     inElementOf(options, oldReactionName) &&
-                    users.has(user.id)
+                    users.has(user.id) &&
+                    !user.bot
                 ) {
                     await react.users.remove(user)
                 }
