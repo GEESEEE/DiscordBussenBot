@@ -31,6 +31,22 @@ export function inElementOf(list, query) {
     return null
 }
 
+export function createRows(cards, rowIndices): Array<Array<any>> {
+    const rows = []
+    let currentRow = []
+
+    for (let i = 0; i < cards.length; i++) {
+        if (rowIndices.includes(i) && i !== 0) {
+            rows.push(currentRow)
+            currentRow = []
+        }
+        currentRow.push(cards[i])
+    }
+    rows.push(currentRow)
+
+    return rows
+}
+
 export function createChecker(responseOptions, numeric) {
     if (numeric) {
         const [s1, s2] = responseOptions[0].split(',') // splitting on , ensures negative numbers are supported

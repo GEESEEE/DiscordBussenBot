@@ -1,150 +1,177 @@
-import {
-    Canvas,
-    CanvasRenderingContext2D,
-    createCanvas,
-    loadImage,
-} from 'canvas'
-import { registerFont } from 'canvas'
-registerFont('./assets/Uni_Sans_Heavy.otf', { family: 'Uni Sans Heavy' })
+import { Canvas, CanvasRenderingContext2D, loadImage } from 'canvas'
+import { type } from 'os'
 
 import { Card } from '../game/Deck'
+import { createRows, sum } from './Utils'
 
 export class CardPrinter {
-    cards: Array<Array<Card>>
-    canvas: Canvas
-    ctx: CanvasRenderingContext2D
-
-    center: boolean
-    text: string
-    yOffset: number
-    firstCardIndex: number
-    focusedCard: number
-
     readonly cardWidth = 80
     readonly cardHeight = 120
-
     readonly betweenCards = 4
+    readonly font = '14px "Uni Sans Heavy"'
 
-    constructor(
-        cards: Array<Card>,
-        rows: Array<number> = [0],
-        center = false,
-        text = ``,
-        cardCount = -1,
-        focusedCard = -1,
-    ) {
-        this.cards = this.createRows(cards, rows)
-        this.center = center
-        this.text = text
+    canvas: Canvas
+    ctx: CanvasRenderingContext2D
+    rows: Array<Array<Card> | string | number> // keeps track of rows, number is empty space
+    centered: Array<boolean>
+    focused: Array<Array<number>>
+    hidden: Array<Array<boolean>>
 
-        const maxRowSize = Math.max(...this.cards.map(row => row.length))
-        const width =
-            maxRowSize * (this.cardWidth + this.betweenCards) -
-            this.betweenCards
+    yOffset: number
 
-        let height =
-            this.cards.length * (this.cardHeight + this.betweenCards) -
-            this.betweenCards
+    constructor() {
+        this.canvas = new Canvas(1, 1)
+        this.ctx = this.canvas.getContext('2d')
+        this.setFont()
 
-        if (this.text && this.text.length > 0) {
-            height += 20
-        }
+        this.rows = []
+        this.centered = []
+        this.focused = []
+        this.hidden = []
 
-        this.canvas = createCanvas(
-            width === 0 ? 1 : width,
-            height === 0 ? 1 : height,
-        )
-        this.ctx = this.canvas.getContext(`2d`)
-
-        if (this.text && this.text.length > 0) {
-            this.ctx.font = '14px "Uni Sans Heavy"'
-            this.ctx.fillStyle = '#ffffff'
-            this.ctx.fillText(this.text, 0, 14)
-            this.yOffset = 20
-        } else {
-            this.yOffset = 0
-        }
-
-        if (cardCount >= 0) {
-            this.firstCardIndex = cards.length - cardCount
-        } else {
-            this.firstCardIndex = 0
-        }
-
-        if (focusedCard >= 0) {
-            this.focusedCard = cards.length - focusedCard
-        } else {
-            this.focusedCard = -1
-        }
+        this.yOffset = 0
     }
 
-    get backImage() {
+    private get fontSize() {
+        return parseInt(this.font.split(`px`)[0])
+    }
+
+    private async backImage() {
         return loadImage(`./assets/Cards/card_back.png`)
     }
 
-    async getImage(card) {
+    private async getImage(card) {
         const imgName = card.valueToString() + card.suitToString().charAt(0)
         const imgPath = `./assets/Cards/${imgName}.png`
         return loadImage(imgPath)
     }
 
-    createRows(cards, rowIndices): Array<Array<Card>> {
-        const rows = []
-        let currentRow = []
-
-        for (let i = 0; i < cards.length; i++) {
-            if (rowIndices.includes(i) && i !== 0) {
-                rows.push(currentRow)
-                currentRow = []
-            }
-            currentRow.push(cards[i])
-        }
-        rows.push(currentRow)
-
-        return rows
+    private setFont() {
+        this.ctx.font = this.font
+        this.ctx.fillStyle = '#ffffff'
     }
 
-    async printCards() {
+    private getRowWidth(row: Array<Card> | string | number): number {
+        let width = 0
+        if (row instanceof Array) {
+            const size = row.length
+            width = size * this.cardWidth + (size - 1) * this.betweenCards
+        } else if (typeof row === 'string') {
+            width = this.ctx.measureText(row).width
+        } else if (typeof row === `number`) {
+            width = 0
+        }
+        return width
+    }
+
+    private getRowHeight(row: Array<Card> | string | number): number {
+        let height = 0
+        if (row instanceof Array) {
+            height = this.cardHeight + this.betweenCards
+        } else if (typeof row === 'string') {
+            height = this.fontSize + this.betweenCards
+        } else if (typeof row === `number`) {
+            height = row
+        }
+        return height
+    }
+
+    addRow(
+        toPrint: Array<Card> | string | number,
+        centered?: boolean,
+        focused?: Array<number>,
+        hidden?: Array<boolean>,
+    ) {
+        this.rows.push(toPrint)
+        this.centered.push(centered)
+        this.focused.push(focused)
+        this.hidden.push(hidden)
+        return this
+    }
+
+    addRows(
+        toPrint: Array<Array<Card> | string | number>,
+        centered?: Array<boolean>,
+        focused?: Array<Array<number>>,
+        hidden?: Array<Array<boolean>>,
+    ) {
+        if (!centered) {
+            centered = new Array(toPrint.length).fill(true)
+        }
+
+        if (centered.length === 1) {
+            centered = new Array(toPrint.length).fill(centered[0])
+        }
+
+        for (let i = 0; i < toPrint.length; i++) {
+            this.addRow(
+                toPrint[i],
+                centered[i],
+                focused ? focused[i] : null,
+                hidden ? hidden[i] : null,
+            )
+        }
+        return this
+    }
+
+    async print() {
+        const maxRowWidth = Math.max(
+            ...this.rows.map(row => this.getRowWidth(row)),
+        )
+        const totalRowHeight = this.rows.reduce(
+            (sum: number, row: Array<Card> | string) =>
+                sum + this.getRowHeight(row),
+            0,
+        ) as number
+
+        this.canvas.width = maxRowWidth === 0 ? 1 : maxRowWidth
+        this.canvas.height = totalRowHeight === 0 ? 1 : totalRowHeight
+        this.setFont()
+
+        for (let i = 0; i < this.rows.length; i++) {
+            await this.printRow(i)
+        }
+        return this
+    }
+
+    private async printRow(index) {
+        const row = this.rows[index]
+        const centered = this.centered[index]
+        const focused = this.focused[index]
+        const hidden = this.hidden[index]
+
         let x = 0
-        let y = 0
-        let current = 0
+        if (centered) {
+            x = this.canvas.width / 2 - this.getRowWidth(row) / 2
+        }
+        const y = this.yOffset
 
-        for (let i = 0; i < this.cards.length; i++) {
-            const row = this.cards[i]
-            y = i * (this.cardHeight + this.betweenCards) + this.yOffset
+        if (row instanceof Array) {
+            for (let i = 0; i < row.length; i++) {
+                const card = row[i]
+                const cardHidden = hidden ? hidden[i] : false
+                const cardFocused = focused ? focused.includes(i) : false
 
-            if (this.center) {
-                x =
-                    this.canvas.width / 2 -
-                    (row.length * (this.cardWidth + this.betweenCards)) / 2 -
-                    this.betweenCards / 2
-            } else {
-                x = 0
-            }
-
-            for (let j = 0; j < row.length; j++) {
                 let image
-                if (current >= this.firstCardIndex) {
-                    const card = row[j]
-                    image = await this.getImage(card)
-
-                    if (
-                        current === this.focusedCard ||
-                        this.focusedCard === -1
-                    ) {
-                        this.ctx.globalAlpha = 1
-                    } else {
-                        this.ctx.globalAlpha = 0.5
-                    }
+                if (cardHidden) {
+                    image = await this.backImage()
                 } else {
-                    image = await this.backImage
-                    this.ctx.globalAlpha = 1
+                    image = await this.getImage(card)
                 }
+
+                this.ctx.globalAlpha = cardHidden
+                    ? 1.0
+                    : focused && !cardFocused
+                    ? 0.5
+                    : 1.0
 
                 this.ctx.drawImage(image, x, y, this.cardWidth, this.cardHeight)
                 x += this.cardWidth + this.betweenCards
-                current += 1
             }
+        } else if (typeof row === `string`) {
+            this.ctx.fillText(row, x, y + this.fontSize)
         }
+
+        this.yOffset += this.getRowHeight(row)
     }
 }

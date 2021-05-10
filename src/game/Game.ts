@@ -1,4 +1,4 @@
-import {
+import Discord, {
     Collector,
     Guild,
     Message,
@@ -9,9 +9,8 @@ import {
     TextChannel,
     User,
 } from 'discord.js'
-import { isArray } from 'util'
 
-import { ReactionEmojis } from '../utils/Consts'
+import { CardPrinter } from '../utils/CardPrinter'
 import { Emoji } from '../utils/Emoji'
 import {
     createChecker,
@@ -97,6 +96,7 @@ export abstract class Game {
     //region Important Functions
 
     // if numeric is true, responseOptions should be 'x,y' as a string with x and y as numbers, also supports negative numbers
+    // still works but generally not useful anymore
     async getResponse(player, string, responseOptions, numeric = false) {
         if (typeof responseOptions === 'string') {
             responseOptions = [responseOptions]
@@ -162,10 +162,9 @@ export abstract class Game {
         val,
         min,
         max,
-        sentMessage,
+        message,
         embed,
-        field,
-        sizeOptions,
+        options,
         player?,
     ): Promise<number> {
         if (!player) {
@@ -189,8 +188,8 @@ export abstract class Game {
                         } else if (Emoji.LOWER2.includes(reactEmoji)) {
                             val = this.incSize(min, max, val, -3)
                         }
-                        field.value = `${val}`
-                        await sentMessage.edit(embed)
+                        embed.fields[embed.fields.length - 1].value = `${val}`
+                        await message.edit(embed)
                     }
                     await removeReaction(reaction, user)
                 }
@@ -208,7 +207,7 @@ export abstract class Game {
 
         const col = await Promise.all([
             collected,
-            reactOptions(sentMessage, sizeOptions),
+            reactOptions(message, options),
         ])
 
         return col[0] as number
@@ -336,7 +335,48 @@ export abstract class Game {
         }
     }
 
+    //endregion
 
+    //region Card Printing
+
+    getMessageAttachment(printer: CardPrinter, name: string) {
+        return new Discord.MessageAttachment(
+            printer.canvas.toBuffer('image/png'),
+            name,
+        )
+    }
+
+    async playerCardAttachment(player) {
+        const printer = await new CardPrinter()
+            .addRow(`${player.username}'s Cards`)
+            .addRow(player.cards)
+            .print()
+
+        return this.getMessageAttachment(printer, `pcards.png`)
+    }
+
+    async drawnCardAttachment(card) {
+        const printer = await new CardPrinter()
+            .addRow(`Drawn`, true)
+            .addRow([card], true)
+            .print()
+        return this.getMessageAttachment(printer, `dcard.png`)
+    }
+
+    async setImages(embed, imageAttachment, thumbnailAttachment?) {
+        const attachments = [imageAttachment]
+
+        if (thumbnailAttachment) {
+            attachments.push(thumbnailAttachment)
+        }
+        embed
+            .attachFiles(attachments)
+            .setImage(`attachment://${imageAttachment.name}`)
+
+        if (thumbnailAttachment) {
+            embed.setThumbnail(`attachment://${thumbnailAttachment.name}`)
+        }
+    }
 
     //endregion
 }

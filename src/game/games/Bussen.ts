@@ -1,4 +1,9 @@
-import Discord, {MessageAttachment, MessageEmbed, MessageReaction, User} from 'discord.js'
+import Discord, {
+    MessageAttachment,
+    MessageEmbed,
+    MessageReaction,
+    User,
+} from 'discord.js'
 
 import { CardPrinter } from '../../utils/CardPrinter'
 import {
@@ -10,6 +15,7 @@ import {
 } from '../../utils/Consts'
 import { Emoji } from '../../utils/Emoji'
 import {
+    createRows,
     getReactionsCollector,
     reactOptions,
     removeMessage,
@@ -62,7 +68,7 @@ export default class Bussen extends Game {
 
     async game() {
         // Phase 1 questions
-        await this.askAllPlayers(this.askColour)
+        /*        await this.askAllPlayers(this.askColour)
         await this.askAllPlayers(this.askHigherLower)
         await this.askAllPlayers(this.askBetween)
         await this.askAllPlayers(this.askSuit)
@@ -75,7 +81,7 @@ export default class Bussen extends Game {
                 !this.pyramid.isEmpty() &&
                 !this.noOneHasCards(),
             this.playPyramid,
-        )
+        )*/
 
         // Phase 3 The Bus
         await this.loopForResponse(this.initBus)
@@ -99,62 +105,6 @@ export default class Bussen extends Game {
         return message
     }
 
-    async getAttachment(
-        name,
-        cards,
-        text?,
-        rows?,
-        center?,
-        cardCount?,
-        focusedCard?,
-    ) {
-        const playerCardPrinter = new CardPrinter(
-            cards,
-            rows,
-            center,
-            text,
-            cardCount,
-            focusedCard,
-        )
-        await playerCardPrinter.printCards()
-
-        return new Discord.MessageAttachment(
-            playerCardPrinter.canvas.toBuffer('image/png'),
-            name,
-        )
-    }
-
-    async playerCardAttachment(player) {
-        const cardPrinter = new CardPrinter(player.cards, [0], false, `${player.username}'s Cards`)
-        await cardPrinter.printCards()
-        return new Discord.MessageAttachment(
-            cardPrinter.canvas.toBuffer('image/png'),
-            `pcards.png`,
-        )
-    }
-
-    async drawnCardAttachment(card) {
-        const cardPrinter = new CardPrinter([card], [0], false, `Drawn`)
-        await cardPrinter.printCards()
-        return new Discord.MessageAttachment(
-            cardPrinter.canvas.toBuffer('image/png'),
-            `dcard.png`,
-        )
-    }
-
-    async setImages(embed, imageAttachment, thumbnailAttachment?) {
-        const attachments = [imageAttachment]
-
-        if (thumbnailAttachment) {
-            attachments.push(thumbnailAttachment)
-        }
-        embed.attachFiles(attachments).setImage(`attachment://${imageAttachment.name}`)
-
-        if (thumbnailAttachment) {
-            embed.setThumbnail(`attachment://${thumbnailAttachment.name}`)
-        }
-    }
-
     async createEmbed(player, question, card?, verdict?) {
         const attachments = []
         if (player.cards.length > 0) {
@@ -172,12 +122,15 @@ export default class Bussen extends Game {
             .setDescription(`${player}, ${question}`)
 
         if (attachments.length > 0) {
-            await this.setImages(embed, attachments[0], attachments.length === 2 ? attachments[1] : null)
+            await this.setImages(
+                embed,
+                attachments[0],
+                attachments.length === 2 ? attachments[1] : null,
+            )
         }
 
         if (card) {
-            embed
-                .addField(`Verdict`, verdict)
+            embed.addField(`Verdict`, verdict)
         }
 
         return embed
@@ -297,6 +250,49 @@ export default class Bussen extends Game {
 
     //region Phase 2 Pyramid
 
+    async getPyramidAttachment(focusedIndex = 0) {
+        const rows = createRows(this.pyramid.cards, this.pyramid.rows)
+        const centered = [true]
+        let hidden
+        let focused
+
+        if (focusedIndex) {
+            focusedIndex = this.pyramid.cards.length - focusedIndex
+            hidden = []
+            focused = []
+            let curr = 0
+
+            for (const row of rows) {
+                const rowHidden = []
+                const rowFocused = []
+
+                for (let i = 0; i < row.length; i++) {
+                    if (curr < focusedIndex) {
+                        rowHidden.push(true)
+                    } else {
+                        rowHidden.push(false)
+                    }
+
+                    if (curr <= focusedIndex) {
+                        rowFocused.push(i)
+                    }
+                    curr += 1
+                }
+                hidden.push(rowHidden)
+                focused.push(rowFocused)
+            }
+        }
+
+        const cardPrinter = await new CardPrinter()
+            .addRows(rows, centered, focused, hidden)
+            .print()
+
+        return new Discord.MessageAttachment(
+            cardPrinter.canvas.toBuffer('image/png'),
+            `pyramid.png`,
+        )
+    }
+
     async initPyramid() {
         const deckSize = this.deck.cards.length
         let maxSize
@@ -329,7 +325,6 @@ export default class Bussen extends Game {
             maxSize,
             sentMessage,
             embed,
-            embed.fields[0],
             sizeOptions,
         )
 
@@ -354,14 +349,7 @@ export default class Bussen extends Game {
                 const reverse = Emoji.YES.includes(reverseEmoji)
 
                 this.pyramid = new Pyramid(this.deck, reverse, pyramidSize)
-                const attachment = await this.getAttachment(
-                    `pyramid.png`,
-                    this.pyramid.cards,
-                    ``,
-                    this.pyramid.rows,
-                    true,
-                    0,
-                )
+                const attachment = await this.getPyramidAttachment()
                 embed.fields[1].value = `${reverse ? Emoji.YES : Emoji.NO}`
                 await this.setImages(embed, attachment)
 
@@ -373,16 +361,9 @@ export default class Bussen extends Game {
     async playPyramid() {
         const { card, drinks } = this.pyramid.getNextCard()
 
-        const pyramidAttachment = await this.getAttachment(
-            `pyramid.png`,
-            this.pyramid.cards,
-            ``,
-            this.pyramid.rows,
-            true,
-            this.pyramid.index,
+        const pyramidAttachment = await this.getPyramidAttachment(
             this.pyramid.index,
         )
-
         const drawnCardAttachment = await this.drawnCardAttachment(card)
 
         let message = `Drew ${card}\n`
@@ -412,6 +393,39 @@ export default class Bussen extends Game {
     //endregion
 
     //region Phase 3 Bus
+
+    async getBusAttachment(focusedIndex = -1) {
+        const rows = createRows(this.bus.sequence, this.bus.checkpoints)
+        const centered = [false]
+        let focused
+
+        if (focusedIndex >= 0) {
+            focused = []
+            let curr = 0
+
+            for (const row of rows) {
+                const rowFocused = []
+
+                for (let i = 0; i < row.length; i++) {
+                    if (curr == focusedIndex) {
+                        rowFocused.push(i)
+                    }
+                    curr += 1
+                }
+                focused.push(rowFocused)
+            }
+        }
+
+        const cardPrinter = await new CardPrinter()
+            .addRows(rows, centered, focused)
+            .print()
+
+        return new Discord.MessageAttachment(
+            cardPrinter.canvas.toBuffer('image/png'),
+            `pyramid.png`,
+        )
+    }
+
     getNewBusPlayer() {
         let newPlayer
         if (this.busPlayers.length > 0) {
@@ -435,11 +449,9 @@ export default class Bussen extends Game {
         )
 
         let message = `${(this.busPlayers.length > 0
-                ? this.busPlayers
-                : this.players
-        ).join(
-            ', ',
-        )} all have ${maxCardCount} cards`
+            ? this.busPlayers
+            : this.players
+        ).join(', ')} all have ${maxCardCount} cards`
 
         const busPlayer = this.getNewBusPlayer()
         message += `, but ${busPlayer} has been selected as the bus driver!`
@@ -480,7 +492,6 @@ export default class Bussen extends Game {
             20,
             sentMessage,
             embed,
-            embed.fields[1],
             sizeOptions,
             busPlayer,
         )
@@ -506,7 +517,6 @@ export default class Bussen extends Game {
                     maxCheckPoints,
                     sentMessage,
                     embed,
-                    embed.fields[2],
                     sizeOptions,
                     busPlayer,
                 )
@@ -515,14 +525,7 @@ export default class Bussen extends Game {
             if (checkpoints >= 0) {
                 this.bus = new Bus(busPlayer, busSize, checkpoints)
 
-                const attachment = await this.getAttachment(
-                    `bus.png`,
-                    this.bus.sequence,
-                    ``,
-                    this.bus.checkpoints,
-                    false,
-                    -1,
-                )
+                const attachment = await this.getBusAttachment()
                 await this.setImages(embed, attachment)
                 await removeMessage(sentMessage)
 
@@ -534,15 +537,7 @@ export default class Bussen extends Game {
     async playBus() {
         const oldCard = this.bus.getCurrentCard()
 
-        const busAttachment = await this.getAttachment(
-            `bus.png`,
-            this.bus.sequence,
-            ``,
-            this.bus.checkpoints,
-            false,
-            -1,
-            this.bus.sequence.length - this.bus.currentIndex,
-        )
+        const busAttachment = await this.getBusAttachment(this.bus.currentIndex)
 
         const embed1 = new MessageEmbed()
             .setTitle(`BUSSS Card ${this.bus.currentIndex + 1}`)
@@ -596,7 +591,13 @@ export default class Bussen extends Game {
         await this.setImages(embed2, busAttachment, drawnCardAttachment)
 
         await removeMessage(sentMessage)
-        await this.channel.send(embed2)
+        const lastMessage = await this.channel.send(embed2)
+
+        if (!correct) {
+            await this.getSingleReaction(this.bus.player, lastMessage, [
+                Emoji.PLAY,
+            ])
+        }
 
         this.bus.iterate(newCard, correct)
     }
