@@ -159,11 +159,7 @@ export class CardPrinter {
                     image = await this.getImage(card)
                 }
 
-                this.ctx.globalAlpha = cardHidden
-                    ? 1.0
-                    : focused && !cardFocused
-                    ? 0.5
-                    : 1.0
+                this.ctx.globalAlpha = focused && !cardFocused ? 0.5 : 1.0
 
                 this.ctx.drawImage(image, x, y, this.cardWidth, this.cardHeight)
                 x += this.cardWidth + this.betweenCards

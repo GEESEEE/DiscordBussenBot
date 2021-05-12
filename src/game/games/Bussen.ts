@@ -27,6 +27,8 @@ import { Game } from '../Game'
 
 const pluralize = require(`pluralize`)
 
+const ConsumeDrinks = ``
+
 const StringState = {
     EQUAL: (player, card, drinks) =>
         `${player} drew ${card} and everyone has to consume ${pluralize(
@@ -34,7 +36,17 @@ const StringState = {
             drinks,
             true,
         )}`,
-    TRUE: (player, card) => `${player} drew ${card} and was correct`,
+    TRUE: (player, card, drinks, rainbow?) => {
+        if (!rainbow) {
+            ;`${player} drew ${card} and was correct`
+        } else {
+            ;`${player} created a RAINBOW and everyone else has to consume ${pluralize(
+                'drink',
+                drinks,
+                true,
+            )}`
+        }
+    },
     FALSE: (player, card, drinks) =>
         `${player} drew ${card} and has to consume ${pluralize(
             'drink',
@@ -91,11 +103,11 @@ export default class Bussen extends Game {
         )
     }
 
-    getMessage(isEqual, isTrue, player, card) {
+    getMessage(isEqual, isTrue, player, card, rainbow?) {
         return isEqual
             ? StringState.EQUAL(player, card, this.drinks)
             : isTrue
-            ? StringState.TRUE(player, card)
+            ? StringState.TRUE(player, card, this.drinks, rainbow)
             : StringState.FALSE(player, card, this.drinks)
     }
 
@@ -283,14 +295,14 @@ export default class Bussen extends Game {
             }
         }
 
-        const cardPrinter = await new CardPrinter()
-            .addRows(rows, centered, focused, hidden)
-            .print()
-
-        return new Discord.MessageAttachment(
-            cardPrinter.canvas.toBuffer('image/png'),
-            `pyramid.png`,
+        const cardPrinter = await new CardPrinter().addRows(
+            rows,
+            centered,
+            focused,
+            hidden,
         )
+
+        return this.getMessageAttachment(cardPrinter, 'pyramid.png')
     }
 
     async initPyramid() {
@@ -394,36 +406,20 @@ export default class Bussen extends Game {
 
     //region Phase 3 Bus
 
-    async getBusAttachment(focusedIndex = -1) {
-        const rows = createRows(this.bus.sequence, this.bus.checkpoints)
-        const centered = [false]
-        let focused
-
-        if (focusedIndex >= 0) {
-            focused = []
-            let curr = 0
-
-            for (const row of rows) {
-                const rowFocused = []
-
-                for (let i = 0; i < row.length; i++) {
-                    if (curr == focusedIndex) {
-                        rowFocused.push(i)
-                    }
-                    curr += 1
-                }
-                focused.push(rowFocused)
-            }
-        }
-
-        const cardPrinter = await new CardPrinter()
-            .addRows(rows, centered, focused)
-            .print()
-
-        return new Discord.MessageAttachment(
-            cardPrinter.canvas.toBuffer('image/png'),
-            `pyramid.png`,
+    async getBusAttachment(focus?, showDrawn?) {
+        const { rows, centered, focused, hidden } = this.bus.cardPrinterParams(
+            focus,
+            showDrawn,
         )
+
+        const cardPrinter = await new CardPrinter().addRows(
+            rows,
+            centered,
+            focused,
+            hidden,
+        )
+
+        return this.getMessageAttachment(cardPrinter, 'bus.png')
     }
 
     getNewBusPlayer() {
@@ -467,82 +463,102 @@ export default class Bussen extends Game {
             player.removeAllCards()
         }
 
-        const sizeOptions = ReactionEmojis.HIGHER_LOWER2
-        let busSize = 1
         const embed = new MessageEmbed()
             .setTitle(`The BUSSS`)
             .setDescription(message)
-            .addField(
-                EmptyString,
-                `${busPlayer}, how long should the bus be? (1-20)`,
+            .addField(EmptyString, `${busPlayer}, should the bus be hidden?`)
+            .addField(`Hidden`, EmptyString, true)
+
+        let sentMessage = await this.channel.send(embed)
+
+        const hiddenOptions = ReactionEmojis.YES_NO
+        const collected = await this.getSingleReaction(
+            this.leader,
+            sentMessage,
+            hiddenOptions,
+        )
+
+        if (collected) {
+            const hiddenEmoji = collected.emoji.name
+            const hidden = Emoji.YES.includes(hiddenEmoji)
+
+            embed.fields[1].value = `${hidden ? Emoji.YES : Emoji.NO}`
+
+            const sizeOptions = ReactionEmojis.HIGHER_LOWER2
+            let busSize = 1
+            embed.fields[0].value = `${busPlayer}, how long should the bus be? (1-20)`
+            embed.addField(`Bus Size`, `${busSize}`, true)
+            sentMessage = await this.replaceMessage(sentMessage, embed)
+
+            const busSizeCollector = getReactionsCollector(
+                busPlayer,
+                sentMessage,
+                sizeOptions,
             )
-            .addField(`Bus Size`, `${busSize}`, true)
 
-        const sentMessage = await this.channel.send(embed)
-        const busSizeCollector = getReactionsCollector(
-            busPlayer,
-            sentMessage,
-            sizeOptions,
-        )
+            busSize = await this.waitForValue(
+                busSizeCollector,
+                busSize,
+                1,
+                20,
+                sentMessage,
+                embed,
+                sizeOptions,
+                busPlayer,
+            )
 
-        busSize = await this.waitForValue(
-            busSizeCollector,
-            busSize,
-            1,
-            20,
-            sentMessage,
-            embed,
-            sizeOptions,
-            busPlayer,
-        )
+            if (busSize) {
+                let checkpoints = 0
+                if (busSize > 2) {
+                    const maxCheckPoints = Math.floor(busSize / 3)
+                    embed.fields[0].value = `${busPlayer}, how many checkpoints should the bus have? (0-${maxCheckPoints})`
+                    embed.addField(`Checkpoints`, `${checkpoints}`, true)
+                    await sentMessage.edit(embed)
 
-        if (busSize) {
-            let checkpoints = 0
-            if (busSize > 2) {
-                const maxCheckPoints = Math.floor(busSize / 3)
-                embed.fields[0].value = `${busPlayer}, how many checkpoints should the bus have? (0-${maxCheckPoints})`
-                embed.addField(`Checkpoints`, `${checkpoints}`, true)
-                await sentMessage.edit(embed)
+                    const checkpointCollector = getReactionsCollector(
+                        busPlayer,
+                        sentMessage,
+                        sizeOptions,
+                    )
 
-                const checkpointCollector = getReactionsCollector(
-                    busPlayer,
-                    sentMessage,
-                    sizeOptions,
-                )
+                    checkpoints = await this.waitForValue(
+                        checkpointCollector,
+                        checkpoints,
+                        0,
+                        maxCheckPoints,
+                        sentMessage,
+                        embed,
+                        sizeOptions,
+                        busPlayer,
+                    )
+                }
 
-                checkpoints = await this.waitForValue(
-                    checkpointCollector,
-                    checkpoints,
-                    0,
-                    maxCheckPoints,
-                    sentMessage,
-                    embed,
-                    sizeOptions,
-                    busPlayer,
-                )
-            }
-
-            if (checkpoints >= 0) {
-                this.bus = new Bus(busPlayer, busSize, checkpoints)
+                this.bus = new Bus(busPlayer, busSize, checkpoints, hidden)
 
                 const attachment = await this.getBusAttachment()
                 await this.setImages(embed, attachment)
-                await removeMessage(sentMessage)
-
-                await this.channel.send(embed)
+                await this.replaceMessage(sentMessage, embed)
             }
         }
     }
 
     async playBus() {
         const oldCard = this.bus.getCurrentCard()
-
-        const busAttachment = await this.getBusAttachment(this.bus.currentIndex)
-
+        let busAttachment = await this.getBusAttachment(true)
+        console.log(
+            `curr, max, last`,
+            this.bus.currentIndex,
+            this.bus.maxIndex,
+            this.bus.lastIndex,
+        )
         const embed1 = new MessageEmbed()
             .setTitle(`BUSSS Card ${this.bus.currentIndex + 1}`)
             .setDescription(
-                `${this.bus.player}, higher or lower than ${oldCard}?`,
+                `${this.bus.player}, higher or lower${
+                    this.bus.currentIndex > this.bus.maxIndex
+                        ? ''
+                        : ' than ' + oldCard.toString()
+                }?`,
             )
         await this.setImages(embed1, busAttachment)
 
@@ -582,24 +598,18 @@ export default class Bussen extends Game {
         const drawnCardAttachment = await this.drawnCardAttachment(newCard)
 
         embed1.files = []
-        const embed2 = new MessageEmbed()
-            .setTitle(`BUSSS Card ${this.bus.currentIndex + 1}`)
-            .setDescription(
-                `${this.bus.player}, higher or lower than ${oldCard}?`,
-            )
-            .addField(`Verdict`, message)
-        await this.setImages(embed2, busAttachment, drawnCardAttachment)
+        embed1.addField(`Verdict`, message)
+        this.bus.iterate(newCard, correct)
+        busAttachment = await this.getBusAttachment(true, true)
+        await this.setImages(embed1, busAttachment, drawnCardAttachment)
 
-        await removeMessage(sentMessage)
-        const lastMessage = await this.channel.send(embed2)
+        const lastMessage = await this.replaceMessage(sentMessage, embed1)
 
         if (!correct) {
             await this.getSingleReaction(this.bus.player, lastMessage, [
                 Emoji.PLAY,
             ])
         }
-
-        this.bus.iterate(newCard, correct)
     }
 
     //endregion
@@ -621,11 +631,16 @@ class Bus {
     turns: number
     totalDrinks: number
 
-    constructor(player, size, checkpoints) {
+    hidden: boolean
+    maxIndex: number
+    lastIndex: number
+
+    constructor(player, size, checkpoints, hidden) {
         this.player = player
         this.deck = new Deck(BussenCard)
         this.sequence = []
         this.size = size
+        this.hidden = hidden
 
         for (let i = 0; i < size; i++) {
             this.sequence.push(this.deck.getRandomCard())
@@ -633,6 +648,8 @@ class Bus {
         this.discarded = []
         this.currentIndex = 0
         this.checkpoints = [0]
+        this.maxIndex = -1
+        this.lastIndex = -1
 
         for (let i = 0; i < checkpoints; i++) {
             this.checkpoints.push(
@@ -652,6 +669,12 @@ class Bus {
     }
 
     incrementIndex(correct) {
+        this.lastIndex = this.currentIndex
+
+        if (this.currentIndex > this.maxIndex) {
+            this.maxIndex = this.currentIndex
+        }
+
         if (correct) {
             this.currentIndex = (this.currentIndex + 1) % this.sequence.length
             if (
@@ -693,6 +716,39 @@ class Bus {
         }
         this.incrementIndex(correct)
         this.turns++
+    }
+
+    cardPrinterParams(focus = false, showDrawn?) {
+        const rows = createRows(this.sequence, this.checkpoints)
+        const centered = [true]
+        const focused = []
+        const hidden = []
+
+        let curr = 0
+        for (const row of rows) {
+            const rowFocused = []
+            const rowHidden = []
+            for (let i = 0; i < row.length; i++) {
+                const focusIndex = showDrawn
+                    ? this.lastIndex
+                    : this.currentIndex
+
+                if (!focus || curr == focusIndex) {
+                    rowFocused.push(i)
+                }
+
+                if (this.hidden && curr > this.maxIndex) {
+                    rowHidden.push(true)
+                } else {
+                    rowHidden.push(false)
+                }
+
+                curr += 1
+            }
+            focused.push(rowFocused)
+            hidden.push(rowHidden)
+        }
+        return { rows, centered, focused, hidden }
     }
 }
 
