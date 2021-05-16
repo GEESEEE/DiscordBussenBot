@@ -302,7 +302,7 @@ export default class Bussen extends Game {
             hidden,
         )
 
-        return this.getMessageAttachment(cardPrinter, 'pyramid.png')
+        return this.getCardAttachment(cardPrinter, 'pyramid.png')
     }
 
     async initPyramid() {
@@ -419,7 +419,7 @@ export default class Bussen extends Game {
             hidden,
         )
 
-        return this.getMessageAttachment(cardPrinter, 'bus.png')
+        return this.getCardAttachment(cardPrinter, 'bus.png')
     }
 
     getNewBusPlayer() {
@@ -545,12 +545,6 @@ export default class Bussen extends Game {
     async playBus() {
         const oldCard = this.bus.getCurrentCard()
         let busAttachment = await this.getBusAttachment(true)
-        console.log(
-            `curr, max, last`,
-            this.bus.currentIndex,
-            this.bus.maxIndex,
-            this.bus.lastIndex,
-        )
         const embed1 = new MessageEmbed()
             .setTitle(`BUSSS Card ${this.bus.currentIndex + 1}`)
             .setDescription(
@@ -595,16 +589,15 @@ export default class Bussen extends Game {
             }`
         }
 
-        const drawnCardAttachment = await this.drawnCardAttachment(newCard)
-
         embed1.files = []
         embed1.addField(`Verdict`, message)
-        this.bus.iterate(newCard, correct)
+
+        const drawnCardAttachment = await this.drawnCardAttachment(newCard)
         busAttachment = await this.getBusAttachment(true, true)
         await this.setImages(embed1, busAttachment, drawnCardAttachment)
-
         const lastMessage = await this.replaceMessage(sentMessage, embed1)
 
+        this.bus.iterate(newCard, correct)
         if (!correct) {
             await this.getSingleReaction(this.bus.player, lastMessage, [
                 Emoji.PLAY,
@@ -633,7 +626,6 @@ class Bus {
 
     hidden: boolean
     maxIndex: number
-    lastIndex: number
 
     constructor(player, size, checkpoints, hidden) {
         this.player = player
@@ -649,7 +641,6 @@ class Bus {
         this.currentIndex = 0
         this.checkpoints = [0]
         this.maxIndex = -1
-        this.lastIndex = -1
 
         for (let i = 0; i < checkpoints; i++) {
             this.checkpoints.push(
@@ -669,8 +660,6 @@ class Bus {
     }
 
     incrementIndex(correct) {
-        this.lastIndex = this.currentIndex
-
         if (this.currentIndex > this.maxIndex) {
             this.maxIndex = this.currentIndex
         }
@@ -683,6 +672,7 @@ class Bus {
             ) {
                 this.currentCheckpoint += 1
             }
+
             if (this.currentIndex === 0) {
                 this.isFinished = true
             }
@@ -721,33 +711,53 @@ class Bus {
     cardPrinterParams(focus = false, showDrawn?) {
         const rows = createRows(this.sequence, this.checkpoints)
         const centered = [true]
-        const focused = []
-        const hidden = []
+        let focused
+        let focusIndex
+        let hidden
+        let hiddenIndex
 
-        let curr = 0
-        for (const row of rows) {
-            const rowFocused = []
-            const rowHidden = []
-            for (let i = 0; i < row.length; i++) {
-                const focusIndex = showDrawn
-                    ? this.lastIndex
-                    : this.currentIndex
-
-                if (!focus || curr == focusIndex) {
-                    rowFocused.push(i)
-                }
-
-                if (this.hidden && curr > this.maxIndex) {
-                    rowHidden.push(true)
-                } else {
-                    rowHidden.push(false)
-                }
-
-                curr += 1
-            }
-            focused.push(rowFocused)
-            hidden.push(rowHidden)
+        if (focus) {
+            focused = []
+            focusIndex = this.currentIndex
         }
+
+        if (this.hidden) {
+            hidden = []
+            hiddenIndex = showDrawn ? this.currentIndex : this.maxIndex
+        }
+
+        if (
+            typeof focusIndex !== 'undefined' ||
+            typeof hiddenIndex !== 'undefined'
+        ) {
+            let curr = 0
+            for (const row of rows) {
+                const rowFocused = []
+                const rowHidden = []
+
+                for (let i = 0; i < row.length; i++) {
+                    if (curr === focusIndex) {
+                        rowFocused.push(i)
+                    }
+
+                    if (curr > hiddenIndex) {
+                        rowHidden.push(true)
+                    } else {
+                        rowHidden.push(false)
+                    }
+
+                    curr += 1
+                }
+
+                if (focus) {
+                    focused.push(rowFocused)
+                }
+                if (hidden) {
+                    hidden.push(rowHidden)
+                }
+            }
+        }
+
         return { rows, centered, focused, hidden }
     }
 }

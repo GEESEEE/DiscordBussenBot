@@ -339,7 +339,7 @@ export abstract class Game {
 
     //region Card Printing
 
-    async getMessageAttachment(printer: CardPrinter, name: string) {
+    async getCardAttachment(printer: CardPrinter, name: string) {
         await printer.print()
         return new Discord.MessageAttachment(
             printer.canvas.toBuffer('image/png'),
@@ -351,14 +351,14 @@ export abstract class Game {
         const printer = new CardPrinter()
             .addRow(`${player.username}'s Cards`)
             .addRow(player.cards)
-        return this.getMessageAttachment(printer, `pcards.png`)
+        return this.getCardAttachment(printer, `pcards.png`)
     }
 
     drawnCardAttachment(card) {
         const printer = new CardPrinter()
             .addRow(`Drawn`, true)
             .addRow([card], true)
-        return this.getMessageAttachment(printer, `dcard.png`)
+        return this.getCardAttachment(printer, `dcard.png`)
     }
 
     async setImages(embed, imageAttachment, thumbnailAttachment?) {
