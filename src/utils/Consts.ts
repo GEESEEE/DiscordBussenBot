@@ -53,6 +53,15 @@ export const ReactionEmojis = {
     ],
 }
 
+export const EmojiStrings = {
+    [Emoji.YES]: 'yes',
+    [Emoji.NO]: 'no',
+    [Emoji.HEARTS]: 'red',
+    [Emoji.SPADES]: 'black',
+    [Emoji.HIGHER]: 'higher',
+    [Emoji.LOWER]: 'lower',
+}
+
 export const DiscordErrors = {
     UNKNOWN_MESSAGE: 10008,
 }

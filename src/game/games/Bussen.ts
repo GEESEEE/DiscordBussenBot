@@ -1,59 +1,23 @@
-import Discord, {
-    MessageAttachment,
-    MessageEmbed,
-    MessageReaction,
-    User,
-} from 'discord.js'
+import { MessageEmbed, User } from 'discord.js'
 
 import { CardPrinter } from '../../utils/CardPrinter'
 import {
+    EmojiStrings,
     EmptyString,
     ReactionEmojis,
-    StringCouples,
-    Strings,
     Value,
 } from '../../utils/Consts'
 import { Emoji } from '../../utils/Emoji'
 import {
     createRows,
     getReactionsCollector,
-    reactOptions,
     removeMessage,
     sum,
 } from '../../utils/Utils'
 import { Card, Deck } from '../Deck'
-import { CollectorPlayerLeftError } from '../Errors'
 import { Game } from '../Game'
 
 const pluralize = require(`pluralize`)
-
-const ConsumeDrinks = ``
-
-const StringState = {
-    EQUAL: (player, card, drinks) =>
-        `${player} drew ${card} and everyone has to consume ${pluralize(
-            'drink',
-            drinks,
-            true,
-        )}`,
-    TRUE: (player, card, drinks, rainbow?) => {
-        if (!rainbow) {
-            ;`${player} drew ${card} and was correct`
-        } else {
-            ;`${player} created a RAINBOW and everyone else has to consume ${pluralize(
-                'drink',
-                drinks,
-                true,
-            )}`
-        }
-    },
-    FALSE: (player, card, drinks) =>
-        `${player} drew ${card} and has to consume ${pluralize(
-            'drink',
-            drinks,
-            true,
-        )}`,
-}
 
 export default class Bussen extends Game {
     drinks: number
@@ -65,6 +29,36 @@ export default class Bussen extends Game {
         super(name, leader, channel)
         this.deck = new Deck(BussenCard)
         this.drinks = 1
+    }
+
+    getMessage(isEqual, isTrue, player, card, rainbow?) {
+        const drinks = this.drinks
+        let message
+        if (isEqual) {
+            message = `${player} drew ${card} and everyone has to consume ${pluralize(
+                'drink',
+                drinks,
+                true,
+            )}`
+        } else if (isTrue) {
+            if (!rainbow) {
+                message = `${player} drew ${card} and was correct`
+            } else {
+                message = `${player} created a RAINBOW and everyone else has to consume ${pluralize(
+                    'drink',
+                    drinks,
+                    true,
+                )}`
+            }
+        } else {
+            message = `${player} drew ${card} and has to consume ${pluralize(
+                'drink',
+                drinks,
+                true,
+            )}`
+        }
+
+        return message
     }
 
     onRemovePlayer(player) {
@@ -80,7 +74,7 @@ export default class Bussen extends Game {
 
     async game() {
         // Phase 1 questions
-        /*        await this.askAllPlayers(this.askColour)
+        await this.askAllPlayers(this.askColour)
         await this.askAllPlayers(this.askHigherLower)
         await this.askAllPlayers(this.askBetween)
         await this.askAllPlayers(this.askSuit)
@@ -93,7 +87,7 @@ export default class Bussen extends Game {
                 !this.pyramid.isEmpty() &&
                 !this.noOneHasCards(),
             this.playPyramid,
-        )*/
+        )
 
         // Phase 3 The Bus
         await this.loopForResponse(this.initBus)
@@ -101,14 +95,6 @@ export default class Bussen extends Game {
             () => this.bus && !this.bus.isFinished,
             this.playBus,
         )
-    }
-
-    getMessage(isEqual, isTrue, player, card, rainbow?) {
-        return isEqual
-            ? StringState.EQUAL(player, card, this.drinks)
-            : isTrue
-            ? StringState.TRUE(player, card, this.drinks, rainbow)
-            : StringState.FALSE(player, card, this.drinks)
     }
 
     async replaceMessage(sentMessage, newMessage) {
@@ -172,7 +158,7 @@ export default class Bussen extends Game {
         player.addCard(card)
 
         const content = reaction.emoji.name
-
+        console.log(EmojiStrings[content])
         const isTrue =
             (content.includes(Emoji.HEARTS) && card.isRed()) ||
             (content.includes(Emoji.SPADES) && card.isBlack())
