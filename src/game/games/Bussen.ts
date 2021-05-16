@@ -549,7 +549,7 @@ export default class Bussen extends Game {
             .setTitle(`BUSSS Card ${this.bus.currentIndex + 1}`)
             .setDescription(
                 `${this.bus.player}, higher or lower${
-                    this.bus.currentIndex > this.bus.maxIndex
+                    this.bus.hidden && this.bus.currentIndex > this.bus.maxIndex
                         ? ''
                         : ' than ' + oldCard.toString()
                 }?`,
