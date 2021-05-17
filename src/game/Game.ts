@@ -11,14 +11,14 @@ import Discord, {
 } from 'discord.js'
 
 import { CardPrinter } from '../utils/CardPrinter'
-import { Emoji } from '../utils/Emoji'
+import { Emoji } from '../utils/EmojiUtils'
 import {
     createChecker,
     getFilter,
     getPrompt,
     getSingleReaction,
-    inElementOf,
     reactOptions,
+    removeMessage,
     removeReaction,
 } from '../utils/Utils'
 import { Deck } from './Deck'
@@ -94,6 +94,12 @@ export abstract class Game {
     //endregion
 
     //region Important Functions
+
+    async replaceMessage(sentMessage, newMessage) {
+        const message = await this.channel.send(newMessage)
+        await removeMessage(sentMessage)
+        return message
+    }
 
     // if numeric is true, responseOptions should be 'x,y' as a string with x and y as numbers, also supports negative numbers
     // still works but generally not useful anymore
@@ -196,7 +202,6 @@ export abstract class Game {
             })
 
             collector.on(`end`, (collected, reason) => {
-                console.log(`reason`, reason)
                 if (reason === `removeplayer`) {
                     reject(new CollectorPlayerLeftError(``))
                 }
@@ -253,6 +258,7 @@ export abstract class Game {
 
     async play() {
         this.hasStarted = true
+
         try {
             await this.game()
         } catch (err) {

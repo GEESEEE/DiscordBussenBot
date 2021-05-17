@@ -85,21 +85,21 @@ export abstract class Card {
         return false
     }
 
+    isEqualTo(cards) {
+        for (const card of cards) {
+            if (this.equals(card)) {
+                return true
+            }
+        }
+        return false
+    }
+
     get prefix() {
         let string = `a`
         if ([Value.EIGHT, Value.ACE].includes(this.value)) {
             string += `n`
         }
         return string
-    }
-
-    get suitEmoji() {
-        if (this.suit === Suit.SPADES) {
-            return `♠`
-        } else if (this.suit === Suit.CLUBS) {
-            return `♣`
-        }
-        return this.suit
     }
 
     suitToString() {

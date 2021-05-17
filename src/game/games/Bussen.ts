@@ -1,16 +1,12 @@
 import { MessageEmbed, User } from 'discord.js'
 
 import { CardPrinter } from '../../utils/CardPrinter'
-import {
-    EmojiStrings,
-    EmptyString,
-    ReactionEmojis,
-    Value,
-} from '../../utils/Consts'
-import { Emoji } from '../../utils/Emoji'
+import { EmptyString, Value } from '../../utils/Consts'
+import { Emoji, EmojiStrings, ReactionEmojis } from '../../utils/EmojiUtils'
 import {
     createRows,
     getReactionsCollector,
+    inElementOf,
     removeMessage,
     sum,
 } from '../../utils/Utils'
@@ -29,36 +25,6 @@ export default class Bussen extends Game {
         super(name, leader, channel)
         this.deck = new Deck(BussenCard)
         this.drinks = 1
-    }
-
-    getMessage(isEqual, isTrue, player, card, rainbow?) {
-        const drinks = this.drinks
-        let message
-        if (isEqual) {
-            message = `${player} drew ${card} and everyone has to consume ${pluralize(
-                'drink',
-                drinks,
-                true,
-            )}`
-        } else if (isTrue) {
-            if (!rainbow) {
-                message = `${player} drew ${card} and was correct`
-            } else {
-                message = `${player} created a RAINBOW and everyone else has to consume ${pluralize(
-                    'drink',
-                    drinks,
-                    true,
-                )}`
-            }
-        } else {
-            message = `${player} drew ${card} and has to consume ${pluralize(
-                'drink',
-                drinks,
-                true,
-            )}`
-        }
-
-        return message
     }
 
     onRemovePlayer(player) {
@@ -97,13 +63,9 @@ export default class Bussen extends Game {
         )
     }
 
-    async replaceMessage(sentMessage, newMessage) {
-        const message = await this.channel.send(newMessage)
-        await removeMessage(sentMessage)
-        return message
-    }
+    //region Phase 1 Helpers
 
-    async createEmbed(player, question, card?, verdict?) {
+    async createEmbed(player, question, card?, reaction?, verdict?) {
         const attachments = []
         if (player.cards.length > 0) {
             const playerCardAttachment = await this.playerCardAttachment(player)
@@ -115,9 +77,15 @@ export default class Bussen extends Game {
             attachments.push(drawnCardAttachment)
         }
 
+        let description = `${player}, ${question}`
+        if (card) {
+            description +=
+                `\n${player} chose ` + '`' + `${EmojiStrings[reaction]}` + '`'
+        }
+
         const embed = new MessageEmbed()
             .setTitle(`${player.username}'s turn`)
-            .setDescription(`${player}, ${question}`)
+            .setDescription(description)
 
         if (attachments.length > 0) {
             await this.setImages(
@@ -134,115 +102,158 @@ export default class Bussen extends Game {
         return embed
     }
 
-    async addVerdict(sentMessage, isTrue, player, question, card) {
-        const verdict = this.getMessage(false, isTrue, player, card)
-        const embed2 = await this.createEmbed(player, question, card, verdict)
-
-        await this.replaceMessage(sentMessage, embed2)
+    async getReaction(player, question, reactionEmojis) {
+        const embed = await this.createEmbed(player, question)
+        const message = await this.channel.send(embed)
+        const reaction = await this.getSingleReaction(
+            player,
+            message,
+            reactionEmojis,
+        )
+        return { message, reaction }
     }
 
-    //region Phase 1
+    getMessage(isEqual, isTrue, player, card, rainbow?) {
+        const drinks = this.drinks
+        let message
+        if (isEqual) {
+            message = `${player} drew ${card} and everyone has to consume ${pluralize(
+                'drink',
+                drinks,
+                true,
+            )}`
+        } else if (isTrue) {
+            if (!rainbow) {
+                message = `${player} drew ${card} and was correct`
+            } else {
+                message = `${player} created a 🌈 and everyone else has to consume ${pluralize(
+                    'drink',
+                    drinks,
+                    true,
+                )}`
+            }
+        } else {
+            message = `${player} drew ${card} and has to consume ${pluralize(
+                'drink',
+                drinks,
+                true,
+            )}`
+        }
+
+        return message
+    }
+
+    async addVerdict(
+        sentMessage,
+        isTrue,
+        player,
+        question,
+        card,
+        reaction,
+        rainbow?,
+    ) {
+        const verdict = this.getMessage(
+            card.isEqualTo(player.cards),
+            isTrue,
+            player,
+            card,
+            rainbow,
+        )
+        const embed2 = await this.createEmbed(
+            player,
+            question,
+            card,
+            reaction,
+            verdict,
+        )
+
+        await this.replaceMessage(sentMessage, embed2)
+        player.addCard(card)
+    }
+    //endregion
+
+    //region Phase 1 Questions
 
     async askColour(player) {
         const question = `red or black?`
-        const embed1 = await this.createEmbed(player, question)
-        const sentMessage = await this.channel.send(embed1)
-
-        const reaction = await this.getSingleReaction(
+        const { message, reaction } = await this.getReaction(
             player,
-            sentMessage,
+            question,
             ReactionEmojis.RED_BLACK,
         )
 
         const card = this.deck.getRandomCard()
-        player.addCard(card)
-
         const content = reaction.emoji.name
-        console.log(EmojiStrings[content])
         const isTrue =
             (content.includes(Emoji.HEARTS) && card.isRed()) ||
             (content.includes(Emoji.SPADES) && card.isBlack())
 
-        await this.addVerdict(sentMessage, isTrue, player, question, card)
+        await this.addVerdict(message, isTrue, player, question, card, content)
     }
 
     async askHigherLower(player) {
-        const playerCard = player.cards[0]
-        const question = `higher or lower than ${playerCard}?`
-        const embed1 = await this.createEmbed(player, question)
-        const sentMessage = await this.channel.send(embed1)
-
-        const reaction = await this.getSingleReaction(
+        const question = `higher or lower than ${player.cards[0]}?`
+        const { message, reaction } = await this.getReaction(
             player,
-            sentMessage,
+            question,
             ReactionEmojis.HIGHER_LOWER,
         )
-        const card = this.deck.getRandomCard()
 
+        const card = this.deck.getRandomCard()
         const content = reaction.emoji.name
         const isTrue =
-            (Emoji.HIGHER.includes(content) && card > playerCard) ||
-            (Emoji.LOWER.includes(content) && card < playerCard)
+            (Emoji.HIGHER.includes(content) && card > player.cards[0]) ||
+            (Emoji.LOWER.includes(content) && card < player.cards[0])
 
-        player.addCard(card)
-
-        await this.addVerdict(sentMessage, isTrue, player, question, card)
+        await this.addVerdict(message, isTrue, player, question, card, content)
     }
 
     async askBetween(player) {
-        const playerCard1 = player.cards[0]
-        const playerCard2 = player.cards[1]
-
-        const question = `is it between ${playerCard1} and ${playerCard2}?`
-        const embed1 = await this.createEmbed(player, question)
-        const sentMessage = await this.channel.send(embed1)
-
-        const reaction = await this.getSingleReaction(
+        const question = `is it between ${player.cards[0]} and ${player.cards[1]}?`
+        const { message, reaction } = await this.getReaction(
             player,
-            sentMessage,
+            question,
             ReactionEmojis.YES_NO,
         )
 
         const card = this.deck.getRandomCard()
-        player.addCard(card)
-
         const content = reaction.emoji.name
-
-        const isBetween = card.isBetween(playerCard1, playerCard2)
+        const isBetween = card.isBetween(player.cards[0], player.cards[1])
         const isTrue =
             (Emoji.YES.includes(content) && isBetween) ||
             (Emoji.NO.includes(content) && !isBetween)
 
-        await this.addVerdict(sentMessage, isTrue, player, question, card)
+        await this.addVerdict(message, isTrue, player, question, card, content)
     }
 
     async askSuit(player) {
-        const playerSuits = [
+        const question = `do you already have the suit, you have ${[
             ...new Set(player.cards.map(cards => cards.suit)),
-        ].join(', ')
+        ].join(', ')}?`
 
-        const question = `do you already have the suit, you have ${playerSuits}?`
-        const embed1 = await this.createEmbed(player, question)
-        const sentMessage = await this.channel.send(embed1)
-
-        const reaction = await this.getSingleReaction(
+        const { message, reaction } = await this.getReaction(
             player,
-            sentMessage,
+            question,
             ReactionEmojis.YES_NO,
         )
 
         const card = this.deck.getRandomCard()
-
         const content = reaction.emoji.name
         const hasSameSuit = card.hasSameSuit(player.cards)
-
-        const isTrue =
+        const tru =
             (Emoji.YES.includes(content) && hasSameSuit) ||
             (Emoji.NO.includes(content) && !hasSameSuit)
+        const rbow = player.suitsCount() === 3
 
-        player.addCard(card)
-
-        await this.addVerdict(sentMessage, isTrue, player, question, card)
+        await this.addVerdict(
+            message,
+            tru,
+            player,
+            question,
+            card,
+            content,
+            rbow,
+        )
     }
     //endregion
 

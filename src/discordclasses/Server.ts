@@ -8,8 +8,8 @@ import {
 const { maxReactionTime } = require('../../config.json')
 
 import { Game } from '../game/Game'
-import { DiscordErrors, ReactionEmojis } from '../utils/Consts'
-import { Emoji } from '../utils/Emoji'
+import { DiscordErrors } from '../utils/Consts'
+import { Emoji, ReactionEmojis } from '../utils/EmojiUtils'
 import {
     failSilently,
     getBinaryReactions,
