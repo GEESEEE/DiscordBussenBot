@@ -40,7 +40,7 @@ export default class Bussen extends Game {
 
     async game() {
         // Phase 1 questions
-        await this.askAllPlayers(this.askColour)
+        /*await this.askAllPlayers(this.askColour)
         await this.askAllPlayers(this.askHigherLower)
         await this.askAllPlayers(this.askBetween)
         await this.askAllPlayers(this.askSuit)
@@ -53,7 +53,7 @@ export default class Bussen extends Game {
                 !this.pyramid.isEmpty() &&
                 !this.noOneHasCards(),
             this.playPyramid,
-        )
+        )*/
 
         // Phase 3 The Bus
         await this.loopForResponse(this.initBus)
@@ -354,11 +354,11 @@ export default class Bussen extends Game {
             )
 
             if (collected) {
-                const reverseEmoji = collected.emoji.name
+                const reverseEmoji = collected.emoji.toString()
                 const reverse = Emoji.YES.includes(reverseEmoji)
 
                 this.pyramid = new Pyramid(this.deck, reverse, pyramidSize)
-                const attachment = await this.getPyramidAttachment()
+                const attachment = await this.getPyramidAttachment(-1)
                 embed.fields[1].value = `${reverse ? Emoji.YES : Emoji.NO}`
                 await this.setImages(embed, attachment)
 
@@ -476,7 +476,7 @@ export default class Bussen extends Game {
         )
 
         if (collected) {
-            const hiddenEmoji = collected.emoji.name
+            const hiddenEmoji = collected.emoji.toString()
             const hidden = Emoji.YES.includes(hiddenEmoji)
 
             embed.fields[1].value = `${hidden ? Emoji.YES : Emoji.NO}`
@@ -586,6 +586,11 @@ export default class Bussen extends Game {
             }`
         }
 
+        embed1.description +=
+            `\n${this.bus.player} chose ` +
+            '`' +
+            `${EmojiStrings[content]}` +
+            '`'
         embed1.files = []
         embed1.addField(`Verdict`, message)
 
