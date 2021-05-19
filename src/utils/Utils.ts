@@ -92,7 +92,7 @@ export function getPrompt(channel, filter): any {
 export function getSingleReaction(player, message, options) {
     const collector = message.createReactionCollector(
         (reaction, user) => {
-            const emojiName = reaction.emoji.name
+            const emojiName = reaction.emoji.toString()
             return inElementOf(options, emojiName) && user.equals(player)
         },
         { max: 1 },
@@ -115,7 +115,7 @@ export function getSingleReaction(player, message, options) {
 
 export function getReactionsCollector(player, message, options) {
     return message.createReactionCollector((reaction, user) => {
-        const emojiName = reaction.emoji.name
+        const emojiName = reaction.emoji.toString()
         return inElementOf(options, emojiName) && user.equals(player)
     }, {})
 }
@@ -123,7 +123,7 @@ export function getReactionsCollector(player, message, options) {
 export async function getBinaryReactions(message, maxTime, options) {
     const collector = message.createReactionCollector(
         (reaction, _) => {
-            const emojiName = reaction.emoji.name
+            const emojiName = reaction.emoji.toString()
             return inElementOf(options, emojiName)
         },
         { time: maxTime },
@@ -136,7 +136,7 @@ export async function getBinaryReactions(message, maxTime, options) {
     })
 
     collector.on('collect', async (reaction, user) => {
-        const newReactionName = reaction.emoji.name
+        const newReactionName = reaction.emoji.toString()
         const users = reaction.users.cache
         const messageReactions = message.reactions.cache.values()
 

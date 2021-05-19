@@ -117,14 +117,14 @@ export const Server = Structures.extend('Guild', Guild => {
 
             const collector = sentMessage.createReactionCollector(
                 (reaction, _) => {
-                    const emojiName = reaction.emoji.name
+                    const emojiName = reaction.emoji.toString()
                     return inElementOf(reactionOptions, emojiName)
                 },
                 { dispose: true },
             )
 
             collector.on('collect', async (reaction, user) => {
-                const newReactionName = reaction.emoji.name
+                const newReactionName = reaction.emoji.toString()
                 const users = reaction.users.cache
 
                 if (Emoji.JOIN.includes(newReactionName) && !user.bot) {
@@ -148,7 +148,7 @@ export const Server = Structures.extend('Guild', Guild => {
             })
 
             collector.on(`remove`, async (reaction, user) => {
-                const reactionName = reaction.emoji.name
+                const reactionName = reaction.emoji.toString()
                 if (
                     Emoji.JOIN.includes(reactionName) &&
                     this.currentGame.isPlayer(user)

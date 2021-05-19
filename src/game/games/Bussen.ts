@@ -183,7 +183,7 @@ export default class Bussen extends Game {
         )
 
         const card = this.deck.getRandomCard()
-        const content = reaction.emoji.name
+        const content = reaction.emoji.toString()
         const isTrue =
             (content.includes(Emoji.HEARTS) && card.isRed()) ||
             (content.includes(Emoji.SPADES) && card.isBlack())
@@ -200,7 +200,7 @@ export default class Bussen extends Game {
         )
 
         const card = this.deck.getRandomCard()
-        const content = reaction.emoji.name
+        const content = reaction.emoji.toString()
         const isTrue =
             (Emoji.HIGHER.includes(content) && card > player.cards[0]) ||
             (Emoji.LOWER.includes(content) && card < player.cards[0])
@@ -217,7 +217,7 @@ export default class Bussen extends Game {
         )
 
         const card = this.deck.getRandomCard()
-        const content = reaction.emoji.name
+        const content = reaction.emoji.toString()
         const isBetween = card.isBetween(player.cards[0], player.cards[1])
         const isTrue =
             (Emoji.YES.includes(content) && isBetween) ||
@@ -238,7 +238,7 @@ export default class Bussen extends Game {
         )
 
         const card = this.deck.getRandomCard()
-        const content = reaction.emoji.name
+        const content = reaction.emoji.toString()
         const hasSameSuit = card.hasSameSuit(player.cards)
         const tru =
             (Emoji.YES.includes(content) && hasSameSuit) ||
@@ -561,7 +561,7 @@ export default class Bussen extends Game {
             options,
         )
 
-        const content = reaction.emoji.name
+        const content = reaction.emoji.toString()
         const newCard = this.bus.getRandomCard()
         const correct =
             (Emoji.HIGHER.includes(content) && newCard > oldCard) ||

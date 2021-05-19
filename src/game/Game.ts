@@ -178,7 +178,7 @@ export abstract class Game {
         }
         const collected = new Promise((resolve, reject) => {
             collector.on(`collect`, async (reaction, user) => {
-                const reactEmoji = reaction.emoji.name
+                const reactEmoji = reaction.emoji.toString()
 
                 if (user.equals(player)) {
                     if (Emoji.PLAY.includes(reactEmoji)) {
