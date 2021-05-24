@@ -22,7 +22,11 @@ import {
     removeReaction,
 } from '../utils/Utils'
 import { Deck } from './Deck'
-import { CollectorPlayerLeftError, GameEndedError } from './Errors'
+import {
+    CollectorPlayerLeftError,
+    CollectorPlayerPassedInput,
+    GameEndedError,
+} from './Errors'
 
 export abstract class Game {
     name: string
@@ -32,11 +36,13 @@ export abstract class Game {
     collector: MessageCollector | ReactionCollector
 
     players: Array<User>
+    leader: User
     hasStarted: boolean
 
     protected constructor(name, leader, channel) {
         this.name = name
         this.players = []
+        this.leader = leader
         this.hasStarted = false
         this.channel = channel
         this.addPlayer(leader)
@@ -45,14 +51,10 @@ export abstract class Game {
     //region Simple Functions
     isLeader(player) {
         if (this.hasPlayers()) {
-            return this.players[0].equals(player)
+            return this.leader.equals(player)
         } else {
             return null
         }
-    }
-
-    get leader() {
-        return this.players[0]
     }
 
     addPlayer(player) {
@@ -72,7 +74,6 @@ export abstract class Game {
 
     endGame() {
         this.collector?.stop(`endgame`)
-
         throw new GameEndedError(`${this.name} has ended`)
     }
 
@@ -89,6 +90,16 @@ export abstract class Game {
             }
         }
         return true
+    }
+
+    async setLeader(player) {
+        if (this.isPlayer(player) && !this.isLeader(player)) {
+            this.leader = player
+            const embed = new MessageEmbed().setTitle(
+                `${this.leader} is the new leader!`,
+            )
+            await this.channel.send(embed)
+        }
     }
 
     //endregion
@@ -152,7 +163,7 @@ export abstract class Game {
         return col[0]
     }
 
-    incSize(min, max, current, toAdd) {
+    private incSize(min, max, current, toAdd) {
         const newVal = current + toAdd
         if (newVal > max) {
             return max
@@ -233,6 +244,7 @@ export abstract class Game {
             }
 
             if (playerIndex === 0 && this.hasPlayers()) {
+                this.leader = this.players[0]
                 message += `${this.leader} is the new leader!\n`
             }
 
@@ -275,6 +287,7 @@ export abstract class Game {
 
     abstract game(): void
     abstract onRemovePlayer(player): string
+    abstract passInput(oldPlayer, newPlayer): void
 
     //endregion
 
@@ -283,7 +296,7 @@ export abstract class Game {
     handleError(err) {
         if (err instanceof CollectorPlayerLeftError) {
             this.hasEnded()
-        } else {
+        } else if (!(err instanceof CollectorPlayerPassedInput)) {
             throw err
         }
     }

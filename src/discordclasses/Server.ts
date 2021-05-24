@@ -3,6 +3,7 @@ import {
     ReactionCollector,
     Structures,
     TextChannel,
+    User,
 } from 'discord.js'
 
 const { maxReactionTime } = require('../../config.json')
@@ -31,7 +32,7 @@ export const Server = Structures.extend('Guild', Guild => {
         }
 
         hasChannel() {
-            return this.currentChannel
+            return Boolean(this.currentChannel)
         }
 
         isFromChannel(message) {
@@ -43,7 +44,7 @@ export const Server = Structures.extend('Guild', Guild => {
         }
 
         gameExists() {
-            return this.currentGame
+            return Boolean(this.currentGame)
         }
 
         readyToHelp(message) {
@@ -89,8 +90,21 @@ export const Server = Structures.extend('Guild', Guild => {
             )
         }
 
-        readyToRemove(message) {
-            return this.validMessage(message) && this.gameExists()
+        readyToPassInput(message, user) {
+            return (
+                this.validMessage(message) &&
+                this.gameExists() &&
+                user instanceof User
+            )
+        }
+
+        readyToMakeLeader(message, user) {
+            return (
+                this.validMessage(message) &&
+                this.gameExists() &&
+                this.currentGame.leader === message.author &&
+                user instanceof User
+            )
         }
 
         readyToShowGames(message) {

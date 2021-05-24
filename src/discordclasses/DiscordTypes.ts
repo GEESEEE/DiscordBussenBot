@@ -23,11 +23,11 @@ declare module 'discord.js' {
         collector: ReactionCollector
         currentChannel: TextChannel
         currentGame: Game
-        gameExists(): Game
+        gameExists(): boolean
 
         getJoinEmbed(): MessageEmbed
 
-        hasChannel(): TextChannel
+        hasChannel(): boolean
 
         isfromChannel(message: Message): boolean
 
@@ -41,7 +41,9 @@ declare module 'discord.js' {
 
         readyToQuit(message): boolean
 
-        readyToRemove(message): Game
+        readyToPassInput(message, user): boolean
+
+        readyToMakeLeader(message, user): boolean
 
         readyToShowGames(message): boolean
 

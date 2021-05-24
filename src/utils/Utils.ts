@@ -93,7 +93,7 @@ export function getSingleReaction(player, message, options) {
     const collector = message.createReactionCollector(
         (reaction, user) => {
             const emojiName = reaction.emoji.toString()
-            return inElementOf(options, emojiName) && user.equals(player)
+            return user.equals(player) && inElementOf(options, emojiName)
         },
         { max: 1 },
     )

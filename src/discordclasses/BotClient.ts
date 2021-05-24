@@ -24,7 +24,9 @@ export class BotClient extends Discord.Client {
 
         for (const file of commandFiles) {
             const command = require(`../commands/${file}`)
-            this.commands.set(command.name, command)
+            if (command.name !== 'leader') {
+                this.commands.set(command.name, command)
+            }
         }
 
         for (const file of gameFiles) {
@@ -34,7 +36,6 @@ export class BotClient extends Discord.Client {
 
         // this event will only trigger one time after logging in
         this.once('ready', this.onReady)
-
         this.on('message', this.onMessage)
     }
 

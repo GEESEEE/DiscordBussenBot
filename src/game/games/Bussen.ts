@@ -29,18 +29,27 @@ export default class Bussen extends Game {
 
     onRemovePlayer(player) {
         // if removed player is in the bus, swap for new player
-        if (this.bus && player.equals(this.bus.player)) {
-            const newPlayer = this.getNewBusPlayer()
-            if (newPlayer) {
-                this.bus.player = newPlayer
-                return `Because ${player} was in the bus, ${newPlayer} is now chosen to be the bus driver`
+        if (this.bus) {
+            if (player.equals(this.bus.player)) {
+                const newPlayer = this.getNewBusPlayer()
+                if (newPlayer) {
+                    this.bus.player = newPlayer
+                    return `Because ${player} was in the bus, ${newPlayer} is now chosen to be the bus driver`
+                }
+            }
+
+            if (this.busPlayers.includes(player)) {
+                const playerIndex = this.busPlayers.indexOf(player)
+                if (playerIndex > -1) {
+                    this.busPlayers.splice(playerIndex, 1)
+                }
             }
         }
     }
 
     async game() {
         // Phase 1 questions
-        /*await this.askAllPlayers(this.askColour)
+        await this.askAllPlayers(this.askColour)
         await this.askAllPlayers(this.askHigherLower)
         await this.askAllPlayers(this.askBetween)
         await this.askAllPlayers(this.askSuit)
@@ -53,7 +62,7 @@ export default class Bussen extends Game {
                 !this.pyramid.isEmpty() &&
                 !this.noOneHasCards(),
             this.playPyramid,
-        )*/
+        )
 
         // Phase 3 The Bus
         await this.loopForResponse(this.initBus)
@@ -470,7 +479,7 @@ export default class Bussen extends Game {
 
         const hiddenOptions = ReactionEmojis.YES_NO
         const collected = await this.getSingleReaction(
-            this.leader,
+            busPlayer,
             sentMessage,
             hiddenOptions,
         )
@@ -568,6 +577,7 @@ export default class Bussen extends Game {
             (Emoji.LOWER.includes(content) && newCard < oldCard)
 
         let message
+        let newBusPlayer
         if (correct) {
             if (this.bus.currentIndex + 2 <= this.bus.size) {
                 message = `${
@@ -578,6 +588,9 @@ export default class Bussen extends Game {
             } else {
                 message = `${this.bus.player} managed to escape the BUSS in ${this.bus.turns} turns, while consuming ${this.bus.totalDrinks} drinks in total`
             }
+        } else if (newCard.equals(oldCard)) {
+            newBusPlayer = this.getNewBusPlayer()
+            message = `${this.bus.player} drew ${newCard} so ${newBusPlayer} is now the BUSS driver!\n${this.bus.player} still has to consume ${this.bus.drinkCount} drinks, though.`
         } else {
             message = `${this.bus.player} drew ${newCard}, has to consume **${
                 this.bus.drinkCount
@@ -604,6 +617,16 @@ export default class Bussen extends Game {
             await this.getSingleReaction(this.bus.player, lastMessage, [
                 Emoji.PLAY,
             ])
+        }
+        if (newBusPlayer) {
+            this.bus.player = newBusPlayer
+        }
+    }
+
+    passInput(oldPlayer, newPlayer): void {
+        if (this.bus && this.bus.player.equals(oldPlayer)) {
+            this.bus.player = newPlayer
+            this.collector?.stop()
         }
     }
 
