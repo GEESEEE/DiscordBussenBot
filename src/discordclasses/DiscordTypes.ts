@@ -41,6 +41,8 @@ declare module 'discord.js' {
 
         readyToQuit(message): boolean
 
+        readyToRemove(message): boolean
+
         readyToPassInput(message, user): boolean
 
         readyToMakeLeader(message, user): boolean

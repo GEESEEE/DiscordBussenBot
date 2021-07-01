@@ -90,6 +90,10 @@ export const Server = Structures.extend('Guild', Guild => {
             )
         }
 
+        readyToRemove(message) {
+            return this.validMessage(message) && this.gameExists()
+        }
+
         readyToPassInput(message, user) {
             return (
                 this.validMessage(message) &&
