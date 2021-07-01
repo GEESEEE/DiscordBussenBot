@@ -215,6 +215,7 @@ export const Server = Structures.extend('Guild', Guild => {
             const maxEmoji = col
                 .filter(collection => collection.users.cache.size === max)
                 .first()?.emoji.name
+
             let response
             if (this.gameExists()) {
                 if (options[0].includes(maxEmoji)) {
@@ -230,6 +231,7 @@ export const Server = Structures.extend('Guild', Guild => {
             } else {
                 response = `${gameName} is already gone`
             }
+
             await this.currentChannel.send(
                 new MessageEmbed().setTitle(response),
             )
