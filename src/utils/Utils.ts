@@ -31,16 +31,16 @@ export function inElementOf(list, query) {
     return null
 }
 
-export function createRows(cards, rowIndices): Array<Array<any>> {
+export function createRows(elements, rowIndices): Array<Array<any>> {
     const rows = []
     let currentRow = []
 
-    for (let i = 0; i < cards.length; i++) {
+    for (let i = 0; i < elements.length; i++) {
         if (rowIndices.includes(i) && i !== 0) {
             rows.push(currentRow)
             currentRow = []
         }
-        currentRow.push(cards[i])
+        currentRow.push(elements[i])
     }
     rows.push(currentRow)
 
