@@ -1,5 +1,7 @@
 import { MessageEmbed, User } from 'discord.js'
 
+import { PlayerManager } from '../../managers/PlayerManager'
+import { Player } from '../../structures/Player'
 import { CardPrinter } from '../../utils/CardPrinter'
 import { EmptyString, Value } from '../../utils/Consts'
 import { Emoji, EmojiStrings, ReactionEmojis } from '../../utils/EmojiUtils'
@@ -19,17 +21,19 @@ export default class Bussen extends Game {
     drinks: number
     pyramid: Pyramid
     bus: Bus
-    busPlayers: Array<User>
+    busPlayerManager: PlayerManager
 
     constructor(name, leader, channel) {
         super(name, leader, channel)
         this.deck = new Deck(BussenCard)
         this.drinks = 1
+        this.busPlayerManager = new PlayerManager()
     }
 
-    onRemovePlayer(player) {
+    onRemovePlayer(user: User) {
         // if removed player is in the bus, swap for new player
         if (this.bus) {
+            const player = this.busPlayerManager.getPlayer(user.id)
             if (player.equals(this.bus.player)) {
                 const newPlayer = this.getNewBusPlayer()
                 if (newPlayer) {
@@ -38,11 +42,8 @@ export default class Bussen extends Game {
                 }
             }
 
-            if (this.busPlayers.includes(player)) {
-                const playerIndex = this.busPlayers.indexOf(player)
-                if (playerIndex > -1) {
-                    this.busPlayers.splice(playerIndex, 1)
-                }
+            if (this.busPlayerManager.isPlayer(user)) {
+                this.busPlayerManager.removePlayer(user.id)
             }
         }
     }
@@ -385,7 +386,7 @@ export default class Bussen extends Game {
         const drawnCardAttachment = await this.drawnCardAttachment(card)
 
         let message = `Drew ${card}\n`
-        for (const player of this.players) {
+        for (const player of this.playerManager.players) {
             if (player.hasValueInHand(card)) {
                 const playerCards = player.getCardsWithValue(card)
                 const playerCardsString = playerCards.join(', ')
@@ -428,43 +429,49 @@ export default class Bussen extends Game {
         return this.getCardAttachment(cardPrinter, 'bus.png')
     }
 
-    getNewBusPlayer() {
+    getNewBusPlayer(): Player {
         let newPlayer
-        if (this.busPlayers.length > 0) {
-            const index = Math.floor(Math.random() * this.busPlayers.length)
-            newPlayer = this.busPlayers[index]
-            this.busPlayers.splice(index, 1)
+        if (this.busPlayerManager.players.length > 0) {
+            const index = Math.floor(
+                Math.random() * this.busPlayerManager.players.length,
+            )
+            newPlayer = this.busPlayerManager.players[index]
+            this.busPlayerManager.removePlayer(newPlayer.user.id)
         } else {
             newPlayer =
-                this.players[Math.floor(Math.random() * this.players.length)]
+                this.playerManager.players[
+                    Math.floor(
+                        Math.random() * this.playerManager.players.length,
+                    )
+                ]
         }
         return newPlayer
     }
 
     async initBus() {
         const maxCardCount = Math.max(
-            ...this.players.map(player => player.cards.length),
+            ...this.playerManager.players.map(player => player.cards.length),
         )
-        this.busPlayers = this.players.filter(
+        const busPlayers = this.playerManager.players.filter(
             player => player.cards.length === maxCardCount,
         )
+        for (const player of busPlayers) {
+            this.busPlayerManager.addPlayer(player)
+        }
 
-        let message = `${(this.busPlayers.length > 0
-            ? this.busPlayers
-            : this.players
+        let message = `${(this.busPlayerManager.players.length > 0
+            ? this.busPlayerManager.players
+            : this.playerManager.players
         ).join(', ')} all have ${maxCardCount} cards`
 
         const busPlayer = this.getNewBusPlayer()
         message += `, but ${busPlayer} has been selected as the bus driver!`
 
-        // Removing chosen player from options
-        const index = this.busPlayers.indexOf(busPlayer)
-        if (index > -1) {
-            this.busPlayers.splice(index, 1)
-        }
+        // Removing busPlayer from busPlayers
+        this.busPlayerManager.removePlayer(busPlayer.user.id)
 
         // removing all players' cards, because they dont use them in the bus
-        for (const player of this.players) {
+        for (const player of this.playerManager.players) {
             player.removeAllCards()
         }
 
@@ -603,7 +610,7 @@ export default class Bussen extends Game {
             '`' +
             `${EmojiStrings[content]}` +
             '`'
-        embed1.files = []
+        // embed1.files = []
         embed1.addField(`Verdict`, message)
 
         const drawnCardAttachment = await this.drawnCardAttachment(newCard)
@@ -633,7 +640,7 @@ export default class Bussen extends Game {
 }
 
 class Bus {
-    player: User
+    player: Player
     deck: Deck
     size: number
     sequence: Array<Card>

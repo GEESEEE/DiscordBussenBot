@@ -10,6 +10,8 @@ import Discord, {
     User,
 } from 'discord.js'
 
+import { PlayerManager } from '../managers/PlayerManager'
+import { Player } from '../structures/Player'
 import { CardPrinter } from '../utils/CardPrinter'
 import { Emoji } from '../utils/EmojiUtils'
 import {
@@ -34,14 +36,15 @@ export abstract class Game {
     deck: Deck
     channel: TextChannel
     collector: MessageCollector | ReactionCollector
+    collectorPlayer: Player
 
-    players: Array<User>
-    leader: User
+    playerManager: PlayerManager
+    leader: Player
     hasStarted: boolean
 
     protected constructor(name, leader, channel) {
         this.name = name
-        this.players = []
+        this.playerManager = new PlayerManager()
         this.leader = leader
         this.hasStarted = false
         this.channel = channel
@@ -49,27 +52,26 @@ export abstract class Game {
     }
 
     //region Simple Functions
-    isLeader(player) {
+    addPlayer(user: User) {
+        if (!this.isPlayer(user)) {
+            this.playerManager.addUser(user)
+        }
+    }
+
+    isPlayer(user: User) {
+        return this.playerManager.isPlayer(user)
+    }
+
+    isLeader(user: User) {
         if (this.hasPlayers()) {
-            return this.leader.equals(player)
+            return this.playerManager.getPlayer(user.id) === this.leader
         } else {
             return null
         }
     }
 
-    addPlayer(player) {
-        if (!this.isPlayer(player)) {
-            player.removeAllCards()
-            this.players.push(player)
-        }
-    }
-
-    isPlayer(player) {
-        return this.players.includes(player)
-    }
-
     hasPlayers() {
-        return this.players.length > 0
+        return this.playerManager.players.length > 0
     }
 
     endGame() {
@@ -84,7 +86,7 @@ export abstract class Game {
     }
 
     noOneHasCards() {
-        for (const player of this.players) {
+        for (const player of this.playerManager.players) {
             if (player.hasCards()) {
                 return false
             }
@@ -92,9 +94,9 @@ export abstract class Game {
         return true
     }
 
-    async setLeader(player) {
-        if (this.isPlayer(player) && !this.isLeader(player)) {
-            this.leader = player
+    async setLeader(user: User) {
+        if (this.isPlayer(user) && !this.isLeader(user)) {
+            this.leader = this.playerManager.getPlayer(user.id)
             const embed = new MessageEmbed().setTitle(
                 `${this.leader} is the new leader!`,
             )
@@ -113,8 +115,8 @@ export abstract class Game {
     }
 
     // if numeric is true, responseOptions should be 'x,y' as a string with x and y as numbers, also supports negative numbers
-    // still works but generally not useful anymore
-    async getResponse(player, string, responseOptions, numeric = false) {
+    // still works but generally nm,mot useful anymore
+    async getResponse(player: User, string, responseOptions, numeric = false) {
         if (typeof responseOptions === 'string') {
             responseOptions = [responseOptions]
         }
@@ -143,7 +145,7 @@ export abstract class Game {
     }
 
     async getSingleReaction(
-        player,
+        player: Player,
         sentMessage,
         options,
     ): Promise<MessageReaction> {
@@ -153,7 +155,7 @@ export abstract class Game {
             options,
         )
         this.collector = collector
-        collector.player = player
+        this.collectorPlayer = this.playerManager.getPlayer(player.user.id)
 
         const col = await Promise.all([
             collected,
@@ -182,7 +184,7 @@ export abstract class Game {
         message,
         embed,
         options,
-        player?,
+        player?: Player,
     ): Promise<number> {
         if (!player) {
             player = this.leader
@@ -229,22 +231,21 @@ export abstract class Game {
         return col[0] as number
     }
 
-    async removePlayer(player) {
-        if (this.isPlayer(player)) {
-            if (this.collector && player.equals(this.collector.player)) {
+    async removePlayer(user: User) {
+        if (this.isPlayer(user)) {
+            const player = this.playerManager.getPlayer(user.id)
+            if (this.collector && player.equals(this.collectorPlayer)) {
                 this.collector?.stop(`removeplayer`)
             }
 
-            const title = `${player.username} decided to be a little bitch and quit ${this.name}\n`
+            const title = `${player} decided to be a little bitch and quit ${this.name}\n`
             let message = ``
 
-            const playerIndex = this.players.indexOf(player)
-            if (playerIndex > -1) {
-                this.players.splice(playerIndex, 1)
-            }
+            const wasLeader = this.isLeader(user)
+            this.playerManager.removePlayer(user.id)
 
-            if (playerIndex === 0 && this.hasPlayers()) {
-                this.leader = this.players[0]
+            if (wasLeader && this.hasPlayers()) {
+                this.leader = this.playerManager.players[0]
                 message += `${this.leader} is the new leader!\n`
             }
 
@@ -281,8 +282,8 @@ export abstract class Game {
 
         const embed = new MessageEmbed().setTitle(`${this.name} has finished`)
         await this.channel.send({ embeds: [embed] })
-        const server: Guild = this.channel.guild
-        server.currentGame = null
+        // const server: Guild = this.channel.guild
+        // server.currentGame = null
     }
 
     abstract game(): void
@@ -319,8 +320,8 @@ export abstract class Game {
     }
 
     async askAllPlayers(func) {
-        for (let i = 0; i < this.players.length; i++) {
-            const player = this.players[i]
+        for (let i = 0; i < this.playerManager.players.length; i++) {
+            const player = this.playerManager.players[i]
             try {
                 await func.call(this, player)
             } catch (err) {
@@ -366,9 +367,9 @@ export abstract class Game {
         )
     }
 
-    playerCardAttachment(player) {
+    playerCardAttachment(player: Player) {
         const printer = new CardPrinter()
-            .addRow(`${player.username}'s Cards`)
+            .addRow(`${player.user.username}'s Cards`)
             .addRow(player.cards)
         return this.getCardAttachment(printer, `pcards.png`)
     }

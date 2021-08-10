@@ -1,4 +1,4 @@
-const { BotClient } = require('./src/discordclasses/BotClient')
+const { Client } = require('./src/structures/Client')
 
 const dotenv = require('dotenv')
 dotenv.config()
