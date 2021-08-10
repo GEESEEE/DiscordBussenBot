@@ -765,7 +765,10 @@ class Bus {
 
         if (this.hidden) {
             hidden = []
-            hiddenIndex = showDrawn ? this.currentIndex : this.maxIndex
+            hiddenIndex =
+                showDrawn && this.currentIndex > this.maxIndex
+                    ? this.maxIndex + 1
+                    : this.maxIndex
         }
 
         if (

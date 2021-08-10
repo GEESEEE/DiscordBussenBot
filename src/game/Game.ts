@@ -241,7 +241,7 @@ export abstract class Game {
                 this.collector?.stop(`removeplayer`)
             }
 
-            const title = `${player} decided to be a little bitch and quit ${this.name}\n`
+            const title = `${user.username} decided to be a little bitch and quit ${this.name}\n`
             let message = ``
 
             const wasLeader = this.isLeader(user)
