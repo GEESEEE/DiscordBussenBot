@@ -4,7 +4,7 @@ module.exports = {
     name: 'help',
     desc: 'Displays all possible commands and their descriptions',
     execute(client, message, args) {
-        const server = message.guild
+        const server = client.getServer(message.guild.id)
         if (server.readyToHelp(message)) {
             const embed = new MessageEmbed()
 
