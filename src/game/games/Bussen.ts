@@ -1,17 +1,18 @@
-import { MessageEmbed, User } from 'discord.js'
+import {
+    ButtonInteraction,
+    MessageActionRow,
+    MessageButton,
+    MessageEmbed,
+    MessageInteraction,
+    User,
+} from 'discord.js'
 
 import { PlayerManager } from '../../managers/PlayerManager'
 import { Player } from '../../structures/Player'
 import { CardPrinter } from '../../utils/CardPrinter'
 import { EmptyString, Value } from '../../utils/Consts'
 import { Emoji, EmojiStrings, ReactionEmojis } from '../../utils/EmojiUtils'
-import {
-    createRows,
-    getReactionsCollector,
-    inElementOf,
-    removeMessage,
-    sum,
-} from '../../utils/Utils'
+import { createRows, getReactionsCollector, sum } from '../../utils/Utils'
 import { Card, Deck } from '../Deck'
 import { Game } from '../Game'
 
@@ -49,28 +50,29 @@ export default class Bussen extends Game {
     }
 
     async game() {
+        //await this.testButtons(this.leader)
         // Phase 1 questions
         await this.askAllPlayers(this.askColour)
         await this.askAllPlayers(this.askHigherLower)
         await this.askAllPlayers(this.askBetween)
         await this.askAllPlayers(this.askSuit)
-
-        // Phase 2 Pyramid
-        await this.loopForResponse(this.initPyramid)
-        await this.askWhile(
-            () =>
-                this.pyramid &&
-                !this.pyramid.isEmpty() &&
-                !this.noOneHasCards(),
-            this.playPyramid,
-        )
-
-        // Phase 3 The Bus
-        await this.loopForResponse(this.initBus)
-        await this.askWhile(
-            () => this.bus && !this.bus.isFinished,
-            this.playBus,
-        )
+        //
+        // // Phase 2 Pyramid
+        // await this.loopForResponse(this.initPyramid)
+        // await this.askWhile(
+        //     () =>
+        //         this.pyramid &&
+        //         !this.pyramid.isEmpty() &&
+        //         !this.noOneHasCards(),
+        //     this.playPyramid,
+        // )
+        //
+        // // Phase 3 The Bus
+        // await this.loopForResponse(this.initBus)
+        // await this.askWhile(
+        //     () => this.bus && !this.bus.isFinished,
+        //     this.playBus,
+        // )
     }
 
     //region Phase 1 Helpers
@@ -89,8 +91,7 @@ export default class Bussen extends Game {
 
         let description = `${player}, ${question}`
         if (card) {
-            description +=
-                `\n${player} chose ` + '`' + `${EmojiStrings[reaction]}` + '`'
+            description += `\n${player} chose ` + '`' + `${reaction}` + '`'
         }
 
         const embed = new MessageEmbed()
@@ -112,18 +113,21 @@ export default class Bussen extends Game {
         return { embed, attachments }
     }
 
-    async getReaction(player: Player, question, reactionEmojis) {
+    async getInteraction(
+        player: Player,
+        question: string,
+        row: MessageActionRow,
+    ) {
         const { embed, attachments } = await this.createEmbed(player, question)
+
         const message = await this.channel.send({
             embeds: [embed],
             files: attachments,
+            components: [row],
         })
-        const reaction = await this.getSingleReaction(
-            player,
-            message,
-            reactionEmojis,
-        )
-        return { message, reaction }
+
+        const collected = await this.getSingleInteraction(player, message)
+        return { message, collected: collected as ButtonInteraction }
     }
 
     getMessage(isEqual, isTrue, player: Player, card, rainbow?) {
@@ -189,73 +193,93 @@ export default class Bussen extends Game {
 
     async askColour(player) {
         const question = `red or black?`
-        const { message, reaction } = await this.getReaction(
+        const row = this.getActionRow(['Red', 'Black'], ['DANGER', 'SECONDARY'])
+        const { message, collected } = await this.getInteraction(
             player,
             question,
-            ReactionEmojis.RED_BLACK,
+            row,
         )
 
         const card = this.deck.getRandomCard()
-        const content = reaction.emoji.toString()
         const isTrue =
-            (content.includes(Emoji.HEARTS) && card.isRed()) ||
-            (content.includes(Emoji.SPADES) && card.isBlack())
+            (collected.customId === 'Red' && card.isRed()) ||
+            (collected.customId === 'Black' && card.isBlack())
 
-        await this.addVerdict(message, isTrue, player, question, card, content)
+        await this.addVerdict(
+            message,
+            isTrue,
+            player,
+            question,
+            card,
+            collected.customId,
+        )
     }
 
     async askHigherLower(player) {
         const question = `higher or lower than ${player.cards[0]}?`
-        const { message, reaction } = await this.getReaction(
+        const row = this.getActionRow(['Higher', 'Lower'])
+        const { message, collected } = await this.getInteraction(
             player,
             question,
-            ReactionEmojis.HIGHER_LOWER,
+            row,
         )
 
         const card = this.deck.getRandomCard()
-        const content = reaction.emoji.toString()
         const isTrue =
-            (Emoji.HIGHER.includes(content) && card > player.cards[0]) ||
-            (Emoji.LOWER.includes(content) && card < player.cards[0])
+            (collected.customId === 'Higher' && card > player.cards[0]) ||
+            (collected.customId === 'Lower' && card < player.cards[0])
 
-        await this.addVerdict(message, isTrue, player, question, card, content)
+        await this.addVerdict(
+            message,
+            isTrue,
+            player,
+            question,
+            card,
+            collected.customId,
+        )
     }
 
     async askBetween(player) {
         const question = `is it between ${player.cards[0]} and ${player.cards[1]}?`
-        const { message, reaction } = await this.getReaction(
+        const row = this.getActionRow(['Yes', 'No'])
+        const { message, collected } = await this.getInteraction(
             player,
             question,
-            ReactionEmojis.YES_NO,
+            row,
         )
 
         const card = this.deck.getRandomCard()
-        const content = reaction.emoji.toString()
         const isBetween = card.isBetween(player.cards[0], player.cards[1])
         const isTrue =
-            (Emoji.YES.includes(content) && isBetween) ||
-            (Emoji.NO.includes(content) && !isBetween)
+            (collected.customId === 'Yes' && isBetween) ||
+            (collected.customId === 'No' && !isBetween)
 
-        await this.addVerdict(message, isTrue, player, question, card, content)
+        await this.addVerdict(
+            message,
+            isTrue,
+            player,
+            question,
+            card,
+            collected.customId,
+        )
     }
 
     async askSuit(player) {
         const question = `do you already have the suit, you have ${[
             ...new Set(player.cards.map(cards => cards.suit)),
         ].join(', ')}?`
-
-        const { message, reaction } = await this.getReaction(
+        const row = this.getActionRow(['Yes', 'No'])
+        const { message, collected } = await this.getInteraction(
             player,
             question,
-            ReactionEmojis.YES_NO,
+            row,
         )
 
         const card = this.deck.getRandomCard()
-        const content = reaction.emoji.toString()
         const hasSameSuit = card.hasSameSuit(player.cards)
         const tru =
-            (Emoji.YES.includes(content) && hasSameSuit) ||
-            (Emoji.NO.includes(content) && !hasSameSuit)
+            (collected.customId === 'Yes' && hasSameSuit) ||
+            (collected.customId === 'No' && !hasSameSuit)
         const rbow = player.suitsCount() === 3
 
         await this.addVerdict(
@@ -264,7 +288,7 @@ export default class Bussen extends Game {
             player,
             question,
             card,
-            content,
+            collected.customId,
             rbow,
         )
     }

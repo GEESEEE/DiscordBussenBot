@@ -1,7 +1,11 @@
 import {
+    ButtonInteraction,
     Collection,
     DiscordAPIError,
+    Interaction,
+    InteractionCollector,
     Message,
+    MessageInteraction,
     MessageReaction,
     ReactionCollector,
 } from 'discord.js'
@@ -108,6 +112,29 @@ export function getSingleReaction(player: Player, message, options) {
             })
         }) as Promise<MessageReaction>,
         collector: collector as ReactionCollector,
+    }
+}
+
+export function getSingleInteraction(player: Player, message) {
+    const collector = message.createMessageComponentCollector({
+        filter: interaction => {
+            return interaction.user.equals(player.user)
+        },
+        max: 1,
+    })
+
+    return {
+        collected: new Promise((resolve, reject) => {
+            collector.on('end', collected => {
+                if (collected.size === 0) {
+                    reject(new CollectorPlayerLeftError(`Collector stopped`))
+                    return
+                }
+
+                resolve(collected.first() as ButtonInteraction)
+            })
+        }) as Promise<ButtonInteraction>,
+        collector: collector as InteractionCollector<ButtonInteraction>,
     }
 }
 

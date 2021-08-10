@@ -1,9 +1,14 @@
 import Discord, {
+    ButtonInteraction,
     Collector,
     Guild,
+    InteractionCollector,
     Message,
+    MessageActionRow,
+    MessageButton,
     MessageCollector,
     MessageEmbed,
+    MessageInteraction,
     MessageReaction,
     ReactionCollector,
     TextChannel,
@@ -18,6 +23,7 @@ import {
     createChecker,
     getFilter,
     getPrompt,
+    getSingleInteraction,
     getSingleReaction,
     reactOptions,
     removeMessage,
@@ -35,7 +41,10 @@ export abstract class Game {
 
     deck: Deck
     channel: TextChannel
-    collector: MessageCollector | ReactionCollector
+    collector:
+        | MessageCollector
+        | ReactionCollector
+        | InteractionCollector<ButtonInteraction>
     collectorPlayer: Player
 
     playerManager: PlayerManager
@@ -107,7 +116,6 @@ export abstract class Game {
     //endregion
 
     //region Important Functions
-
     async replaceMessage(sentMessage, newEmbed, attachments = []) {
         const message = await this.channel.send({
             embeds: [newEmbed],
@@ -145,6 +153,35 @@ export abstract class Game {
         } else {
             return parseInt(res.content)
         }
+    }
+
+    getActionRow(buttonLabels: Array<string>, buttonStyles = []) {
+        const row = new MessageActionRow()
+        for (let i = 0; i < buttonLabels.length; i++) {
+            const label = buttonLabels[i]
+            const button = new MessageButton()
+                .setLabel(label)
+                .setCustomId(label)
+
+            i < buttonStyles.length
+                ? button.setStyle(buttonStyles[i])
+                : button.setStyle('PRIMARY')
+            row.addComponents(button)
+        }
+        return row
+    }
+
+    async getSingleInteraction(
+        player: Player,
+        sentMessage,
+    ): Promise<ButtonInteraction> {
+        const { collected, collector } = getSingleInteraction(
+            player,
+            sentMessage,
+        )
+        this.collector = collector
+        this.collectorPlayer = player
+        return collected
     }
 
     async getSingleReaction(
