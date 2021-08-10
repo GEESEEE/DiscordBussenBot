@@ -111,11 +111,11 @@ export function getSingleReaction(player: Player, message, options) {
     }
 }
 
-export function getReactionsCollector(player, message, options) {
+export function getReactionsCollector(player: Player, message, options) {
     return message.createReactionCollector({
         filter: (reaction, user) => {
             const emojiName = reaction.emoji.toString()
-            return inElementOf(options, emojiName) && user.equals(player)
+            return inElementOf(options, emojiName) && user.equals(player.user)
         },
     })
 }

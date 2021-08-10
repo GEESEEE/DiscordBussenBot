@@ -108,8 +108,11 @@ export abstract class Game {
 
     //region Important Functions
 
-    async replaceMessage(sentMessage, newMessage) {
-        const message = await this.channel.send(newMessage)
+    async replaceMessage(sentMessage, newEmbed, attachments = []) {
+        const message = await this.channel.send({
+            embeds: [newEmbed],
+            files: attachments,
+        })
         await removeMessage(sentMessage)
         return message
     }
@@ -155,7 +158,7 @@ export abstract class Game {
             options,
         )
         this.collector = collector
-        this.collectorPlayer = this.playerManager.getPlayer(player.user.id)
+        this.collectorPlayer = player
 
         const col = await Promise.all([
             collected,
@@ -193,7 +196,7 @@ export abstract class Game {
             collector.on(`collect`, async (reaction, user) => {
                 const reactEmoji = reaction.emoji.toString()
 
-                if (user.equals(player)) {
+                if (user.equals(player.user)) {
                     if (Emoji.PLAY.includes(reactEmoji)) {
                         collector.stop()
                         resolve(val)
@@ -208,7 +211,7 @@ export abstract class Game {
                             val = this.incSize(min, max, val, -3)
                         }
                         embed.fields[embed.fields.length - 1].value = `${val}`
-                        await message.edit(embed)
+                        await message.edit({ embeds: [embed] })
                     }
                     await removeReaction(reaction, user)
                 }
@@ -221,7 +224,7 @@ export abstract class Game {
             })
         })
         this.collector = collector
-        collector.player = player
+        this.collectorPlayer = player
 
         const col = await Promise.all([
             collected,
@@ -387,13 +390,12 @@ export abstract class Game {
         if (thumbnailAttachment) {
             attachments.push(thumbnailAttachment)
         }
-        embed
-            .attachFiles(attachments)
-            .setImage(`attachment://${imageAttachment.name}`)
+        embed.setImage(`attachment://${imageAttachment.name}`)
 
         if (thumbnailAttachment) {
             embed.setThumbnail(`attachment://${thumbnailAttachment.name}`)
         }
+        return attachments
     }
 
     //endregion

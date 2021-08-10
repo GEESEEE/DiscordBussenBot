@@ -109,12 +109,15 @@ export default class Bussen extends Game {
             embed.addField(`Verdict`, verdict)
         }
 
-        return embed
+        return { embed, attachments }
     }
 
     async getReaction(player: Player, question, reactionEmojis) {
-        const embed = await this.createEmbed(player, question)
-        const message = await this.channel.send({ embeds: [embed] })
+        const { embed, attachments } = await this.createEmbed(player, question)
+        const message = await this.channel.send({
+            embeds: [embed],
+            files: attachments,
+        })
         const reaction = await this.getSingleReaction(
             player,
             message,
@@ -169,7 +172,7 @@ export default class Bussen extends Game {
             card,
             rainbow,
         )
-        const embed2 = await this.createEmbed(
+        const { embed, attachments } = await this.createEmbed(
             player,
             question,
             card,
@@ -177,7 +180,7 @@ export default class Bussen extends Game {
             verdict,
         )
 
-        await this.replaceMessage(sentMessage, embed2)
+        await this.replaceMessage(sentMessage, embed, attachments)
         player.addCard(card)
     }
     //endregion
@@ -372,7 +375,7 @@ export default class Bussen extends Game {
                 embed.fields[1].value = `${reverse ? Emoji.YES : Emoji.NO}`
                 await this.setImages(embed, attachment)
 
-                await this.replaceMessage(sentMessage, embed)
+                await this.replaceMessage(sentMessage, embed, [attachment])
             }
         }
     }
@@ -404,7 +407,10 @@ export default class Bussen extends Game {
             .setDescription(message)
         await this.setImages(embed, pyramidAttachment, drawnCardAttachment)
 
-        const sentMessage = await this.channel.send({ embeds: [embed] })
+        const sentMessage = await this.channel.send({
+            embeds: [embed],
+            files: [pyramidAttachment, drawnCardAttachment],
+        })
 
         await this.getSingleReaction(this.leader, sentMessage, [Emoji.PLAY])
     }
@@ -549,7 +555,7 @@ export default class Bussen extends Game {
 
                 const attachment = await this.getBusAttachment()
                 await this.setImages(embed, attachment)
-                await this.replaceMessage(sentMessage, embed)
+                await this.replaceMessage(sentMessage, embed, [attachment])
             }
         }
     }
@@ -568,7 +574,10 @@ export default class Bussen extends Game {
             )
         await this.setImages(embed1, busAttachment)
 
-        const sentMessage = await this.channel.send({ embeds: [embed1] })
+        const sentMessage = await this.channel.send({
+            embeds: [embed1],
+            files: [busAttachment],
+        })
         const options = ReactionEmojis.HIGHER_LOWER
         const reaction = await this.getSingleReaction(
             this.bus.player,
@@ -610,13 +619,15 @@ export default class Bussen extends Game {
             '`' +
             `${EmojiStrings[content]}` +
             '`'
-        // embed1.files = []
         embed1.addField(`Verdict`, message)
 
         const drawnCardAttachment = await this.drawnCardAttachment(newCard)
         busAttachment = await this.getBusAttachment(true, true)
         await this.setImages(embed1, busAttachment, drawnCardAttachment)
-        const lastMessage = await this.replaceMessage(sentMessage, embed1)
+        const lastMessage = await this.replaceMessage(sentMessage, embed1, [
+            busAttachment,
+            drawnCardAttachment,
+        ])
 
         this.bus.iterate(newCard, correct)
         if (!correct) {
