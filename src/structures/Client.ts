@@ -6,7 +6,7 @@ import { ServerManager } from '../managers/ServerManager'
 const fs = require('fs')
 
 require('./Player')
-require('../discordclasses/Server')
+require('./Server')
 
 const commandFiles = fs
     .readdirSync('./src/commands')
@@ -45,7 +45,7 @@ export class Client extends Discord.Client {
         this.once('ready', this.onReady)
 
         // Event fires when bot detects a new message
-        this.on('message', this.onMessage)
+        this.on('messageCreate', this.onMessage)
     }
 
     onReady() {

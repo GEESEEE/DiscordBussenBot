@@ -3,7 +3,7 @@ module.exports = {
     aliases: ['end'],
     desc: 'Leader can use this to end a game prematurely',
     execute(client, message, args) {
-        const server = client.getServer(message.guild.id)
+        const server = client.serverManager.getServer(message.guild.id)
         if (server.readyToEnd(message)) {
             return server.currentGame.endGame()
         }

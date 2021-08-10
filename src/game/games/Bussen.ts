@@ -75,7 +75,7 @@ export default class Bussen extends Game {
 
     //region Phase 1 Helpers
 
-    async createEmbed(player, question, card?, reaction?, verdict?) {
+    async createEmbed(player: Player, question, card?, reaction?, verdict?) {
         const attachments = []
         if (player.cards.length > 0) {
             const playerCardAttachment = await this.playerCardAttachment(player)
@@ -94,7 +94,7 @@ export default class Bussen extends Game {
         }
 
         const embed = new MessageEmbed()
-            .setTitle(`${player.username}'s turn`)
+            .setTitle(`${player.user.username}'s turn`)
             .setDescription(description)
 
         if (attachments.length > 0) {
@@ -112,7 +112,7 @@ export default class Bussen extends Game {
         return embed
     }
 
-    async getReaction(player, question, reactionEmojis) {
+    async getReaction(player: Player, question, reactionEmojis) {
         const embed = await this.createEmbed(player, question)
         const message = await this.channel.send({ embeds: [embed] })
         const reaction = await this.getSingleReaction(
@@ -123,7 +123,7 @@ export default class Bussen extends Game {
         return { message, reaction }
     }
 
-    getMessage(isEqual, isTrue, player, card, rainbow?) {
+    getMessage(isEqual, isTrue, player: Player, card, rainbow?) {
         const drinks = this.drinks
         let message
         if (isEqual) {
@@ -156,7 +156,7 @@ export default class Bussen extends Game {
     async addVerdict(
         sentMessage,
         isTrue,
-        player,
+        player: Player,
         question,
         card,
         reaction,

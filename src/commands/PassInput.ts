@@ -5,7 +5,7 @@ module.exports = {
     desc: 'Passes the input to someone else',
     args: [`@player`],
     execute(client, message, args) {
-        const server = client.getServer(message.guild.id)
+        const server = client.serverManager.getServer(message.guild.id)
         const newPlayer = message.mentions.users.first()
         if (
             newPlayer instanceof User &&

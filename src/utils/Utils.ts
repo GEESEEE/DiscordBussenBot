@@ -7,6 +7,7 @@ import {
 } from 'discord.js'
 
 import { CollectorPlayerLeftError } from '../game/Errors'
+import { Player } from '../structures/Player'
 import { DiscordErrors } from './Consts'
 
 const Fuse = require(`fuse.js`)
@@ -86,11 +87,11 @@ export function getPrompt(channel, filter): any {
     }
 }
 
-export function getSingleReaction(player, message, options) {
+export function getSingleReaction(player: Player, message, options) {
     const collector = message.createReactionCollector({
         filter: (reaction, user) => {
             const emojiName = reaction.emoji.toString()
-            return user.equals(player) && inElementOf(options, emojiName)
+            return user.equals(player.user) && inElementOf(options, emojiName)
         },
         max: 1,
     })

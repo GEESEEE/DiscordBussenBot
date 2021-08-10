@@ -45,10 +45,10 @@ export abstract class Game {
     protected constructor(name, leader, channel) {
         this.name = name
         this.playerManager = new PlayerManager()
-        this.leader = leader
+        this.playerManager.addUser(leader)
+        this.leader = this.playerManager.getPlayer(leader.id)
         this.hasStarted = false
         this.channel = channel
-        this.addPlayer(leader)
     }
 
     //region Simple Functions
