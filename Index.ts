@@ -1,5 +1,4 @@
 const { BotClient } = require('./src/discordclasses/BotClient')
-require(`./src/discordclasses/DiscordTypes`)
 
 const dotenv = require('dotenv')
 dotenv.config()

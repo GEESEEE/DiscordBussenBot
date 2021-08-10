@@ -2,11 +2,8 @@ import {
     Collection,
     DiscordAPIError,
     Message,
-    MessageCollector,
     MessageReaction,
     ReactionCollector,
-    ReactionEmoji,
-    ReactionManager,
 } from 'discord.js'
 
 import { CollectorPlayerLeftError } from '../game/Errors'
@@ -72,7 +69,7 @@ export function getFilter(user, checker) {
 }
 
 export function getPrompt(channel, filter): any {
-    const collector = channel.createMessageCollector(filter, { max: 1 })
+    const collector = channel.createMessageCollector({ filter, max: 1 })
 
     return {
         collected: new Promise((resolve, reject) => {
@@ -90,13 +87,13 @@ export function getPrompt(channel, filter): any {
 }
 
 export function getSingleReaction(player, message, options) {
-    const collector = message.createReactionCollector(
-        (reaction, user) => {
+    const collector = message.createReactionCollector({
+        filter: (reaction, user) => {
             const emojiName = reaction.emoji.toString()
             return user.equals(player) && inElementOf(options, emojiName)
         },
-        { max: 1 },
-    )
+        max: 1,
+    })
 
     return {
         collected: new Promise((resolve, reject) => {
@@ -114,20 +111,22 @@ export function getSingleReaction(player, message, options) {
 }
 
 export function getReactionsCollector(player, message, options) {
-    return message.createReactionCollector((reaction, user) => {
-        const emojiName = reaction.emoji.toString()
-        return inElementOf(options, emojiName) && user.equals(player)
-    }, {})
+    return message.createReactionCollector({
+        filter: (reaction, user) => {
+            const emojiName = reaction.emoji.toString()
+            return inElementOf(options, emojiName) && user.equals(player)
+        },
+    })
 }
 
 export async function getBinaryReactions(message, maxTime, options) {
-    const collector = message.createReactionCollector(
-        (reaction, _) => {
+    const collector = message.createReactionCollector({
+        filter: (reaction, _) => {
             const emojiName = reaction.emoji.toString()
             return inElementOf(options, emojiName)
         },
-        { time: maxTime },
-    )
+        time: maxTime,
+    })
 
     const collected = new Promise(resolve => {
         collector.on('end', collect => {

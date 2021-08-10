@@ -1,10 +1,4 @@
-import {
-    MessageEmbed,
-    ReactionCollector,
-    Structures,
-    TextChannel,
-    User,
-} from 'discord.js'
+import { MessageEmbed, ReactionCollector, TextChannel, User } from 'discord.js'
 
 const { maxReactionTime } = require('../../config.json')
 
@@ -127,15 +121,17 @@ export const Server = Structures.extend('Guild', Guild => {
         async startGame() {
             const reactionOptions = ReactionEmojis.JOIN_START
             let embed = this.getJoinEmbed()
-            const sentMessage = await this.currentChannel.send(embed)
+            const sentMessage = await this.currentChannel.send({
+                embeds: [embed],
+            })
 
-            const collector = sentMessage.createReactionCollector(
-                (reaction, _) => {
+            const collector = sentMessage.createReactionCollector({
+                filter: (reaction, _) => {
                     const emojiName = reaction.emoji.toString()
                     return inElementOf(reactionOptions, emojiName)
                 },
-                { dispose: true },
-            )
+                dispose: true,
+            })
 
             collector.on('collect', async (reaction, user) => {
                 const newReactionName = reaction.emoji.toString()
@@ -145,10 +141,9 @@ export const Server = Structures.extend('Guild', Guild => {
                     if (users.has(user.id)) {
                         if (!this.currentGame.isPlayer(user)) {
                             this.currentGame.addPlayer(user)
-                            embed.fields[0].value = this.currentGame.players.join(
-                                `\n`,
-                            )
-                            await sentMessage.edit(embed)
+                            embed.fields[0].value =
+                                this.currentGame.players.join(`\n`)
+                            await sentMessage.edit({ embeds: [embed] })
                         }
                     }
                 } else if (
@@ -174,11 +169,10 @@ export const Server = Structures.extend('Guild', Guild => {
                         if (wasLeader) {
                             embed = this.getJoinEmbed()
                         } else {
-                            embed.fields[0].value = this.currentGame.players.join(
-                                `\n`,
-                            )
+                            embed.fields[0].value =
+                                this.currentGame.players.join(`\n`)
                         }
-                        await sentMessage.edit(embed)
+                        await sentMessage.edit({ embeds: [embed] })
                     } else {
                         collector.stop()
                         await removeMessage(sentMessage)
@@ -230,9 +224,9 @@ export const Server = Structures.extend('Guild', Guild => {
             } else {
                 response = `${gameName} is already gone`
             }
-            await this.currentChannel.send(
-                new MessageEmbed().setTitle(response),
-            )
+            await this.currentChannel.send({
+                embeds: [new MessageEmbed().setTitle(response)],
+            })
         }
     }
 

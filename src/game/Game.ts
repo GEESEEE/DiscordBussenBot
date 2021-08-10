@@ -98,7 +98,7 @@ export abstract class Game {
             const embed = new MessageEmbed().setTitle(
                 `${this.leader} is the new leader!`,
             )
-            await this.channel.send(embed)
+            await this.channel.send({ embeds: [embed] })
         }
     }
 
@@ -263,7 +263,7 @@ export abstract class Game {
             }
 
             if (this.hasStarted) {
-                await this.channel.send(embed)
+                await this.channel.send({ embeds: [embed] })
             }
         }
     }
@@ -280,7 +280,7 @@ export abstract class Game {
         }
 
         const embed = new MessageEmbed().setTitle(`${this.name} has finished`)
-        await this.channel.send(embed)
+        await this.channel.send({ embeds: [embed] })
         const server: Guild = this.channel.guild
         server.currentGame = null
     }

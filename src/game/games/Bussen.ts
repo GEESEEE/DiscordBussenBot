@@ -113,7 +113,7 @@ export default class Bussen extends Game {
 
     async getReaction(player, question, reactionEmojis) {
         const embed = await this.createEmbed(player, question)
-        const message = await this.channel.send(embed)
+        const message = await this.channel.send({ embeds: [embed] })
         const reaction = await this.getSingleReaction(
             player,
             message,
@@ -329,7 +329,7 @@ export default class Bussen extends Game {
             )
             .addField(`Pyramid Size`, `${pyramidSize}`, true)
 
-        let sentMessage = await this.channel.send(embed)
+        let sentMessage = await this.channel.send({ embeds: [embed] })
         const sizeCollector = getReactionsCollector(
             this.leader,
             sentMessage,
@@ -403,7 +403,7 @@ export default class Bussen extends Game {
             .setDescription(message)
         await this.setImages(embed, pyramidAttachment, drawnCardAttachment)
 
-        const sentMessage = await this.channel.send(embed)
+        const sentMessage = await this.channel.send({ embeds: [embed] })
 
         await this.getSingleReaction(this.leader, sentMessage, [Emoji.PLAY])
     }
@@ -435,9 +435,8 @@ export default class Bussen extends Game {
             newPlayer = this.busPlayers[index]
             this.busPlayers.splice(index, 1)
         } else {
-            newPlayer = this.players[
-                Math.floor(Math.random() * this.players.length)
-            ]
+            newPlayer =
+                this.players[Math.floor(Math.random() * this.players.length)]
         }
         return newPlayer
     }
@@ -475,7 +474,7 @@ export default class Bussen extends Game {
             .addField(EmptyString, `${busPlayer}, should the bus be hidden?`)
             .addField(`Hidden`, EmptyString, true)
 
-        let sentMessage = await this.channel.send(embed)
+        let sentMessage = await this.channel.send({ embeds: [embed] })
 
         const hiddenOptions = ReactionEmojis.YES_NO
         const collected = await this.getSingleReaction(
@@ -519,7 +518,7 @@ export default class Bussen extends Game {
                     const maxCheckPoints = Math.floor(busSize / 3)
                     embed.fields[0].value = `${busPlayer}, how many checkpoints should the bus have? (0-${maxCheckPoints})`
                     embed.addField(`Checkpoints`, `${checkpoints}`, true)
-                    await sentMessage.edit(embed)
+                    await sentMessage.edit({ embeds: [embed] })
 
                     const checkpointCollector = getReactionsCollector(
                         busPlayer,
@@ -562,7 +561,7 @@ export default class Bussen extends Game {
             )
         await this.setImages(embed1, busAttachment)
 
-        const sentMessage = await this.channel.send(embed1)
+        const sentMessage = await this.channel.send({ embeds: [embed1] })
         const options = ReactionEmojis.HIGHER_LOWER
         const reaction = await this.getSingleReaction(
             this.bus.player,
