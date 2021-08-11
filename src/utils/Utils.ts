@@ -118,6 +118,7 @@ export function getSingleReaction(player: Player, message, options) {
 export function getSingleInteraction(player: Player, message) {
     const collector = message.createMessageComponentCollector({
         filter: interaction => {
+            interaction.deferUpdate()
             return interaction.user.equals(player.user)
         },
         max: 1,

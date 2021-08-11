@@ -54,23 +54,23 @@ export default class Bussen extends Game {
 
     async game() {
         // Phase 1 questions
-        // await this.askAllPlayers(this.askColour)
+        await this.askAllPlayers(this.askColour)
         // await this.askAllPlayers(this.askHigherLower)
         // await this.askAllPlayers(this.askBetween)
         // await this.askAllPlayers(this.askSuit)
         //
         // // Phase 2 Pyramid
         await this.loopForResponse(this.initPyramid)
-        // await this.askWhile(
-        //     () =>
-        //         this.pyramid &&
-        //         !this.pyramid.isEmpty() &&
-        //         !this.noOneHasCards(),
-        //     this.playPyramid,
-        // )
+        await this.askWhile(
+            () =>
+                this.pyramid &&
+                !this.pyramid.isEmpty() &&
+                !this.noOneHasCards(),
+            this.playPyramid,
+        )
         //
         // // Phase 3 The Bus
-        // await this.loopForResponse(this.initBus)
+        await this.loopForResponse(this.initBus)
         // await this.askWhile(
         //     () => this.bus && !this.bus.isFinished,
         //     this.playBus,
@@ -350,7 +350,6 @@ export default class Bussen extends Game {
             }
         }
 
-        const sizeOptions = ReactionEmojis.HIGHER_LOWER2
         let pyramidSize = 1
         const embed = new MessageEmbed()
             .setTitle(`Pyramid`)
@@ -383,23 +382,25 @@ export default class Bussen extends Game {
                     `${this.leader}, should the pyramid be reversed?`,
                 )
                 .addField(`Reversed`, EmptyString, true)
-            sentMessage = await this.replaceMessage(sentMessage, embed)
+            const row = this.getActionRow(['Yes', 'No'], ['PRIMARY', 'DANGER'])
+            sentMessage = await this.replaceMessage(
+                sentMessage,
+                embed,
+                [],
+                [row],
+            )
 
-            const reverseOptions = ReactionEmojis.YES_NO
-
-            const collected = await this.getSingleReaction(
+            const collected = await this.getSingleInteraction(
                 this.leader,
                 sentMessage,
-                reverseOptions,
             )
 
             if (collected) {
-                const reverseEmoji = collected.emoji.toString()
-                const reverse = Emoji.YES.includes(reverseEmoji)
+                const reverse = collected.customId === 'Yes'
 
                 this.pyramid = new Pyramid(this.deck, reverse, pyramidSize)
                 const attachment = await this.getPyramidAttachment(-1)
-                embed.fields[1].value = `${reverse ? Emoji.YES : Emoji.NO}`
+                embed.fields[1].value = `${collected.customId}`
                 await this.setImages(embed, attachment)
 
                 await this.replaceMessage(sentMessage, embed, [attachment])
@@ -434,12 +435,15 @@ export default class Bussen extends Game {
             .setDescription(message)
         await this.setImages(embed, pyramidAttachment, drawnCardAttachment)
 
+        const row = this.getActionRow(['Continue'])
+
         const sentMessage = await this.channel.send({
             embeds: [embed],
             files: [pyramidAttachment, drawnCardAttachment],
+            components: [row],
         })
 
-        await this.getSingleReaction(this.leader, sentMessage, [Emoji.PLAY])
+        await this.getSingleInteraction(this.leader, sentMessage)
     }
 
     //endregion
@@ -513,21 +517,21 @@ export default class Bussen extends Game {
             .setDescription(message)
             .addField(EmptyString, `${busPlayer}, should the bus be hidden?`)
             .addField(`Hidden`, EmptyString, true)
+        const row = this.getActionRow(['Yes', 'No'], ['PRIMARY', 'DANGER'])
+        let sentMessage = await this.channel.send({
+            embeds: [embed],
+            components: [row],
+        })
 
-        let sentMessage = await this.channel.send({ embeds: [embed] })
-
-        const hiddenOptions = ReactionEmojis.YES_NO
-        const collected = await this.getSingleReaction(
+        const collected = await this.getSingleInteraction(
             busPlayer,
             sentMessage,
-            hiddenOptions,
         )
 
         if (collected) {
-            const hiddenEmoji = collected.emoji.toString()
-            const hidden = Emoji.YES.includes(hiddenEmoji)
+            const hidden = collected.customId === 'Yes'
 
-            embed.fields[1].value = `${hidden ? Emoji.YES : Emoji.NO}`
+            embed.fields[1].value = `${collected.customId}`
 
             const sizeOptions = ReactionEmojis.HIGHER_LOWER2
             let busSize = 1

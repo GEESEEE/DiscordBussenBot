@@ -116,10 +116,16 @@ export abstract class Game {
     //endregion
 
     //region Important Functions
-    async replaceMessage(sentMessage, newEmbed, attachments = []) {
+    async replaceMessage(
+        sentMessage,
+        newEmbed,
+        attachments = [],
+        actionRows = [],
+    ) {
         const message = await this.channel.send({
             embeds: [newEmbed],
             files: attachments,
+            components: actionRows,
         })
         await removeMessage(sentMessage)
         return message
