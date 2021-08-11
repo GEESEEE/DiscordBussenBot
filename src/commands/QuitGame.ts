@@ -3,7 +3,7 @@ module.exports = {
     aliases: ['quit'],
     desc: 'Used to leave a game prematurely',
     execute(client, message, args) {
-        const server = message.guild
+        const server = client.serverManager.getServer(message.guild.id)
         if (server.readyToQuit(message)) {
             return server.removePlayer(message.author)
         }

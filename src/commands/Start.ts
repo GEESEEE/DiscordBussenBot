@@ -7,7 +7,7 @@ module.exports = {
     desc: 'Used to initiate a game',
     args: [`gamename`],
     execute(client, message, args) {
-        const server = message.guild
+        const server = client.serverManager.getServer(message.guild.id)
         if (server.readyToStart(message)) {
             const game = args[0]
 

@@ -1,7 +1,7 @@
 import Discord, {
-    Collector,
-    Guild,
-    Message,
+    ButtonInteraction,
+    InteractionCollector,
+    MessageActionRow,
     MessageCollector,
     MessageEmbed,
     MessageReaction,
@@ -10,12 +10,16 @@ import Discord, {
     User,
 } from 'discord.js'
 
+import { PlayerManager } from '../managers/PlayerManager'
+import { Player } from '../structures/Player'
 import { CardPrinter } from '../utils/CardPrinter'
 import { Emoji } from '../utils/EmojiUtils'
 import {
     createChecker,
+    getActionRow,
     getFilter,
     getPrompt,
+    getSingleInteraction,
     getSingleReaction,
     reactOptions,
     removeMessage,
@@ -33,43 +37,46 @@ export abstract class Game {
 
     deck: Deck
     channel: TextChannel
-    collector: MessageCollector | ReactionCollector
+    collector:
+        | MessageCollector
+        | ReactionCollector
+        | InteractionCollector<ButtonInteraction>
+    collectorPlayer: Player
 
-    players: Array<User>
-    leader: User
+    playerManager: PlayerManager
+    leader: Player
     hasStarted: boolean
 
     protected constructor(name, leader, channel) {
         this.name = name
-        this.players = []
-        this.leader = leader
+        this.playerManager = new PlayerManager()
+        this.playerManager.addUser(leader)
+        this.leader = this.playerManager.getPlayer(leader.id)
         this.hasStarted = false
         this.channel = channel
-        this.addPlayer(leader)
     }
 
     //region Simple Functions
-    isLeader(player) {
+    addPlayer(user: User) {
+        if (!this.isPlayer(user)) {
+            this.playerManager.addUser(user)
+        }
+    }
+
+    isPlayer(user: User) {
+        return this.playerManager.isPlayer(user)
+    }
+
+    isLeader(user: User) {
         if (this.hasPlayers()) {
-            return this.leader.equals(player)
+            return this.playerManager.getPlayer(user.id) === this.leader
         } else {
             return null
         }
     }
 
-    addPlayer(player) {
-        if (!this.isPlayer(player)) {
-            player.removeAllCards()
-            this.players.push(player)
-        }
-    }
-
-    isPlayer(player) {
-        return this.players.includes(player)
-    }
-
     hasPlayers() {
-        return this.players.length > 0
+        return this.playerManager.players.length > 0
     }
 
     endGame() {
@@ -84,7 +91,7 @@ export abstract class Game {
     }
 
     noOneHasCards() {
-        for (const player of this.players) {
+        for (const player of this.playerManager.players) {
             if (player.hasCards()) {
                 return false
             }
@@ -92,29 +99,28 @@ export abstract class Game {
         return true
     }
 
-    async setLeader(player) {
-        if (this.isPlayer(player) && !this.isLeader(player)) {
-            this.leader = player
+    async setLeader(user: User) {
+        if (this.isPlayer(user) && !this.isLeader(user)) {
+            this.leader = this.playerManager.getPlayer(user.id)
             const embed = new MessageEmbed().setTitle(
                 `${this.leader} is the new leader!`,
             )
-            await this.channel.send(embed)
+            await this.channel.send({ embeds: [embed] })
         }
     }
 
     //endregion
 
     //region Important Functions
-
-    async replaceMessage(sentMessage, newMessage) {
-        const message = await this.channel.send(newMessage)
+    async replaceMessage(sentMessage, messageOptions) {
+        const message = await this.channel.send(messageOptions)
         await removeMessage(sentMessage)
         return message
     }
 
     // if numeric is true, responseOptions should be 'x,y' as a string with x and y as numbers, also supports negative numbers
-    // still works but generally not useful anymore
-    async getResponse(player, string, responseOptions, numeric = false) {
+    // still works but generally nm,mot useful anymore
+    async getResponse(player: User, string, responseOptions, numeric = false) {
         if (typeof responseOptions === 'string') {
             responseOptions = [responseOptions]
         }
@@ -142,8 +148,21 @@ export abstract class Game {
         }
     }
 
+    async getSingleInteraction(
+        player: Player,
+        sentMessage,
+    ): Promise<ButtonInteraction> {
+        const { collected, collector } = getSingleInteraction(
+            player,
+            sentMessage,
+        )
+        this.collector = collector
+        this.collectorPlayer = player
+        return collected
+    }
+
     async getSingleReaction(
-        player,
+        player: Player,
         sentMessage,
         options,
     ): Promise<MessageReaction> {
@@ -153,7 +172,7 @@ export abstract class Game {
             options,
         )
         this.collector = collector
-        collector.player = player
+        this.collectorPlayer = player
 
         const col = await Promise.all([
             collected,
@@ -182,7 +201,7 @@ export abstract class Game {
         message,
         embed,
         options,
-        player?,
+        player?: Player,
     ): Promise<number> {
         if (!player) {
             player = this.leader
@@ -191,7 +210,7 @@ export abstract class Game {
             collector.on(`collect`, async (reaction, user) => {
                 const reactEmoji = reaction.emoji.toString()
 
-                if (user.equals(player)) {
+                if (user.equals(player.user)) {
                     if (Emoji.PLAY.includes(reactEmoji)) {
                         collector.stop()
                         resolve(val)
@@ -206,7 +225,7 @@ export abstract class Game {
                             val = this.incSize(min, max, val, -3)
                         }
                         embed.fields[embed.fields.length - 1].value = `${val}`
-                        await message.edit(embed)
+                        await message.edit({ embeds: [embed] })
                     }
                     await removeReaction(reaction, user)
                 }
@@ -219,7 +238,7 @@ export abstract class Game {
             })
         })
         this.collector = collector
-        collector.player = player
+        this.collectorPlayer = player
 
         const col = await Promise.all([
             collected,
@@ -229,22 +248,79 @@ export abstract class Game {
         return col[0] as number
     }
 
-    async removePlayer(player) {
-        if (this.isPlayer(player)) {
-            if (this.collector && player.equals(this.collector.player)) {
+    getWaitForValueRow() {
+        return getActionRow(['+1', '+3', '-1', '-3', 'Continue'])
+    }
+
+    async waitForInteractionValue(
+        collector,
+        val,
+        min,
+        max,
+        message,
+        embed,
+        row: MessageActionRow,
+        player?: Player,
+    ) {
+        if (!player) {
+            player = this.leader
+        }
+
+        const collected = new Promise((resolve, reject) => {
+            collector.on(`collect`, async interaction => {
+                if (interaction.user.equals(player.user)) {
+                    if (interaction.customId === 'Continue') {
+                        collector.stop()
+                        resolve(val)
+                    } else {
+                        if (interaction.customId === '+1') {
+                            val = this.incSize(min, max, val, 1)
+                        } else if (interaction.customId === '+3') {
+                            val = this.incSize(min, max, val, 3)
+                        } else if (interaction.customId === '-1') {
+                            val = this.incSize(min, max, val, -1)
+                        } else if (interaction.customId === '-3') {
+                            val = this.incSize(min, max, val, -3)
+                        }
+                        embed.fields[embed.fields.length - 1].value = `${val}`
+                        await message.edit({
+                            embeds: [embed],
+                            components: [row],
+                        })
+                    }
+                }
+            })
+
+            collector.on(`end`, (collected, reason) => {
+                if (reason === 'endgame') {
+                    reject(new GameEndedError(`${this.name} has ended`))
+                }
+                if (reason === `removeplayer`) {
+                    reject(new CollectorPlayerLeftError(``))
+                }
+            })
+        })
+        this.collector = collector
+        this.collectorPlayer = player
+
+        return (await collected) as number
+    }
+
+    async removePlayer(user: User) {
+        if (this.isPlayer(user)) {
+            const player = this.playerManager.getPlayer(user.id)
+            if (this.collector && player.equals(this.collectorPlayer)) {
                 this.collector?.stop(`removeplayer`)
             }
 
-            const title = `${player.username} decided to be a little bitch and quit ${this.name}\n`
+            const title = `${user.username} decided to be a little bitch and quit ${this.name}\n`
             let message = ``
 
-            const playerIndex = this.players.indexOf(player)
-            if (playerIndex > -1) {
-                this.players.splice(playerIndex, 1)
-            }
+            const wasLeader = this.isLeader(user)
+            this.playerManager.removePlayer(user.id)
 
-            if (playerIndex === 0 && this.hasPlayers()) {
-                this.leader = this.players[0]
+            if (wasLeader && this.hasPlayers()) {
+                this.leader = this.playerManager.players[0]
                 message += `${this.leader} is the new leader!\n`
             }
 
@@ -263,14 +339,13 @@ export abstract class Game {
             }
 
             if (this.hasStarted) {
-                await this.channel.send(embed)
+                await this.channel.send({ embeds: [embed] })
             }
         }
     }
 
     async play() {
         this.hasStarted = true
-
         try {
             await this.game()
         } catch (err) {
@@ -280,9 +355,9 @@ export abstract class Game {
         }
 
         const embed = new MessageEmbed().setTitle(`${this.name} has finished`)
-        await this.channel.send(embed)
-        const server: Guild = this.channel.guild
-        server.currentGame = null
+        await this.channel.send({ embeds: [embed] })
+        // const server: Guild = this.channel.guild
+        // server.currentGame = null
     }
 
     abstract game(): void
@@ -319,8 +394,8 @@ export abstract class Game {
     }
 
     async askAllPlayers(func) {
-        for (let i = 0; i < this.players.length; i++) {
-            const player = this.players[i]
+        for (let i = 0; i < this.playerManager.players.length; i++) {
+            const player = this.playerManager.players[i]
             try {
                 await func.call(this, player)
             } catch (err) {
@@ -366,9 +441,9 @@ export abstract class Game {
         )
     }
 
-    playerCardAttachment(player) {
+    playerCardAttachment(player: Player) {
         const printer = new CardPrinter()
-            .addRow(`${player.username}'s Cards`)
+            .addRow(`${player.user.username}'s Cards`)
             .addRow(player.cards)
         return this.getCardAttachment(printer, `pcards.png`)
     }
@@ -386,13 +461,12 @@ export abstract class Game {
         if (thumbnailAttachment) {
             attachments.push(thumbnailAttachment)
         }
-        embed
-            .attachFiles(attachments)
-            .setImage(`attachment://${imageAttachment.name}`)
+        embed.setImage(`attachment://${imageAttachment.name}`)
 
         if (thumbnailAttachment) {
             embed.setThumbnail(`attachment://${thumbnailAttachment.name}`)
         }
+        return attachments
     }
 
     //endregion

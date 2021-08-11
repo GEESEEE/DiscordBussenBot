@@ -1,13 +1,18 @@
-import { MessageEmbed, User } from 'discord.js'
+import {
+    ButtonInteraction,
+    MessageActionRow,
+    MessageEmbed,
+    User,
+} from 'discord.js'
 
+import { PlayerManager } from '../../managers/PlayerManager'
+import { Player } from '../../structures/Player'
 import { CardPrinter } from '../../utils/CardPrinter'
 import { EmptyString, Value } from '../../utils/Consts'
-import { Emoji, EmojiStrings, ReactionEmojis } from '../../utils/EmojiUtils'
 import {
     createRows,
-    getReactionsCollector,
-    inElementOf,
-    removeMessage,
+    getActionRow,
+    getInteractionCollector,
     sum,
 } from '../../utils/Utils'
 import { Card, Deck } from '../Deck'
@@ -19,17 +24,19 @@ export default class Bussen extends Game {
     drinks: number
     pyramid: Pyramid
     bus: Bus
-    busPlayers: Array<User>
+    busPlayerManager: PlayerManager
 
     constructor(name, leader, channel) {
         super(name, leader, channel)
         this.deck = new Deck(BussenCard)
         this.drinks = 1
+        this.busPlayerManager = new PlayerManager()
     }
 
-    onRemovePlayer(player) {
+    onRemovePlayer(user: User) {
         // if removed player is in the bus, swap for new player
         if (this.bus) {
+            const player = this.busPlayerManager.getPlayer(user.id)
             if (player.equals(this.bus.player)) {
                 const newPlayer = this.getNewBusPlayer()
                 if (newPlayer) {
@@ -38,11 +45,8 @@ export default class Bussen extends Game {
                 }
             }
 
-            if (this.busPlayers.includes(player)) {
-                const playerIndex = this.busPlayers.indexOf(player)
-                if (playerIndex > -1) {
-                    this.busPlayers.splice(playerIndex, 1)
-                }
+            if (this.busPlayerManager.isPlayer(user)) {
+                this.busPlayerManager.removePlayer(user.id)
             }
         }
     }
@@ -63,7 +67,6 @@ export default class Bussen extends Game {
                 !this.noOneHasCards(),
             this.playPyramid,
         )
-
         // Phase 3 The Bus
         await this.loopForResponse(this.initBus)
         await this.askWhile(
@@ -74,7 +77,7 @@ export default class Bussen extends Game {
 
     //region Phase 1 Helpers
 
-    async createEmbed(player, question, card?, reaction?, verdict?) {
+    async createEmbed(player: Player, question, card?, reaction?, verdict?) {
         const attachments = []
         if (player.cards.length > 0) {
             const playerCardAttachment = await this.playerCardAttachment(player)
@@ -88,12 +91,11 @@ export default class Bussen extends Game {
 
         let description = `${player}, ${question}`
         if (card) {
-            description +=
-                `\n${player} chose ` + '`' + `${EmojiStrings[reaction]}` + '`'
+            description += `\n${player} chose ` + '`' + `${reaction}` + '`'
         }
 
         const embed = new MessageEmbed()
-            .setTitle(`${player.username}'s turn`)
+            .setTitle(`${player.user.username}'s turn`)
             .setDescription(description)
 
         if (attachments.length > 0) {
@@ -108,21 +110,27 @@ export default class Bussen extends Game {
             embed.addField(`Verdict`, verdict)
         }
 
-        return embed
+        return { embed, attachments }
     }
 
-    async getReaction(player, question, reactionEmojis) {
-        const embed = await this.createEmbed(player, question)
-        const message = await this.channel.send(embed)
-        const reaction = await this.getSingleReaction(
-            player,
-            message,
-            reactionEmojis,
-        )
-        return { message, reaction }
+    async getInteraction(
+        player: Player,
+        question: string,
+        row: MessageActionRow,
+    ) {
+        const { embed, attachments } = await this.createEmbed(player, question)
+
+        const message = await this.channel.send({
+            embeds: [embed],
+            files: attachments,
+            components: [row],
+        })
+
+        const collected = await this.getSingleInteraction(player, message)
+        return { message, collected: collected as ButtonInteraction }
     }
 
-    getMessage(isEqual, isTrue, player, card, rainbow?) {
+    getMessage(isEqual, isTrue, player: Player, card, rainbow?) {
         const drinks = this.drinks
         let message
         if (isEqual) {
@@ -155,7 +163,7 @@ export default class Bussen extends Game {
     async addVerdict(
         sentMessage,
         isTrue,
-        player,
+        player: Player,
         question,
         card,
         reaction,
@@ -168,7 +176,7 @@ export default class Bussen extends Game {
             card,
             rainbow,
         )
-        const embed2 = await this.createEmbed(
+        const { embed, attachments } = await this.createEmbed(
             player,
             question,
             card,
@@ -176,7 +184,10 @@ export default class Bussen extends Game {
             verdict,
         )
 
-        await this.replaceMessage(sentMessage, embed2)
+        await this.replaceMessage(sentMessage, {
+            embeds: [embed],
+            files: attachments,
+        })
         player.addCard(card)
     }
     //endregion
@@ -185,73 +196,93 @@ export default class Bussen extends Game {
 
     async askColour(player) {
         const question = `red or black?`
-        const { message, reaction } = await this.getReaction(
+        const row = getActionRow(['Red', 'Black'], ['DANGER', 'SECONDARY'])
+        const { message, collected } = await this.getInteraction(
             player,
             question,
-            ReactionEmojis.RED_BLACK,
+            row,
         )
 
         const card = this.deck.getRandomCard()
-        const content = reaction.emoji.toString()
         const isTrue =
-            (content.includes(Emoji.HEARTS) && card.isRed()) ||
-            (content.includes(Emoji.SPADES) && card.isBlack())
+            (collected.customId === 'Red' && card.isRed()) ||
+            (collected.customId === 'Black' && card.isBlack())
 
-        await this.addVerdict(message, isTrue, player, question, card, content)
+        await this.addVerdict(
+            message,
+            isTrue,
+            player,
+            question,
+            card,
+            collected.customId,
+        )
     }
 
     async askHigherLower(player) {
         const question = `higher or lower than ${player.cards[0]}?`
-        const { message, reaction } = await this.getReaction(
+        const row = getActionRow(['Higher', 'Lower'])
+        const { message, collected } = await this.getInteraction(
             player,
             question,
-            ReactionEmojis.HIGHER_LOWER,
+            row,
         )
 
         const card = this.deck.getRandomCard()
-        const content = reaction.emoji.toString()
         const isTrue =
-            (Emoji.HIGHER.includes(content) && card > player.cards[0]) ||
-            (Emoji.LOWER.includes(content) && card < player.cards[0])
+            (collected.customId === 'Higher' && card > player.cards[0]) ||
+            (collected.customId === 'Lower' && card < player.cards[0])
 
-        await this.addVerdict(message, isTrue, player, question, card, content)
+        await this.addVerdict(
+            message,
+            isTrue,
+            player,
+            question,
+            card,
+            collected.customId,
+        )
     }
 
     async askBetween(player) {
         const question = `is it between ${player.cards[0]} and ${player.cards[1]}?`
-        const { message, reaction } = await this.getReaction(
+        const row = getActionRow(['Yes', 'No'], ['PRIMARY', 'DANGER'])
+        const { message, collected } = await this.getInteraction(
             player,
             question,
-            ReactionEmojis.YES_NO,
+            row,
         )
 
         const card = this.deck.getRandomCard()
-        const content = reaction.emoji.toString()
         const isBetween = card.isBetween(player.cards[0], player.cards[1])
         const isTrue =
-            (Emoji.YES.includes(content) && isBetween) ||
-            (Emoji.NO.includes(content) && !isBetween)
+            (collected.customId === 'Yes' && isBetween) ||
+            (collected.customId === 'No' && !isBetween)
 
-        await this.addVerdict(message, isTrue, player, question, card, content)
+        await this.addVerdict(
+            message,
+            isTrue,
+            player,
+            question,
+            card,
+            collected.customId,
+        )
     }
 
     async askSuit(player) {
         const question = `do you already have the suit, you have ${[
             ...new Set(player.cards.map(cards => cards.suit)),
         ].join(', ')}?`
-
-        const { message, reaction } = await this.getReaction(
+        const row = getActionRow(['Yes', 'No'], ['PRIMARY', 'DANGER'])
+        const { message, collected } = await this.getInteraction(
             player,
             question,
-            ReactionEmojis.YES_NO,
+            row,
         )
 
         const card = this.deck.getRandomCard()
-        const content = reaction.emoji.toString()
         const hasSameSuit = card.hasSameSuit(player.cards)
         const tru =
-            (Emoji.YES.includes(content) && hasSameSuit) ||
-            (Emoji.NO.includes(content) && !hasSameSuit)
+            (collected.customId === 'Yes' && hasSameSuit) ||
+            (collected.customId === 'No' && !hasSameSuit)
         const rbow = player.suitsCount() === 3
 
         await this.addVerdict(
@@ -260,7 +291,7 @@ export default class Bussen extends Game {
             player,
             question,
             card,
-            content,
+            collected.customId,
             rbow,
         )
     }
@@ -320,7 +351,6 @@ export default class Bussen extends Game {
             }
         }
 
-        const sizeOptions = ReactionEmojis.HIGHER_LOWER2
         let pyramidSize = 1
         const embed = new MessageEmbed()
             .setTitle(`Pyramid`)
@@ -329,21 +359,22 @@ export default class Bussen extends Game {
             )
             .addField(`Pyramid Size`, `${pyramidSize}`, true)
 
-        let sentMessage = await this.channel.send(embed)
-        const sizeCollector = getReactionsCollector(
-            this.leader,
-            sentMessage,
-            sizeOptions,
-        )
+        const row = this.getWaitForValueRow()
 
-        pyramidSize = await this.waitForValue(
+        let sentMessage = await this.channel.send({
+            embeds: [embed],
+            components: [row],
+        })
+        const sizeCollector = getInteractionCollector(this.leader, sentMessage)
+
+        pyramidSize = await this.waitForInteractionValue(
             sizeCollector,
             pyramidSize,
             1,
             maxSize,
             sentMessage,
             embed,
-            sizeOptions,
+            row,
         )
 
         if (pyramidSize) {
@@ -352,26 +383,29 @@ export default class Bussen extends Game {
                     `${this.leader}, should the pyramid be reversed?`,
                 )
                 .addField(`Reversed`, EmptyString, true)
-            sentMessage = await this.replaceMessage(sentMessage, embed)
+            const row = getActionRow(['Yes', 'No'], ['PRIMARY', 'DANGER'])
+            sentMessage = await this.replaceMessage(sentMessage, {
+                embeds: [embed],
+                components: [row],
+            })
 
-            const reverseOptions = ReactionEmojis.YES_NO
-
-            const collected = await this.getSingleReaction(
+            const collected = await this.getSingleInteraction(
                 this.leader,
                 sentMessage,
-                reverseOptions,
             )
 
             if (collected) {
-                const reverseEmoji = collected.emoji.toString()
-                const reverse = Emoji.YES.includes(reverseEmoji)
+                const reverse = collected.customId === 'Yes'
 
                 this.pyramid = new Pyramid(this.deck, reverse, pyramidSize)
                 const attachment = await this.getPyramidAttachment(-1)
-                embed.fields[1].value = `${reverse ? Emoji.YES : Emoji.NO}`
+                embed.fields[1].value = `${collected.customId}`
                 await this.setImages(embed, attachment)
 
-                await this.replaceMessage(sentMessage, embed)
+                await this.replaceMessage(sentMessage, {
+                    embeds: embed,
+                    files: [attachment],
+                })
             }
         }
     }
@@ -385,7 +419,7 @@ export default class Bussen extends Game {
         const drawnCardAttachment = await this.drawnCardAttachment(card)
 
         let message = `Drew ${card}\n`
-        for (const player of this.players) {
+        for (const player of this.playerManager.players) {
             if (player.hasValueInHand(card)) {
                 const playerCards = player.getCardsWithValue(card)
                 const playerCardsString = playerCards.join(', ')
@@ -403,9 +437,15 @@ export default class Bussen extends Game {
             .setDescription(message)
         await this.setImages(embed, pyramidAttachment, drawnCardAttachment)
 
-        const sentMessage = await this.channel.send(embed)
+        const row = getActionRow(['Continue'])
 
-        await this.getSingleReaction(this.leader, sentMessage, [Emoji.PLAY])
+        const sentMessage = await this.channel.send({
+            embeds: [embed],
+            files: [pyramidAttachment, drawnCardAttachment],
+            components: [row],
+        })
+
+        await this.getSingleInteraction(this.leader, sentMessage)
     }
 
     //endregion
@@ -428,44 +468,49 @@ export default class Bussen extends Game {
         return this.getCardAttachment(cardPrinter, 'bus.png')
     }
 
-    getNewBusPlayer() {
+    getNewBusPlayer(): Player {
         let newPlayer
-        if (this.busPlayers.length > 0) {
-            const index = Math.floor(Math.random() * this.busPlayers.length)
-            newPlayer = this.busPlayers[index]
-            this.busPlayers.splice(index, 1)
+        if (this.busPlayerManager.players.length > 0) {
+            const index = Math.floor(
+                Math.random() * this.busPlayerManager.players.length,
+            )
+            newPlayer = this.busPlayerManager.players[index]
+            this.busPlayerManager.removePlayer(newPlayer.user.id)
         } else {
-            newPlayer = this.players[
-                Math.floor(Math.random() * this.players.length)
-            ]
+            newPlayer =
+                this.playerManager.players[
+                    Math.floor(
+                        Math.random() * this.playerManager.players.length,
+                    )
+                ]
         }
         return newPlayer
     }
 
     async initBus() {
         const maxCardCount = Math.max(
-            ...this.players.map(player => player.cards.length),
+            ...this.playerManager.players.map(player => player.cards.length),
         )
-        this.busPlayers = this.players.filter(
+        const busPlayers = this.playerManager.players.filter(
             player => player.cards.length === maxCardCount,
         )
+        for (const player of busPlayers) {
+            this.busPlayerManager.addPlayer(player)
+        }
 
-        let message = `${(this.busPlayers.length > 0
-            ? this.busPlayers
-            : this.players
+        let message = `${(this.busPlayerManager.players.length > 0
+            ? this.busPlayerManager.players
+            : this.playerManager.players
         ).join(', ')} all have ${maxCardCount} cards`
 
         const busPlayer = this.getNewBusPlayer()
         message += `, but ${busPlayer} has been selected as the bus driver!`
 
-        // Removing chosen player from options
-        const index = this.busPlayers.indexOf(busPlayer)
-        if (index > -1) {
-            this.busPlayers.splice(index, 1)
-        }
+        // Removing busPlayer from busPlayers
+        this.busPlayerManager.removePlayer(busPlayer.user.id)
 
         // removing all players' cards, because they dont use them in the bus
-        for (const player of this.players) {
+        for (const player of this.playerManager.players) {
             player.removeAllCards()
         }
 
@@ -475,41 +520,44 @@ export default class Bussen extends Game {
             .addField(EmptyString, `${busPlayer}, should the bus be hidden?`)
             .addField(`Hidden`, EmptyString, true)
 
-        let sentMessage = await this.channel.send(embed)
+        const row = getActionRow(['Yes', 'No'], ['PRIMARY', 'DANGER'])
+        let sentMessage = await this.channel.send({
+            embeds: [embed],
+            components: [row],
+        })
 
-        const hiddenOptions = ReactionEmojis.YES_NO
-        const collected = await this.getSingleReaction(
+        const collected = await this.getSingleInteraction(
             busPlayer,
             sentMessage,
-            hiddenOptions,
         )
 
         if (collected) {
-            const hiddenEmoji = collected.emoji.toString()
-            const hidden = Emoji.YES.includes(hiddenEmoji)
+            const hidden = collected.customId === 'Yes'
 
-            embed.fields[1].value = `${hidden ? Emoji.YES : Emoji.NO}`
+            embed.fields[1].value = `${collected.customId}`
 
-            const sizeOptions = ReactionEmojis.HIGHER_LOWER2
             let busSize = 1
             embed.fields[0].value = `${busPlayer}, how long should the bus be? (1-20)`
             embed.addField(`Bus Size`, `${busSize}`, true)
-            sentMessage = await this.replaceMessage(sentMessage, embed)
+            const row = this.getWaitForValueRow()
+            sentMessage = await this.replaceMessage(sentMessage, {
+                embeds: [embed],
+                components: [row],
+            })
 
-            const busSizeCollector = getReactionsCollector(
+            const busSizeCollector = getInteractionCollector(
                 busPlayer,
                 sentMessage,
-                sizeOptions,
             )
 
-            busSize = await this.waitForValue(
+            busSize = await this.waitForInteractionValue(
                 busSizeCollector,
                 busSize,
                 1,
                 20,
                 sentMessage,
                 embed,
-                sizeOptions,
+                row,
                 busPlayer,
             )
 
@@ -519,22 +567,25 @@ export default class Bussen extends Game {
                     const maxCheckPoints = Math.floor(busSize / 3)
                     embed.fields[0].value = `${busPlayer}, how many checkpoints should the bus have? (0-${maxCheckPoints})`
                     embed.addField(`Checkpoints`, `${checkpoints}`, true)
-                    await sentMessage.edit(embed)
+                    const row = this.getWaitForValueRow()
+                    await sentMessage.edit({
+                        embeds: [embed],
+                        components: [row],
+                    })
 
-                    const checkpointCollector = getReactionsCollector(
+                    const checkpointCollector = getInteractionCollector(
                         busPlayer,
                         sentMessage,
-                        sizeOptions,
                     )
 
-                    checkpoints = await this.waitForValue(
+                    checkpoints = await this.waitForInteractionValue(
                         checkpointCollector,
                         checkpoints,
                         0,
                         maxCheckPoints,
                         sentMessage,
                         embed,
-                        sizeOptions,
+                        row,
                         busPlayer,
                     )
                 }
@@ -543,7 +594,10 @@ export default class Bussen extends Game {
 
                 const attachment = await this.getBusAttachment()
                 await this.setImages(embed, attachment)
-                await this.replaceMessage(sentMessage, embed)
+                await this.replaceMessage(sentMessage, {
+                    embeds: [embed],
+                    components: [attachment],
+                })
             }
         }
     }
@@ -561,20 +615,21 @@ export default class Bussen extends Game {
                 }?`,
             )
         await this.setImages(embed1, busAttachment)
-
-        const sentMessage = await this.channel.send(embed1)
-        const options = ReactionEmojis.HIGHER_LOWER
-        const reaction = await this.getSingleReaction(
+        let row = getActionRow(['Higher', 'Lower'])
+        const sentMessage = await this.channel.send({
+            embeds: [embed1],
+            files: [busAttachment],
+            components: [row],
+        })
+        const collected = await this.getSingleInteraction(
             this.bus.player,
             sentMessage,
-            options,
         )
 
-        const content = reaction.emoji.toString()
         const newCard = this.bus.getRandomCard()
         const correct =
-            (Emoji.HIGHER.includes(content) && newCard > oldCard) ||
-            (Emoji.LOWER.includes(content) && newCard < oldCard)
+            (collected.customId === 'Higher' && newCard > oldCard) ||
+            (collected.customId === 'Lower' && newCard < oldCard)
 
         let message
         let newBusPlayer
@@ -600,23 +655,26 @@ export default class Bussen extends Game {
         }
 
         embed1.description +=
-            `\n${this.bus.player} chose ` +
-            '`' +
-            `${EmojiStrings[content]}` +
-            '`'
-        embed1.files = []
+            `\n${this.bus.player} chose ` + '`' + `${collected.customId}` + '`'
         embed1.addField(`Verdict`, message)
 
         const drawnCardAttachment = await this.drawnCardAttachment(newCard)
         busAttachment = await this.getBusAttachment(true, true)
         await this.setImages(embed1, busAttachment, drawnCardAttachment)
-        const lastMessage = await this.replaceMessage(sentMessage, embed1)
-
         this.bus.iterate(newCard, correct)
+
         if (!correct) {
-            await this.getSingleReaction(this.bus.player, lastMessage, [
-                Emoji.PLAY,
-            ])
+            row = getActionRow(['Continue'])
+        }
+
+        const lastMessage = await this.replaceMessage(sentMessage, {
+            embeds: [embed1],
+            files: [busAttachment, drawnCardAttachment],
+            components: correct ? [] : [row],
+        })
+
+        if (!correct) {
+            await this.getSingleInteraction(this.bus.player, lastMessage)
         }
         if (newBusPlayer) {
             this.bus.player = newBusPlayer
@@ -634,7 +692,7 @@ export default class Bussen extends Game {
 }
 
 class Bus {
-    player: User
+    player: Player
     deck: Deck
     size: number
     sequence: Array<Card>
@@ -748,7 +806,10 @@ class Bus {
 
         if (this.hidden) {
             hidden = []
-            hiddenIndex = showDrawn ? this.currentIndex : this.maxIndex
+            hiddenIndex =
+                showDrawn && this.currentIndex > this.maxIndex
+                    ? this.maxIndex + 1
+                    : this.maxIndex
         }
 
         if (

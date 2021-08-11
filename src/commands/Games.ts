@@ -6,7 +6,7 @@ module.exports = {
     name: `games`,
     desc: `Displays all games that can currently be played`,
     execute(client, message, args) {
-        const server = message.guild
+        const server = client.serverManager.getServer(message.guild.id)
         if (server.readyToShowGames(message)) {
             const embed = new MessageEmbed()
 

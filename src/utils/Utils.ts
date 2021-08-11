@@ -1,15 +1,19 @@
 import {
+    ButtonInteraction,
     Collection,
     DiscordAPIError,
+    Interaction,
+    InteractionCollector,
     Message,
-    MessageCollector,
+    MessageActionRow,
+    MessageButton,
+    MessageInteraction,
     MessageReaction,
     ReactionCollector,
-    ReactionEmoji,
-    ReactionManager,
 } from 'discord.js'
 
-import { CollectorPlayerLeftError } from '../game/Errors'
+import { CollectorPlayerLeftError, GameEndedError } from '../game/Errors'
+import { Player } from '../structures/Player'
 import { DiscordErrors } from './Consts'
 
 const Fuse = require(`fuse.js`)
@@ -31,16 +35,16 @@ export function inElementOf(list, query) {
     return null
 }
 
-export function createRows(cards, rowIndices): Array<Array<any>> {
+export function createRows(elements, rowIndices): Array<Array<any>> {
     const rows = []
     let currentRow = []
 
-    for (let i = 0; i < cards.length; i++) {
+    for (let i = 0; i < elements.length; i++) {
         if (rowIndices.includes(i) && i !== 0) {
             rows.push(currentRow)
             currentRow = []
         }
-        currentRow.push(cards[i])
+        currentRow.push(elements[i])
     }
     rows.push(currentRow)
 
@@ -72,7 +76,7 @@ export function getFilter(user, checker) {
 }
 
 export function getPrompt(channel, filter): any {
-    const collector = channel.createMessageCollector(filter, { max: 1 })
+    const collector = channel.createMessageCollector({ filter, max: 1 })
 
     return {
         collected: new Promise((resolve, reject) => {
@@ -89,14 +93,28 @@ export function getPrompt(channel, filter): any {
     }
 }
 
-export function getSingleReaction(player, message, options) {
-    const collector = message.createReactionCollector(
-        (reaction, user) => {
+export function getActionRow(buttonLabels: Array<string>, buttonStyles = []) {
+    const row = new MessageActionRow()
+    for (let i = 0; i < buttonLabels.length; i++) {
+        const label = buttonLabels[i]
+        const button = new MessageButton().setLabel(label).setCustomId(label)
+
+        i < buttonStyles.length
+            ? button.setStyle(buttonStyles[i])
+            : button.setStyle('PRIMARY')
+        row.addComponents(button)
+    }
+    return row
+}
+
+export function getSingleReaction(player: Player, message, options) {
+    const collector = message.createReactionCollector({
+        filter: (reaction, user) => {
             const emojiName = reaction.emoji.toString()
-            return user.equals(player) && inElementOf(options, emojiName)
+            return user.equals(player.user) && inElementOf(options, emojiName)
         },
-        { max: 1 },
-    )
+        max: 1,
+    })
 
     return {
         collected: new Promise((resolve, reject) => {
@@ -113,21 +131,62 @@ export function getSingleReaction(player, message, options) {
     }
 }
 
-export function getReactionsCollector(player, message, options) {
-    return message.createReactionCollector((reaction, user) => {
-        const emojiName = reaction.emoji.toString()
-        return inElementOf(options, emojiName) && user.equals(player)
-    }, {})
+export function getSingleInteraction(player: Player, message) {
+    const collector = message.createMessageComponentCollector({
+        filter: interaction => {
+            interaction.deferUpdate()
+            return interaction.user.equals(player.user)
+        },
+        max: 1,
+    })
+
+    return {
+        collected: new Promise((resolve, reject) => {
+            collector.on('end', (collected, reason) => {
+                if (reason === 'endgame') {
+                    reject(new GameEndedError('Game Ended'))
+                }
+                if (collected.size === 0) {
+                    reject(new CollectorPlayerLeftError(`Collector stopped`))
+                    return
+                }
+
+                resolve(collected.first() as ButtonInteraction)
+            })
+        }) as Promise<ButtonInteraction>,
+        collector: collector as InteractionCollector<ButtonInteraction>,
+    }
+}
+
+export function getReactionsCollector(player: Player, message, options) {
+    return message.createReactionCollector({
+        filter: (reaction, user) => {
+            const emojiName = reaction.emoji.toString()
+            return inElementOf(options, emojiName) && user.equals(player.user)
+        },
+    })
+}
+
+export function getInteractionCollector(
+    player: Player,
+    message,
+): InteractionCollector<ButtonInteraction> {
+    return message.createMessageComponentCollector({
+        filter: interaction => {
+            interaction.deferUpdate()
+            return interaction.user.equals(player.user)
+        },
+    })
 }
 
 export async function getBinaryReactions(message, maxTime, options) {
-    const collector = message.createReactionCollector(
-        (reaction, _) => {
+    const collector = message.createReactionCollector({
+        filter: (reaction, _) => {
             const emojiName = reaction.emoji.toString()
             return inElementOf(options, emojiName)
         },
-        { time: maxTime },
-    )
+        time: maxTime,
+    })
 
     const collected = new Promise(resolve => {
         collector.on('end', collect => {

@@ -1,6 +1,9 @@
-import Discord, { TextChannel } from 'discord.js'
+import Discord from 'discord.js'
+
+import { prefix } from '../../config.json'
+import { ServerManager } from '../managers/ServerManager'
+
 const fs = require('fs')
-const { prefix } = require('../../config.json')
 
 require('./Player')
 require('./Server')
@@ -13,15 +16,18 @@ const gameFiles = fs
     .readdirSync('./src/game/games')
     .filter(file => file.endsWith('.ts'))
 
-export class BotClient extends Discord.Client {
+export class Client extends Discord.Client {
     commands
     games
+    serverManager: ServerManager
 
-    constructor() {
-        super()
+    constructor(x) {
+        super(x)
         this.commands = new Discord.Collection()
         this.games = new Discord.Collection()
+        this.serverManager = new ServerManager()
 
+        // Set commands from /src/commands
         for (const file of commandFiles) {
             const command = require(`../commands/${file}`)
             if (command.name !== 'leader') {
@@ -29,14 +35,17 @@ export class BotClient extends Discord.Client {
             }
         }
 
+        // Set Playable Games
         for (const file of gameFiles) {
             const game = require(`../game/games/${file}`)
             this.games.set(file.toLowerCase().slice(0, -3), game)
         }
 
-        // this event will only trigger one time after logging in
+        // Event will fire once when initialized
         this.once('ready', this.onReady)
-        this.on('message', this.onMessage)
+
+        // Event fires when bot detects a new message
+        this.on('messageCreate', this.onMessage)
     }
 
     onReady() {
@@ -44,6 +53,7 @@ export class BotClient extends Discord.Client {
     }
 
     async onMessage(message) {
+        // If message not valid for this bot, ignore it
         if (
             !message.content.startsWith(prefix) ||
             !message.guild ||
@@ -58,10 +68,12 @@ export class BotClient extends Discord.Client {
             .split(/ +/)
         const commandName = args.shift().toLowerCase()
 
+        // If command is valid, execute it
         if (this.commands.has(commandName)) {
             await this.commands.get(commandName).execute(this, message, args)
         }
 
+        // If command is an alias, execute it
         for (const command of this.commands.values()) {
             if (command.aliases && command.aliases.includes(commandName)) {
                 await command.execute(this, message, args)
