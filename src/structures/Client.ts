@@ -22,6 +22,7 @@ export class Client extends Discord.Client {
         this.commands = new Discord.Collection()
         this.games = new Discord.Collection()
         this.serverManager = new ServerManager()
+        throw new Error('BUggy shit jo')
 
         // Set commands from /src/commands
         for (const file of commandFiles) {
