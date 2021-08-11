@@ -1,11 +1,16 @@
-FROM node:14.17.0
+FROM node:16.6.0
+
+ARG NODE_ENV
+ENV NODE_ENV=$NODE_ENV
+ARG BUILD_HASH
+ENV BUILD_HASH=$BUILD_HASH
 
 # Install dependencies
 WORKDIR /opt/app
-COPY package*.json ./
-RUN npm install
+COPY package.json yarn.lock ./
+RUN yarn install --frozen-lockfile
 
 # Bundle app source
 COPY . .
 
-CMD npm start
+CMD yarn start
