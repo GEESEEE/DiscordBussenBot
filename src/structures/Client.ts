@@ -2,10 +2,6 @@ import Discord from 'discord.js'
 import fs from 'fs'
 
 import { prefix } from '../../config.json'
-import {
-    CollectorPlayerLeftError,
-    CollectorPlayerPassedInput,
-} from '../game/Errors'
 import { ServerManager } from '../managers/ServerManager'
 
 const commandFiles = fs
@@ -26,7 +22,6 @@ export class Client extends Discord.Client {
         this.commands = new Discord.Collection()
         this.games = new Discord.Collection()
         this.serverManager = new ServerManager()
-        throw new CollectorPlayerLeftError('Je moeder kk sentry')
 
         // Set commands from /src/commands
         for (const file of commandFiles) {
