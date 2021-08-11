@@ -15,7 +15,6 @@
         "pluralize": "^8.0.0"
     },
     "devDependencies": {
-        "@types/node": "^14.14.41",
         "@types/pluralize": "^0.0.29",
         "@types/node": "^16.4.13",
         "@typescript-eslint/eslint-plugin": "^4.22.0",
