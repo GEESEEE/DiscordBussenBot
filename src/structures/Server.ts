@@ -11,13 +11,7 @@ import { maxReactionTime } from '../../config.json'
 import { GameEndedError } from '../game/Errors'
 import { Game } from '../game/Game'
 import { DiscordErrors } from '../utils/Consts'
-import { Emoji, ReactionEmojis } from '../utils/EmojiUtils'
-import {
-    failSilently,
-    getActionRow,
-    getBinaryReactions,
-    removeMessage,
-} from '../utils/Utils'
+import { failSilently, getActionRow, removeMessage } from '../utils/Utils'
 
 export class Server {
     currentGame: Game
@@ -122,7 +116,7 @@ export class Server {
                     `${this.currentGame.name} with ${this.currentGame.leader.user.username} as the leader`,
                 )
                 .setDescription(
-                    `Click ${Emoji.JOIN} to join the game\n${this.currentGame.leader} click ${Emoji.PLAY} to start the game when all players have joined`,
+                    `Click **Join** to join the game\n${this.currentGame.leader} click **Start** to start the game when all players have joined`,
                 )
                 .addField(
                     `Players`,
@@ -262,45 +256,6 @@ export class Server {
             if (yes.length > no.length) {
                 try {
                     this.currentGame.endGame()
-                } catch {}
-
-                response = `${gameName} has been removed`
-                this.currentGame = null
-            } else {
-                response = `${gameName} will continue`
-            }
-        } else {
-            response = `${gameName} is already gone`
-        }
-        await this.currentChannel.send({
-            embeds: [new MessageEmbed().setTitle(response)],
-        })
-    }
-
-    private async unsafeRemoveGameVote(message) {
-        const options = ReactionEmojis.YES_NO
-
-        const gameName = this.currentGame.name
-
-        const { collected, collector } = await getBinaryReactions(
-            message,
-            maxReactionTime,
-            options,
-        )
-        this.collector = collector
-        const col = await collected
-
-        const max = Math.max(
-            ...col.map(collection => collection.users.cache.size),
-        )
-        const maxEmoji = col
-            .filter(collection => collection.users.cache.size === max)
-            .first()?.emoji.name
-        let response
-        if (this.gameExists()) {
-            if (options[0].includes(maxEmoji)) {
-                try {
-                    await this.currentGame.endGame()
                 } catch {}
 
                 response = `${gameName} has been removed`

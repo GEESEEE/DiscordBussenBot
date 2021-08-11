@@ -4,7 +4,6 @@ import Discord, {
     MessageActionRow,
     MessageCollector,
     MessageEmbed,
-    MessageReaction,
     ReactionCollector,
     TextChannel,
     User,
@@ -13,17 +12,10 @@ import Discord, {
 import { PlayerManager } from '../managers/PlayerManager'
 import { Player } from '../structures/Player'
 import { CardPrinter } from '../utils/CardPrinter'
-import { Emoji } from '../utils/EmojiUtils'
 import {
-    createChecker,
     getActionRow,
-    getFilter,
-    getPrompt,
     getSingleInteraction,
-    getSingleReaction,
-    reactOptions,
     removeMessage,
-    removeReaction,
 } from '../utils/Utils'
 import { Deck } from './Deck'
 import {
@@ -118,36 +110,6 @@ export abstract class Game {
         return message
     }
 
-    // if numeric is true, responseOptions should be 'x,y' as a string with x and y as numbers, also supports negative numbers
-    // still works but generally nm,mot useful anymore
-    async getResponse(player: User, string, responseOptions, numeric = false) {
-        if (typeof responseOptions === 'string') {
-            responseOptions = [responseOptions]
-        }
-
-        const fuse = createChecker(responseOptions, numeric)
-        if (numeric) {
-            responseOptions[0] = responseOptions[0].replace(`,`, `-`)
-        }
-
-        const prompt = `${player}, ${string} (${responseOptions.join('/')})`
-        await this.channel.send(prompt)
-
-        const { collected, collector } = getPrompt(
-            this.channel,
-            getFilter(player, fuse),
-        )
-        this.collector = collector
-        collector.player = player
-        const res = await collected
-
-        if (!numeric) {
-            return fuse.search(res.content)[0].item
-        } else {
-            return parseInt(res.content)
-        }
-    }
-
     async getSingleInteraction(
         player: Player,
         sentMessage,
@@ -161,27 +123,6 @@ export abstract class Game {
         return collected
     }
 
-    async getSingleReaction(
-        player: Player,
-        sentMessage,
-        options,
-    ): Promise<MessageReaction> {
-        const { collected, collector } = getSingleReaction(
-            player,
-            sentMessage,
-            options,
-        )
-        this.collector = collector
-        this.collectorPlayer = player
-
-        const col = await Promise.all([
-            collected,
-            reactOptions(sentMessage, options),
-        ])
-
-        return col[0]
-    }
-
     private incSize(min, max, current, toAdd) {
         const newVal = current + toAdd
         if (newVal > max) {
@@ -191,61 +132,6 @@ export abstract class Game {
         } else {
             return newVal
         }
-    }
-
-    async waitForValue(
-        collector,
-        val,
-        min,
-        max,
-        message,
-        embed,
-        options,
-        player?: Player,
-    ): Promise<number> {
-        if (!player) {
-            player = this.leader
-        }
-        const collected = new Promise((resolve, reject) => {
-            collector.on(`collect`, async (reaction, user) => {
-                const reactEmoji = reaction.emoji.toString()
-
-                if (user.equals(player.user)) {
-                    if (Emoji.PLAY.includes(reactEmoji)) {
-                        collector.stop()
-                        resolve(val)
-                    } else {
-                        if (Emoji.HIGHER.includes(reactEmoji)) {
-                            val = this.incSize(min, max, val, 1)
-                        } else if (Emoji.HIGHER2.includes(reactEmoji)) {
-                            val = this.incSize(min, max, val, 3)
-                        } else if (Emoji.LOWER.includes(reactEmoji)) {
-                            val = this.incSize(min, max, val, -1)
-                        } else if (Emoji.LOWER2.includes(reactEmoji)) {
-                            val = this.incSize(min, max, val, -3)
-                        }
-                        embed.fields[embed.fields.length - 1].value = `${val}`
-                        await message.edit({ embeds: [embed] })
-                    }
-                    await removeReaction(reaction, user)
-                }
-            })
-
-            collector.on(`end`, (collected, reason) => {
-                if (reason === `removeplayer`) {
-                    reject(new CollectorPlayerLeftError(``))
-                }
-            })
-        })
-        this.collector = collector
-        this.collectorPlayer = player
-
-        const col = await Promise.all([
-            collected,
-            reactOptions(message, options),
-        ])
-
-        return col[0] as number
     }
 
     getWaitForValueRow() {
