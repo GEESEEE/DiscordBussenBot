@@ -1,12 +1,8 @@
 import Discord from 'discord.js'
+import fs from 'fs'
 
 import { prefix } from '../../config.json'
 import { ServerManager } from '../managers/ServerManager'
-
-const fs = require('fs')
-
-require('./Player')
-require('./Server')
 
 const commandFiles = fs
     .readdirSync('./src/commands')

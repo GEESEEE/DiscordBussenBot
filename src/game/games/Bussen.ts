@@ -4,6 +4,7 @@ import {
     MessageEmbed,
     User,
 } from 'discord.js'
+import pluralize from 'pluralize'
 
 import { PlayerManager } from '../../managers/PlayerManager'
 import { Player } from '../../structures/Player'
@@ -17,8 +18,6 @@ import {
 } from '../../utils/Utils'
 import { Card, Deck } from '../Deck'
 import { Game } from '../Game'
-
-const pluralize = require(`pluralize`)
 
 export default class Bussen extends Game {
     drinks: number

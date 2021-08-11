@@ -29,7 +29,7 @@ module.exports = {
                 .setTitle(`Here is a list of commands:`)
                 .setDescription(commands.join(''))
 
-            return message.channel.send(embed)
+            return message.channel.send({ embeds: [embed] })
         }
     },
 }

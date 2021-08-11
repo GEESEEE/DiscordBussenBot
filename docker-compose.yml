@@ -5,5 +5,7 @@ services:
         image: docker.guidojw.nl/gies/bussenbot:latest
         restart: unless-stopped
         env_file: .env
+        environment:
+            - NODE_ENV=production
         volumes:
             - /opt/app/node_modules

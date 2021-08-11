@@ -15,7 +15,7 @@ module.exports = {
                 .join(``)
 
             embed.setTitle(`Here is a list of games:`).setDescription(games)
-            return message.channel.send(embed)
+            return message.channel.send({ embeds: [embed] })
         }
     },
 }
