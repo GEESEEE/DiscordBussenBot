@@ -3,11 +3,8 @@ import { Intents } from 'discord.js'
 import dotenv from 'dotenv'
 
 import { Client } from './src/structures/Client'
-dotenv.config()
 
-const client = new Client({
-    intents: [Intents.FLAGS.GUILD_MESSAGES, Intents.FLAGS.GUILDS],
-})
+dotenv.config()
 
 if (process.env.SENTRY_DSN) {
     Sentry.init({
@@ -16,5 +13,9 @@ if (process.env.SENTRY_DSN) {
         release: process.env.BUILD_HASH,
     })
 }
+
+const client = new Client({
+    intents: [Intents.FLAGS.GUILD_MESSAGES, Intents.FLAGS.GUILDS],
+})
 
 client.login(process.env.TOKEN)
