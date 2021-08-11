@@ -184,7 +184,10 @@ export default class Bussen extends Game {
             verdict,
         )
 
-        await this.replaceMessage(sentMessage, embed, attachments)
+        await this.replaceMessage(sentMessage, {
+            embeds: [embed],
+            files: attachments,
+        })
         player.addCard(card)
     }
     //endregion
@@ -381,12 +384,10 @@ export default class Bussen extends Game {
                 )
                 .addField(`Reversed`, EmptyString, true)
             const row = getActionRow(['Yes', 'No'], ['PRIMARY', 'DANGER'])
-            sentMessage = await this.replaceMessage(
-                sentMessage,
-                embed,
-                [],
-                [row],
-            )
+            sentMessage = await this.replaceMessage(sentMessage, {
+                embeds: [embed],
+                components: [row],
+            })
 
             const collected = await this.getSingleInteraction(
                 this.leader,
@@ -401,7 +402,10 @@ export default class Bussen extends Game {
                 embed.fields[1].value = `${collected.customId}`
                 await this.setImages(embed, attachment)
 
-                await this.replaceMessage(sentMessage, embed, [attachment])
+                await this.replaceMessage(sentMessage, {
+                    embeds: embed,
+                    files: [attachment],
+                })
             }
         }
     }
@@ -536,12 +540,10 @@ export default class Bussen extends Game {
             embed.fields[0].value = `${busPlayer}, how long should the bus be? (1-20)`
             embed.addField(`Bus Size`, `${busSize}`, true)
             const row = this.getWaitForValueRow()
-            sentMessage = await this.replaceMessage(
-                sentMessage,
-                embed,
-                [],
-                [row],
-            )
+            sentMessage = await this.replaceMessage(sentMessage, {
+                embeds: [embed],
+                components: [row],
+            })
 
             const busSizeCollector = getInteractionCollector(
                 busPlayer,
@@ -592,7 +594,10 @@ export default class Bussen extends Game {
 
                 const attachment = await this.getBusAttachment()
                 await this.setImages(embed, attachment)
-                await this.replaceMessage(sentMessage, embed, [attachment])
+                await this.replaceMessage(sentMessage, {
+                    embeds: [embed],
+                    components: [attachment],
+                })
             }
         }
     }
@@ -662,12 +667,11 @@ export default class Bussen extends Game {
             row = getActionRow(['Continue'])
         }
 
-        const lastMessage = await this.replaceMessage(
-            sentMessage,
-            embed1,
-            [busAttachment, drawnCardAttachment],
-            correct ? [] : [row],
-        )
+        const lastMessage = await this.replaceMessage(sentMessage, {
+            embeds: [embed1],
+            files: [busAttachment, drawnCardAttachment],
+            components: correct ? [] : [row],
+        })
 
         if (!correct) {
             await this.getSingleInteraction(this.bus.player, lastMessage)
