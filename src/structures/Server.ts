@@ -6,6 +6,7 @@ import { DiscordErrors } from '../utils/Consts'
 import { Emoji, ReactionEmojis } from '../utils/EmojiUtils'
 import {
     failSilently,
+    getActionRow,
     getBinaryReactions,
     inElementOf,
     reactOptions,
@@ -118,9 +119,69 @@ export class Server {
         }
     }
 
+    async startGameInteraction() {
+        const embed = this.getJoinEmbed()
+        const row = getActionRow(['Join', 'Start'], ['PRIMARY', 'SECONDARY'])
+        const sentMessage = await this.currentChannel.send({
+            embeds: [embed],
+            components: [row],
+        })
+
+        const collector = sentMessage.createMessageComponentCollector({
+            filter: interaction => {
+                interaction.deferUpdate()
+                return true
+            },
+            dispose: true,
+        })
+
+        collector.on('collect', async interaction => {
+            if (interaction.customId === 'Join' && !interaction.user.bot) {
+                // if user not yet a player, add player and refresh embed
+                if (!this.currentGame.isPlayer(interaction.user)) {
+                    this.currentGame.addPlayer(interaction.user)
+                    embed.fields[0].value =
+                        this.currentGame.playerManager.players.join(`\n`)
+                    await sentMessage.edit({
+                        embeds: [embed],
+                        components: [row],
+                    })
+
+                    // Else remove user
+                } else {
+                    await this.currentGame.removePlayer(interaction.user)
+
+                    // If players left, update embed
+                    if (this.gameExists() && this.currentGame.hasPlayers()) {
+                        embed.fields[0].value =
+                            this.currentGame.playerManager.players.join(`\n`)
+                        await sentMessage.edit({
+                            embeds: [embed],
+                            components: [row],
+                        })
+
+                        // Else remove message and game
+                    } else {
+                        collector.stop()
+                        await removeMessage(sentMessage)
+                        this.currentGame = null
+                    }
+                }
+            } else if (
+                interaction.customId === 'Start' &&
+                interaction.user.equals(this.currentGame.leader.user)
+            ) {
+                collector.stop()
+                await this.currentGame.play()
+                this.currentGame = null
+            }
+        })
+    }
+
     async startGame() {
         const reactionOptions = ReactionEmojis.JOIN_START
         let embed = this.getJoinEmbed()
+
         const sentMessage = await this.currentChannel.send({
             embeds: [embed],
         })

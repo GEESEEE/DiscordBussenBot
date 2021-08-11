@@ -21,6 +21,7 @@ import { CardPrinter } from '../utils/CardPrinter'
 import { Emoji } from '../utils/EmojiUtils'
 import {
     createChecker,
+    getActionRow,
     getFilter,
     getPrompt,
     getSingleInteraction,
@@ -161,22 +162,6 @@ export abstract class Game {
         }
     }
 
-    getActionRow(buttonLabels: Array<string>, buttonStyles = []) {
-        const row = new MessageActionRow()
-        for (let i = 0; i < buttonLabels.length; i++) {
-            const label = buttonLabels[i]
-            const button = new MessageButton()
-                .setLabel(label)
-                .setCustomId(label)
-
-            i < buttonStyles.length
-                ? button.setStyle(buttonStyles[i])
-                : button.setStyle('PRIMARY')
-            row.addComponents(button)
-        }
-        return row
-    }
-
     async getSingleInteraction(
         player: Player,
         sentMessage,
@@ -277,6 +262,10 @@ export abstract class Game {
         return col[0] as number
     }
 
+    getWaitForValueRow() {
+        return getActionRow(['+1', '+3', '-1', '-3', 'Continue'])
+    }
+
     async waitForInteractionValue(
         collector,
         val,
@@ -290,10 +279,11 @@ export abstract class Game {
         if (!player) {
             player = this.leader
         }
+
         const collected = new Promise((resolve, reject) => {
             collector.on(`collect`, async interaction => {
                 if (interaction.user.equals(player.user)) {
-                    if (interaction.customId === 'Start') {
+                    if (interaction.customId === 'Continue') {
                         collector.stop()
                         resolve(val)
                     } else {

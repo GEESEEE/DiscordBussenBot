@@ -5,6 +5,8 @@ import {
     Interaction,
     InteractionCollector,
     Message,
+    MessageActionRow,
+    MessageButton,
     MessageInteraction,
     MessageReaction,
     ReactionCollector,
@@ -89,6 +91,20 @@ export function getPrompt(channel, filter): any {
         }),
         collector,
     }
+}
+
+export function getActionRow(buttonLabels: Array<string>, buttonStyles = []) {
+    const row = new MessageActionRow()
+    for (let i = 0; i < buttonLabels.length; i++) {
+        const label = buttonLabels[i]
+        const button = new MessageButton().setLabel(label).setCustomId(label)
+
+        i < buttonStyles.length
+            ? button.setStyle(buttonStyles[i])
+            : button.setStyle('PRIMARY')
+        row.addComponents(button)
+    }
+    return row
 }
 
 export function getSingleReaction(player: Player, message, options) {

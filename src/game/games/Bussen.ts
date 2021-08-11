@@ -9,11 +9,10 @@ import { PlayerManager } from '../../managers/PlayerManager'
 import { Player } from '../../structures/Player'
 import { CardPrinter } from '../../utils/CardPrinter'
 import { EmptyString, Value } from '../../utils/Consts'
-import { Emoji, EmojiStrings, ReactionEmojis } from '../../utils/EmojiUtils'
 import {
     createRows,
+    getActionRow,
     getInteractionCollector,
-    getReactionsCollector,
     sum,
 } from '../../utils/Utils'
 import { Card, Deck } from '../Deck'
@@ -55,11 +54,11 @@ export default class Bussen extends Game {
     async game() {
         // Phase 1 questions
         await this.askAllPlayers(this.askColour)
-        // await this.askAllPlayers(this.askHigherLower)
-        // await this.askAllPlayers(this.askBetween)
-        // await this.askAllPlayers(this.askSuit)
-        //
-        // // Phase 2 Pyramid
+        await this.askAllPlayers(this.askHigherLower)
+        await this.askAllPlayers(this.askBetween)
+        await this.askAllPlayers(this.askSuit)
+
+        // Phase 2 Pyramid
         await this.loopForResponse(this.initPyramid)
         await this.askWhile(
             () =>
@@ -68,13 +67,12 @@ export default class Bussen extends Game {
                 !this.noOneHasCards(),
             this.playPyramid,
         )
-        //
-        // // Phase 3 The Bus
+        // Phase 3 The Bus
         await this.loopForResponse(this.initBus)
-        // await this.askWhile(
-        //     () => this.bus && !this.bus.isFinished,
-        //     this.playBus,
-        // )
+        await this.askWhile(
+            () => this.bus && !this.bus.isFinished,
+            this.playBus,
+        )
     }
 
     //region Phase 1 Helpers
@@ -195,7 +193,7 @@ export default class Bussen extends Game {
 
     async askColour(player) {
         const question = `red or black?`
-        const row = this.getActionRow(['Red', 'Black'], ['DANGER', 'SECONDARY'])
+        const row = getActionRow(['Red', 'Black'], ['DANGER', 'SECONDARY'])
         const { message, collected } = await this.getInteraction(
             player,
             question,
@@ -219,7 +217,7 @@ export default class Bussen extends Game {
 
     async askHigherLower(player) {
         const question = `higher or lower than ${player.cards[0]}?`
-        const row = this.getActionRow(['Higher', 'Lower'])
+        const row = getActionRow(['Higher', 'Lower'])
         const { message, collected } = await this.getInteraction(
             player,
             question,
@@ -243,7 +241,7 @@ export default class Bussen extends Game {
 
     async askBetween(player) {
         const question = `is it between ${player.cards[0]} and ${player.cards[1]}?`
-        const row = this.getActionRow(['Yes', 'No'], ['PRIMARY', 'DANGER'])
+        const row = getActionRow(['Yes', 'No'], ['PRIMARY', 'DANGER'])
         const { message, collected } = await this.getInteraction(
             player,
             question,
@@ -270,7 +268,7 @@ export default class Bussen extends Game {
         const question = `do you already have the suit, you have ${[
             ...new Set(player.cards.map(cards => cards.suit)),
         ].join(', ')}?`
-        const row = this.getActionRow(['Yes', 'No'], ['PRIMARY', 'DANGER'])
+        const row = getActionRow(['Yes', 'No'], ['PRIMARY', 'DANGER'])
         const { message, collected } = await this.getInteraction(
             player,
             question,
@@ -358,7 +356,7 @@ export default class Bussen extends Game {
             )
             .addField(`Pyramid Size`, `${pyramidSize}`, true)
 
-        const row = this.getActionRow(['+1', '+3', '-1', '-3', 'Start'])
+        const row = this.getWaitForValueRow()
 
         let sentMessage = await this.channel.send({
             embeds: [embed],
@@ -382,7 +380,7 @@ export default class Bussen extends Game {
                     `${this.leader}, should the pyramid be reversed?`,
                 )
                 .addField(`Reversed`, EmptyString, true)
-            const row = this.getActionRow(['Yes', 'No'], ['PRIMARY', 'DANGER'])
+            const row = getActionRow(['Yes', 'No'], ['PRIMARY', 'DANGER'])
             sentMessage = await this.replaceMessage(
                 sentMessage,
                 embed,
@@ -435,7 +433,7 @@ export default class Bussen extends Game {
             .setDescription(message)
         await this.setImages(embed, pyramidAttachment, drawnCardAttachment)
 
-        const row = this.getActionRow(['Continue'])
+        const row = getActionRow(['Continue'])
 
         const sentMessage = await this.channel.send({
             embeds: [embed],
@@ -517,7 +515,8 @@ export default class Bussen extends Game {
             .setDescription(message)
             .addField(EmptyString, `${busPlayer}, should the bus be hidden?`)
             .addField(`Hidden`, EmptyString, true)
-        const row = this.getActionRow(['Yes', 'No'], ['PRIMARY', 'DANGER'])
+
+        const row = getActionRow(['Yes', 'No'], ['PRIMARY', 'DANGER'])
         let sentMessage = await this.channel.send({
             embeds: [embed],
             components: [row],
@@ -533,26 +532,30 @@ export default class Bussen extends Game {
 
             embed.fields[1].value = `${collected.customId}`
 
-            const sizeOptions = ReactionEmojis.HIGHER_LOWER2
             let busSize = 1
             embed.fields[0].value = `${busPlayer}, how long should the bus be? (1-20)`
             embed.addField(`Bus Size`, `${busSize}`, true)
-            sentMessage = await this.replaceMessage(sentMessage, embed)
-
-            const busSizeCollector = getReactionsCollector(
-                busPlayer,
+            const row = this.getWaitForValueRow()
+            sentMessage = await this.replaceMessage(
                 sentMessage,
-                sizeOptions,
+                embed,
+                [],
+                [row],
             )
 
-            busSize = await this.waitForValue(
+            const busSizeCollector = getInteractionCollector(
+                busPlayer,
+                sentMessage,
+            )
+
+            busSize = await this.waitForInteractionValue(
                 busSizeCollector,
                 busSize,
                 1,
                 20,
                 sentMessage,
                 embed,
-                sizeOptions,
+                row,
                 busPlayer,
             )
 
@@ -562,22 +565,25 @@ export default class Bussen extends Game {
                     const maxCheckPoints = Math.floor(busSize / 3)
                     embed.fields[0].value = `${busPlayer}, how many checkpoints should the bus have? (0-${maxCheckPoints})`
                     embed.addField(`Checkpoints`, `${checkpoints}`, true)
-                    await sentMessage.edit({ embeds: [embed] })
+                    const row = this.getWaitForValueRow()
+                    await sentMessage.edit({
+                        embeds: [embed],
+                        components: [row],
+                    })
 
-                    const checkpointCollector = getReactionsCollector(
+                    const checkpointCollector = getInteractionCollector(
                         busPlayer,
                         sentMessage,
-                        sizeOptions,
                     )
 
-                    checkpoints = await this.waitForValue(
+                    checkpoints = await this.waitForInteractionValue(
                         checkpointCollector,
                         checkpoints,
                         0,
                         maxCheckPoints,
                         sentMessage,
                         embed,
-                        sizeOptions,
+                        row,
                         busPlayer,
                     )
                 }
@@ -604,23 +610,21 @@ export default class Bussen extends Game {
                 }?`,
             )
         await this.setImages(embed1, busAttachment)
-
+        let row = getActionRow(['Higher', 'Lower'])
         const sentMessage = await this.channel.send({
             embeds: [embed1],
             files: [busAttachment],
+            components: [row],
         })
-        const options = ReactionEmojis.HIGHER_LOWER
-        const reaction = await this.getSingleReaction(
+        const collected = await this.getSingleInteraction(
             this.bus.player,
             sentMessage,
-            options,
         )
 
-        const content = reaction.emoji.toString()
         const newCard = this.bus.getRandomCard()
         const correct =
-            (Emoji.HIGHER.includes(content) && newCard > oldCard) ||
-            (Emoji.LOWER.includes(content) && newCard < oldCard)
+            (collected.customId === 'Higher' && newCard > oldCard) ||
+            (collected.customId === 'Lower' && newCard < oldCard)
 
         let message
         let newBusPlayer
@@ -646,25 +650,27 @@ export default class Bussen extends Game {
         }
 
         embed1.description +=
-            `\n${this.bus.player} chose ` +
-            '`' +
-            `${EmojiStrings[content]}` +
-            '`'
+            `\n${this.bus.player} chose ` + '`' + `${collected.customId}` + '`'
         embed1.addField(`Verdict`, message)
 
         const drawnCardAttachment = await this.drawnCardAttachment(newCard)
         busAttachment = await this.getBusAttachment(true, true)
         await this.setImages(embed1, busAttachment, drawnCardAttachment)
-        const lastMessage = await this.replaceMessage(sentMessage, embed1, [
-            busAttachment,
-            drawnCardAttachment,
-        ])
-
         this.bus.iterate(newCard, correct)
+
         if (!correct) {
-            await this.getSingleReaction(this.bus.player, lastMessage, [
-                Emoji.PLAY,
-            ])
+            row = getActionRow(['Continue'])
+        }
+
+        const lastMessage = await this.replaceMessage(
+            sentMessage,
+            embed1,
+            [busAttachment, drawnCardAttachment],
+            correct ? [] : [row],
+        )
+
+        if (!correct) {
+            await this.getSingleInteraction(this.bus.player, lastMessage)
         }
         if (newBusPlayer) {
             this.bus.player = newBusPlayer
