@@ -2,7 +2,7 @@ import Discord from 'discord.js'
 import fs from 'fs'
 
 import { prefix } from '../../config.json'
-import { CollectorPlayerLeftError } from '../game/Errors'
+import { CollectorPlayerLeftError, GameEndedError } from '../game/Errors'
 import { ServerManager } from '../managers/ServerManager'
 
 const commandFiles = fs
@@ -23,7 +23,7 @@ export class Client extends Discord.Client {
         this.commands = new Discord.Collection()
         this.games = new Discord.Collection()
         this.serverManager = new ServerManager()
-        throw new CollectorPlayerLeftError('BUggy shit jo')
+        throw new GameEndedError('Err')
 
         // Set commands from /src/commands
         for (const file of commandFiles) {
