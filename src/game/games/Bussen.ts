@@ -1,9 +1,7 @@
 import {
     ButtonInteraction,
     MessageActionRow,
-    MessageButton,
     MessageEmbed,
-    MessageInteraction,
     User,
 } from 'discord.js'
 
@@ -12,7 +10,12 @@ import { Player } from '../../structures/Player'
 import { CardPrinter } from '../../utils/CardPrinter'
 import { EmptyString, Value } from '../../utils/Consts'
 import { Emoji, EmojiStrings, ReactionEmojis } from '../../utils/EmojiUtils'
-import { createRows, getReactionsCollector, sum } from '../../utils/Utils'
+import {
+    createRows,
+    getInteractionCollector,
+    getReactionsCollector,
+    sum,
+} from '../../utils/Utils'
 import { Card, Deck } from '../Deck'
 import { Game } from '../Game'
 
@@ -50,15 +53,14 @@ export default class Bussen extends Game {
     }
 
     async game() {
-        //await this.testButtons(this.leader)
         // Phase 1 questions
-        await this.askAllPlayers(this.askColour)
-        await this.askAllPlayers(this.askHigherLower)
-        await this.askAllPlayers(this.askBetween)
-        await this.askAllPlayers(this.askSuit)
+        // await this.askAllPlayers(this.askColour)
+        // await this.askAllPlayers(this.askHigherLower)
+        // await this.askAllPlayers(this.askBetween)
+        // await this.askAllPlayers(this.askSuit)
         //
         // // Phase 2 Pyramid
-        // await this.loopForResponse(this.initPyramid)
+        await this.loopForResponse(this.initPyramid)
         // await this.askWhile(
         //     () =>
         //         this.pyramid &&
@@ -241,7 +243,7 @@ export default class Bussen extends Game {
 
     async askBetween(player) {
         const question = `is it between ${player.cards[0]} and ${player.cards[1]}?`
-        const row = this.getActionRow(['Yes', 'No'])
+        const row = this.getActionRow(['Yes', 'No'], ['PRIMARY', 'DANGER'])
         const { message, collected } = await this.getInteraction(
             player,
             question,
@@ -268,7 +270,7 @@ export default class Bussen extends Game {
         const question = `do you already have the suit, you have ${[
             ...new Set(player.cards.map(cards => cards.suit)),
         ].join(', ')}?`
-        const row = this.getActionRow(['Yes', 'No'])
+        const row = this.getActionRow(['Yes', 'No'], ['PRIMARY', 'DANGER'])
         const { message, collected } = await this.getInteraction(
             player,
             question,
@@ -357,21 +359,22 @@ export default class Bussen extends Game {
             )
             .addField(`Pyramid Size`, `${pyramidSize}`, true)
 
-        let sentMessage = await this.channel.send({ embeds: [embed] })
-        const sizeCollector = getReactionsCollector(
-            this.leader,
-            sentMessage,
-            sizeOptions,
-        )
+        const row = this.getActionRow(['+1', '+3', '-1', '-3', 'Start'])
 
-        pyramidSize = await this.waitForValue(
+        let sentMessage = await this.channel.send({
+            embeds: [embed],
+            components: [row],
+        })
+        const sizeCollector = getInteractionCollector(this.leader, sentMessage)
+
+        pyramidSize = await this.waitForInteractionValue(
             sizeCollector,
             pyramidSize,
             1,
             maxSize,
             sentMessage,
             embed,
-            sizeOptions,
+            row,
         )
 
         if (pyramidSize) {

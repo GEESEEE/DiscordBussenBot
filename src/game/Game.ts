@@ -271,6 +271,56 @@ export abstract class Game {
         return col[0] as number
     }
 
+    async waitForInteractionValue(
+        collector,
+        val,
+        min,
+        max,
+        message,
+        embed,
+        row: MessageActionRow,
+        player?: Player,
+    ) {
+        if (!player) {
+            player = this.leader
+        }
+        const collected = new Promise((resolve, reject) => {
+            collector.on(`collect`, async interaction => {
+                if (interaction.user.equals(player.user)) {
+                    if (interaction.customId === 'Start') {
+                        collector.stop()
+                        resolve(val)
+                    } else {
+                        if (interaction.customId === '+1') {
+                            val = this.incSize(min, max, val, 1)
+                        } else if (interaction.customId === '+3') {
+                            val = this.incSize(min, max, val, 3)
+                        } else if (interaction.customId === '-1') {
+                            val = this.incSize(min, max, val, -1)
+                        } else if (interaction.customId === '-3') {
+                            val = this.incSize(min, max, val, -3)
+                        }
+                        embed.fields[embed.fields.length - 1].value = `${val}`
+                        await message.edit({
+                            embeds: [embed],
+                            components: [row],
+                        })
+                    }
+                }
+            })
+
+            collector.on(`end`, (collected, reason) => {
+                if (reason === `removeplayer`) {
+                    reject(new CollectorPlayerLeftError(``))
+                }
+            })
+        })
+        this.collector = collector
+        this.collectorPlayer = player
+
+        return (await collected) as number
+    }
+
     async removePlayer(user: User) {
         if (this.isPlayer(user)) {
             const player = this.playerManager.getPlayer(user.id)

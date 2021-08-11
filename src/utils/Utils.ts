@@ -147,6 +147,18 @@ export function getReactionsCollector(player: Player, message, options) {
     })
 }
 
+export function getInteractionCollector(
+    player: Player,
+    message,
+): InteractionCollector<ButtonInteraction> {
+    return message.createMessageComponentCollector({
+        filter: interaction => {
+            interaction.deferUpdate()
+            return interaction.user.equals(player.user)
+        },
+    })
+}
+
 export async function getBinaryReactions(message, maxTime, options) {
     const collector = message.createReactionCollector({
         filter: (reaction, _) => {
