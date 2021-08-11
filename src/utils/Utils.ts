@@ -12,7 +12,7 @@ import {
     ReactionCollector,
 } from 'discord.js'
 
-import { CollectorPlayerLeftError } from '../game/Errors'
+import { CollectorPlayerLeftError, GameEndedError } from '../game/Errors'
 import { Player } from '../structures/Player'
 import { DiscordErrors } from './Consts'
 
@@ -142,7 +142,10 @@ export function getSingleInteraction(player: Player, message) {
 
     return {
         collected: new Promise((resolve, reject) => {
-            collector.on('end', collected => {
+            collector.on('end', (collected, reason) => {
+                if (reason === 'endgame') {
+                    reject(new GameEndedError('Game Ended'))
+                }
                 if (collected.size === 0) {
                     reject(new CollectorPlayerLeftError(`Collector stopped`))
                     return

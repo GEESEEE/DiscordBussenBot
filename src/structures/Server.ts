@@ -8,6 +8,7 @@ import {
 } from 'discord.js'
 
 import { maxReactionTime } from '../../config.json'
+import { GameEndedError } from '../game/Errors'
 import { Game } from '../game/Game'
 import { DiscordErrors } from '../utils/Consts'
 import { Emoji, ReactionEmojis } from '../utils/EmojiUtils'
@@ -220,8 +221,11 @@ export class Server {
             time: maxReactionTime,
         })
 
-        const collected = new Promise(resolve => {
-            collector.on('end', collect => {
+        const collected = new Promise((resolve, reject) => {
+            collector.on('end', (collect, reason) => {
+                if (reason === 'endgame') {
+                    reject(new GameEndedError('Game Ended'))
+                }
                 resolve(collect)
             })
         })
@@ -257,11 +261,8 @@ export class Server {
         if (this.gameExists()) {
             if (yes.length > no.length) {
                 try {
-                    console.log('Should be ending game')
-                    await this.currentGame.endGame()
-                } catch {
-                    console.log('Failed ending game or something')
-                }
+                    this.currentGame.endGame()
+                } catch {}
 
                 response = `${gameName} has been removed`
                 this.currentGame = null

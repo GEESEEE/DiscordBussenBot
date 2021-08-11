@@ -1,14 +1,9 @@
 import Discord, {
     ButtonInteraction,
-    Collector,
-    Guild,
     InteractionCollector,
-    Message,
     MessageActionRow,
-    MessageButton,
     MessageCollector,
     MessageEmbed,
-    MessageInteraction,
     MessageReaction,
     ReactionCollector,
     TextChannel,
@@ -85,7 +80,6 @@ export abstract class Game {
     }
 
     endGame() {
-        console.log('Ending game')
         this.collector?.stop(`endgame`)
         throw new GameEndedError(`${this.name} has ended`)
     }
@@ -307,6 +301,9 @@ export abstract class Game {
             })
 
             collector.on(`end`, (collected, reason) => {
+                if (reason === 'endgame') {
+                    reject(new GameEndedError(`${this.name} has ended`))
+                }
                 if (reason === `removeplayer`) {
                     reject(new CollectorPlayerLeftError(``))
                 }
@@ -358,11 +355,9 @@ export abstract class Game {
 
     async play() {
         this.hasStarted = true
-
         try {
             await this.game()
         } catch (err) {
-            console.log('play', err)
             if (!(err instanceof GameEndedError)) {
                 throw err
             }
@@ -383,7 +378,6 @@ export abstract class Game {
     //region User Input Error Handling
 
     handleError(err) {
-        console.log('handleError', err)
         if (err instanceof CollectorPlayerLeftError) {
             this.hasEnded()
         } else if (!(err instanceof CollectorPlayerPassedInput)) {
