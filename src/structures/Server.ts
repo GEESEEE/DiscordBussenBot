@@ -1,4 +1,11 @@
-import { MessageEmbed, ReactionCollector, TextChannel, User } from 'discord.js'
+import {
+    InteractionCollector,
+    MessageComponentInteraction,
+    MessageEmbed,
+    ReactionCollector,
+    TextChannel,
+    User,
+} from 'discord.js'
 
 import { maxReactionTime } from '../../config.json'
 import { Game } from '../game/Game'
@@ -8,15 +15,15 @@ import {
     failSilently,
     getActionRow,
     getBinaryReactions,
-    inElementOf,
-    reactOptions,
     removeMessage,
 } from '../utils/Utils'
 
 export class Server {
     currentGame: Game
     currentChannel: TextChannel
-    collector: ReactionCollector
+    collector:
+        | ReactionCollector
+        | InteractionCollector<MessageComponentInteraction>
 
     constructor() {
         this.currentGame = null
@@ -103,6 +110,10 @@ export class Server {
         return this.validMessage(message)
     }
 
+    readyToRemove(message) {
+        return this.validMessage(message) && this.gameExists()
+    }
+
     getJoinEmbed() {
         if (this.currentGame) {
             return new MessageEmbed()
@@ -119,7 +130,7 @@ export class Server {
         }
     }
 
-    async startGameInteraction() {
+    async startGame() {
         const embed = this.getJoinEmbed()
         const row = getActionRow(['Join', 'Start'], ['PRIMARY', 'SECONDARY'])
         const sentMessage = await this.currentChannel.send({
@@ -178,77 +189,91 @@ export class Server {
         })
     }
 
-    async startGame() {
-        const reactionOptions = ReactionEmojis.JOIN_START
-        let embed = this.getJoinEmbed()
-
-        const sentMessage = await this.currentChannel.send({
-            embeds: [embed],
-        })
-
-        const collector = sentMessage.createReactionCollector({
-            filter: (reaction, _) => {
-                const emojiName = reaction.emoji.toString()
-                return inElementOf(reactionOptions, emojiName)
-            },
-            dispose: true,
-        })
-
-        collector.on('collect', async (reaction, user) => {
-            const newReactionName = reaction.emoji.toString()
-            const users = reaction.users.cache
-
-            if (Emoji.JOIN.includes(newReactionName) && !user.bot) {
-                if (users.has(user.id)) {
-                    if (!this.currentGame.isPlayer(user)) {
-                        this.currentGame.addPlayer(user)
-                        embed.fields[0].value =
-                            this.currentGame.playerManager.players.join(`\n`)
-                        await sentMessage.edit({ embeds: [embed] })
-                    }
-                }
-            } else if (
-                Emoji.PLAY.includes(newReactionName) &&
-                user.equals(this.currentGame.leader.user)
-            ) {
-                collector.stop()
-                await this.currentGame.play()
-                this.currentGame = null
-            }
-        })
-
-        collector.on(`remove`, async (reaction, user) => {
-            const reactionName = reaction.emoji.toString()
-            if (
-                Emoji.JOIN.includes(reactionName) &&
-                this.currentGame.isPlayer(user)
-            ) {
-                const wasLeader = user.equals(this.currentGame.leader.user)
-                await this.removePlayer(user)
-
-                if (this.gameExists() && this.currentGame.hasPlayers()) {
-                    if (wasLeader) {
-                        embed = this.getJoinEmbed()
-                    } else {
-                        embed.fields[0].value =
-                            this.currentGame.playerManager.players.join(`\n`)
-                    }
-                    await sentMessage.edit({ embeds: [embed] })
-                } else {
-                    collector.stop()
-                    await removeMessage(sentMessage)
-                    this.currentGame = null
-                }
-            }
-        })
-
-        await reactOptions(sentMessage, reactionOptions)
-    }
-
-    async removeGameVote(message) {
-        await failSilently(this.unsafeRemoveGameVote.bind(this, message), [
+    async removeGameVote() {
+        await failSilently(this.unsafeRemoveGameInteraction.bind(this), [
             DiscordErrors.UNKNOWN_MESSAGE,
         ])
+    }
+
+    private async unsafeRemoveGameInteraction() {
+        const gameName = this.currentGame.name
+        const yes = []
+        const no = []
+
+        const embed = new MessageEmbed()
+            .setTitle('Remove Game?')
+            .addField('Yes', '0', true)
+            .addField('No', '0', true)
+        const row = getActionRow(['Yes', 'No'], ['PRIMARY', 'DANGER'])
+        const messageOptions = {
+            embeds: [embed],
+            components: [row],
+        }
+        const sentMessage = await this.currentChannel.send(messageOptions)
+
+        const collector = sentMessage.createMessageComponentCollector({
+            componentType: 'BUTTON',
+            filter: interaction => {
+                interaction.deferUpdate()
+                return true
+            },
+            time: maxReactionTime,
+        })
+
+        const collected = new Promise(resolve => {
+            collector.on('end', collect => {
+                resolve(collect)
+            })
+        })
+
+        collector.on('collect', interaction => {
+            if (interaction.customId === 'Yes') {
+                if (no.includes(interaction.user)) {
+                    const index = no.indexOf(interaction.user)
+                    if (index > -1) {
+                        no.splice(index)
+                    }
+                }
+                if (!yes.includes(interaction.user)) {
+                    yes.push(interaction.user)
+                }
+            } else if (interaction.customId === 'No') {
+                const index = yes.indexOf(interaction.user)
+                if (index > -1) {
+                    yes.splice(index)
+                }
+                if (!no.includes(interaction.user)) {
+                    no.push(interaction.user)
+                }
+            }
+            embed.fields[0].value = `${yes.length}`
+            embed.fields[1].value = `${no.length}`
+            sentMessage.edit(messageOptions)
+        })
+        this.collector = collector
+        await collected
+
+        let response
+        if (this.gameExists()) {
+            if (yes.length > no.length) {
+                try {
+                    console.log('Should be ending game')
+                    await this.currentGame.endGame()
+                } catch {
+                    console.log('Failed ending game or something')
+                }
+
+                response = `${gameName} has been removed`
+                this.currentGame = null
+            } else {
+                response = `${gameName} will continue`
+            }
+        } else {
+            response = `${gameName} is already gone`
+        }
+        await this.currentChannel.send({
+            embeds: [new MessageEmbed().setTitle(response)],
+        })
     }
 
     private async unsafeRemoveGameVote(message) {

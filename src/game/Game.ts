@@ -85,6 +85,7 @@ export abstract class Game {
     }
 
     endGame() {
+        console.log('Ending game')
         this.collector?.stop(`endgame`)
         throw new GameEndedError(`${this.name} has ended`)
     }
@@ -361,6 +362,7 @@ export abstract class Game {
         try {
             await this.game()
         } catch (err) {
+            console.log('play', err)
             if (!(err instanceof GameEndedError)) {
                 throw err
             }
@@ -381,6 +383,7 @@ export abstract class Game {
     //region User Input Error Handling
 
     handleError(err) {
+        console.log('handleError', err)
         if (err instanceof CollectorPlayerLeftError) {
             this.hasEnded()
         } else if (!(err instanceof CollectorPlayerPassedInput)) {

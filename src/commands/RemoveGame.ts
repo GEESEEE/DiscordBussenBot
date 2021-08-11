@@ -5,7 +5,7 @@ module.exports = {
     execute(client, message, args) {
         const server = client.serverManager.getServer(message.guild.id)
         if (server.readyToRemove(message)) {
-            return server.removeGameVote(message)
+            return server.removeGameVote()
         }
     },
 }

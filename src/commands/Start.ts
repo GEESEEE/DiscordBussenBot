@@ -25,7 +25,7 @@ module.exports = {
                     message.author,
                     message.channel,
                 )
-                return server.startGameInteraction()
+                return server.startGame()
             }
         }
     },

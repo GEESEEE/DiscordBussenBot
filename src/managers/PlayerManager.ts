@@ -32,4 +32,8 @@ export class PlayerManager {
     removePlayer(id: Snowflake): boolean {
         return this.playerCollection.delete(id)
     }
+
+    clear(): void {
+        this.playerCollection = new Collection()
+    }
 }
