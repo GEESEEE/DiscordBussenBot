@@ -15,11 +15,11 @@ export class Player {
         return this.user.id === player.user.id ?? false
     }
 
-    addCard(card) {
+    addCard(card: Card) {
         this.cards.push(card)
     }
 
-    removeCard(card) {
+    removeCard(card: Card) {
         const index = this.cards.indexOf(card)
         if (index > -1) {
             this.cards.splice(index, 1)
@@ -34,7 +34,7 @@ export class Player {
         return this.cards.length > 0
     }
 
-    hasValueInHand(card) {
+    hasValueInHand(card: Card) {
         for (const handCard of this.cards) {
             if (handCard.equals(card)) {
                 return true
@@ -43,7 +43,7 @@ export class Player {
         return false
     }
 
-    getCardsWithValue(card) {
+    getCardsWithValue(card: Card) {
         const cards = this.cards.filter(handCard => handCard.equals(card))
         for (const c of cards) {
             this.removeCard(c)

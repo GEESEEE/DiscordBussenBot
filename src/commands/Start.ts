@@ -1,4 +1,7 @@
+import { Message } from 'discord.js'
+
 import Bussen from '../game/games/Bussen'
+import { Client } from '../structures/Client'
 import { capitalizeFirstLetter } from '../utils/Utils'
 
 module.exports = {
@@ -6,9 +9,10 @@ module.exports = {
     aliases: ['s'],
     desc: 'Used to initiate a game',
     args: [`gamename`],
-    execute(client, message, args) {
-        const server = client.serverManager.getServer(message.guild.id)
-        if (server.readyToStart(message)) {
+    execute(client: Client, message: Message, args: string[]) {
+        const server = client.serverManager.getServer(message.guild!.id)
+
+        if (server?.readyToStart(message)) {
             const game = args[0]
 
             if (game && client.games.has(game)) {

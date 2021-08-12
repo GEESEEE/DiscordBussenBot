@@ -1,11 +1,13 @@
-import { MessageEmbed } from 'discord.js'
+import { Message, MessageEmbed } from 'discord.js'
+
+import { Client } from '../structures/Client'
 
 module.exports = {
     name: 'help',
     desc: 'Displays all possible commands and their descriptions',
-    execute(client, message, args) {
-        const server = client.serverManager.getServer(message.guild.id)
-        if (server.readyToHelp(message)) {
+    execute(client: Client, message: Message, args: string[]) {
+        const server = client.serverManager.getServer(message.guild!.id)
+        if (server?.readyToHelp(message)) {
             const embed = new MessageEmbed()
 
             const commands = []

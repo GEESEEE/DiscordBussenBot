@@ -25,7 +25,7 @@ export class PlayerManager {
         return typeof this.getPlayer(user.id) !== 'undefined'
     }
 
-    getPlayer(id: Snowflake): Player {
+    getPlayer(id: Snowflake): Player | undefined {
         return this.playerCollection.get(id)
     }
 

@@ -2,23 +2,30 @@ import {
     ButtonInteraction,
     DiscordAPIError,
     InteractionCollector,
+    Message,
     MessageActionRow,
     MessageButton,
+    MessageButtonStyleResolvable,
 } from 'discord.js'
 
 import { CollectorPlayerLeftError, GameEndedError } from '../game/Errors'
 import { Player } from '../structures/Player'
 import { DiscordErrors } from './Consts'
 
-export function sum(n) {
+export function sum(n: number) {
     return (Math.pow(n, 2) + n) / 2
 }
 
-export function capitalizeFirstLetter(string) {
+export function capitalizeFirstLetter(string: string) {
     return string.charAt(0).toUpperCase() + string.slice(1)
 }
 
-export function incSize(min, max, current, toAdd) {
+export function incSize(
+    min: number,
+    max: number,
+    current: number,
+    toAdd: number,
+) {
     const newVal = current + toAdd
     if (newVal > max) {
         return max
@@ -29,7 +36,10 @@ export function incSize(min, max, current, toAdd) {
     }
 }
 
-export function createRows(elements, rowIndices): Array<Array<any>> {
+export function createRows(
+    elements: any,
+    rowIndices: number[],
+): Array<Array<any>> {
     const rows = []
     let currentRow = []
 
@@ -45,7 +55,10 @@ export function createRows(elements, rowIndices): Array<Array<any>> {
     return rows
 }
 
-export function getActionRow(buttonLabels: Array<string>, buttonStyles = []) {
+export function getActionRow(
+    buttonLabels: Array<string>,
+    buttonStyles: MessageButtonStyleResolvable[] = [],
+) {
     const row = new MessageActionRow()
     for (let i = 0; i < buttonLabels.length; i++) {
         const label = buttonLabels[i]
@@ -59,9 +72,9 @@ export function getActionRow(buttonLabels: Array<string>, buttonStyles = []) {
     return row
 }
 
-export function getSingleInteraction(player: Player, message) {
+export function getSingleInteraction(player: Player, message: Message) {
     const collector = message.createMessageComponentCollector({
-        filter: interaction => {
+        filter: (interaction: ButtonInteraction) => {
             interaction.deferUpdate()
             return interaction.user.equals(player.user)
         },
@@ -88,7 +101,7 @@ export function getSingleInteraction(player: Player, message) {
 
 export function getInteractionCollector(
     player: Player,
-    message,
+    message: Message,
 ): InteractionCollector<ButtonInteraction> {
     return message.createMessageComponentCollector({
         filter: interaction => {
@@ -99,7 +112,7 @@ export function getInteractionCollector(
 }
 
 // Fails the given function silently if the caught error is in the given errorCodes
-export async function failSilently(func, errorCodes) {
+export async function failSilently(func: () => void, errorCodes: number[]) {
     try {
         await func()
     } catch (err) {
@@ -111,7 +124,7 @@ export async function failSilently(func, errorCodes) {
     }
 }
 
-export async function removeMessage(message) {
+export async function removeMessage(message: Message) {
     return failSilently(message.delete.bind(message), [
         DiscordErrors.UNKNOWN_MESSAGE,
     ])
