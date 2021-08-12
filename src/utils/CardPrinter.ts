@@ -34,11 +34,11 @@ export class CardPrinter {
         return parseInt(this.font.split(`px`)[0])
     }
 
-    private async backImage() {
+    private static async backImage() {
         return loadImage(`./assets/Cards/card_back.png`)
     }
 
-    private async getImage(card: Card) {
+    private static async getImage(card: Card) {
         const imgName = card.valueToString() + card.suitToString().charAt(0)
         const imgPath = `./assets/Cards/${imgName}.png`
         return loadImage(imgPath)
@@ -50,25 +50,25 @@ export class CardPrinter {
     }
 
     private getRowWidth(row: Array<Card> | string | number): number {
-        let width = 0
+        let width
         if (row instanceof Array) {
             const size = row.length
             width = size * this.cardWidth + (size - 1) * this.betweenCards
         } else if (typeof row === 'string') {
             width = this.ctx.measureText(row).width
-        } else if (typeof row === `number`) {
+        } else {
             width = 0
         }
         return width
     }
 
     private getRowHeight(row: Array<Card> | string | number): number {
-        let height = 0
+        let height
         if (row instanceof Array) {
             height = this.cardHeight + this.betweenCards
         } else if (typeof row === 'string') {
             height = this.fontSize + this.betweenCards
-        } else if (typeof row === `number`) {
+        } else {
             height = row
         }
         return height
@@ -152,9 +152,9 @@ export class CardPrinter {
 
                 let image
                 if (cardHidden) {
-                    image = await this.backImage()
+                    image = await CardPrinter.backImage()
                 } else {
-                    image = await this.getImage(card)
+                    image = await CardPrinter.getImage(card)
                 }
 
                 this.ctx.globalAlpha = focused && !cardFocused ? 0.5 : 1.0
