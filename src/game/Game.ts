@@ -15,6 +15,7 @@ import { CardPrinter } from '../utils/CardPrinter'
 import {
     getActionRow,
     getSingleInteraction,
+    incSize,
     removeMessage,
 } from '../utils/Utils'
 import { Deck } from './Deck'
@@ -123,17 +124,6 @@ export abstract class Game {
         return collected
     }
 
-    private incSize(min, max, current, toAdd) {
-        const newVal = current + toAdd
-        if (newVal > max) {
-            return max
-        } else if (newVal < min) {
-            return min
-        } else {
-            return newVal
-        }
-    }
-
     getWaitForValueRow() {
         return getActionRow(['+1', '+3', '-1', '-3', 'Continue'])
     }
@@ -160,13 +150,13 @@ export abstract class Game {
                         resolve(val)
                     } else {
                         if (interaction.customId === '+1') {
-                            val = this.incSize(min, max, val, 1)
+                            val = incSize(min, max, val, 1)
                         } else if (interaction.customId === '+3') {
-                            val = this.incSize(min, max, val, 3)
+                            val = incSize(min, max, val, 3)
                         } else if (interaction.customId === '-1') {
-                            val = this.incSize(min, max, val, -1)
+                            val = incSize(min, max, val, -1)
                         } else if (interaction.customId === '-3') {
-                            val = this.incSize(min, max, val, -3)
+                            val = incSize(min, max, val, -3)
                         }
                         embed.fields[embed.fields.length - 1].value = `${val}`
                         await message.edit({

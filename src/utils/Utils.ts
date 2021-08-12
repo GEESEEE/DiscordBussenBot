@@ -18,6 +18,17 @@ export function capitalizeFirstLetter(string) {
     return string.charAt(0).toUpperCase() + string.slice(1)
 }
 
+export function incSize(min, max, current, toAdd) {
+    const newVal = current + toAdd
+    if (newVal > max) {
+        return max
+    } else if (newVal < min) {
+        return min
+    } else {
+        return newVal
+    }
+}
+
 export function createRows(elements, rowIndices): Array<Array<any>> {
     const rows = []
     let currentRow = []
