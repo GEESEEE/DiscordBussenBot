@@ -252,7 +252,7 @@ export class Server {
         await collected
 
         let response
-        if (this.gameExists()) {
+        if (this.gameExists() && !this.currentGame.collector.ended) {
             if (yes.length > no.length) {
                 try {
                     this.currentGame.endGame()
