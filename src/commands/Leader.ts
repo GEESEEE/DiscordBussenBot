@@ -2,6 +2,7 @@ import { Message } from 'discord.js'
 
 import { Client } from '../structures/Client'
 
+// Currently not in use
 module.exports = {
     name: 'leader',
     desc: 'Makes someone else leader',

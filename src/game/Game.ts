@@ -110,7 +110,7 @@ export abstract class Game {
             if (typeof player === 'undefined') return
             this.leader = player
             const embed = new MessageEmbed().setTitle(
-                `${this.leader} is the new leader!`,
+                `${this.leader.user.username} is the new leader!`,
             )
             await this.channel.send({ embeds: [embed] })
         }

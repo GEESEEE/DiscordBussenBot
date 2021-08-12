@@ -87,8 +87,7 @@ export class Client extends Discord.Client {
     }
 
     async onInteraction(interaction: Interaction) {
-        console.log(interaction)
         if (!interaction.isCommand()) return
-        console.log('Dikke command jo')
+        console.log(interaction)
     }
 }
