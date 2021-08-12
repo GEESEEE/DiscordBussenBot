@@ -1,8 +1,6 @@
 import { Canvas, CanvasRenderingContext2D, loadImage } from 'canvas'
-import { type } from 'os'
 
 import { Card } from '../game/Deck'
-import { createRows, sum } from './Utils'
 
 export class CardPrinter {
     readonly cardWidth = 80
@@ -14,8 +12,8 @@ export class CardPrinter {
     ctx: CanvasRenderingContext2D
     rows: Array<Array<Card> | string | number> // keeps track of rows, number is empty space
     centered: Array<boolean>
-    focused: Array<Array<number>>
-    hidden: Array<Array<boolean>>
+    focused: Array<Array<number> | undefined>
+    hidden: Array<Array<boolean> | undefined>
 
     yOffset: number
 
@@ -40,7 +38,7 @@ export class CardPrinter {
         return loadImage(`./assets/Cards/card_back.png`)
     }
 
-    private async getImage(card) {
+    private async getImage(card: Card) {
         const imgName = card.valueToString() + card.suitToString().charAt(0)
         const imgPath = `./assets/Cards/${imgName}.png`
         return loadImage(imgPath)
@@ -78,9 +76,9 @@ export class CardPrinter {
 
     addRow(
         toPrint: Array<Card> | string | number,
-        centered?: boolean,
-        focused?: Array<number>,
-        hidden?: Array<boolean>,
+        centered = false,
+        focused?: Array<number> | undefined,
+        hidden?: Array<boolean> | undefined,
     ) {
         this.rows.push(toPrint)
         this.centered.push(centered)
@@ -107,8 +105,8 @@ export class CardPrinter {
             this.addRow(
                 toPrint[i],
                 centered[i],
-                focused ? focused[i] : null,
-                hidden ? hidden[i] : null,
+                focused ? focused[i] : undefined,
+                hidden ? hidden[i] : undefined,
             )
         }
         return this
@@ -119,7 +117,7 @@ export class CardPrinter {
             ...this.rows.map(row => this.getRowWidth(row)),
         )
         const totalRowHeight = this.rows.reduce(
-            (sum: number, row: Array<Card> | string) =>
+            (sum: number, row: Array<Card> | string | number) =>
                 sum + this.getRowHeight(row),
             0,
         ) as number
@@ -134,7 +132,7 @@ export class CardPrinter {
         return this
     }
 
-    private async printRow(index) {
+    private async printRow(index: number) {
         const row = this.rows[index]
         const centered = this.centered[index]
         const focused = this.focused[index]

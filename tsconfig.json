@@ -9,7 +9,7 @@
     "allowSyntheticDefaultImports": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-      "strict": false,
+      "strict": true,
     "baseUrl": ".",
       "resolveJsonModule": true,
     "lib": [
