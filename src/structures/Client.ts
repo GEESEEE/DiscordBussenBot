@@ -18,9 +18,9 @@ function readFolder(path: string) {
     return fs.readdirSync(path).filter(file => file.endsWith('.ts'))
 }
 
-const slashCommandFiles = readFolder('./src/slashCommands')
+const slashCommandFiles = readFolder('./src/commands/slash')
 
-const commandFiles = readFolder('./src/commands')
+const commandFiles = readFolder('./src/commands/normal')
 
 const gameFiles = readFolder('./src/game/games')
 
@@ -41,13 +41,13 @@ export class Client extends Discord.Client {
 
         // Set commands from /src/commands
         for (const file of commandFiles) {
-            const command = require(`../commands/${file}`)
+            const command = require(`../commands/normal/${file}`)
             this.commands.set(command.name, command)
         }
 
         // Set slashCommands
         for (const file of slashCommandFiles) {
-            const command = require(`../slashCommands/${file}`)
+            const command = require(`../commands/slash/${file}`)
             this.slashCommands.set(command.data.name, command)
             this.slashCommandList.push(command.data.toJSON())
         }
@@ -70,9 +70,13 @@ export class Client extends Discord.Client {
 
     async registerCommands() {
         const rest = new REST({ version: '9' }).setToken(process.env.TOKEN!)
+
         try {
+            const client = (await rest.get(
+                Routes.oauth2CurrentApplication(),
+            )) as Record<string, unknown>
             console.log('Attempting to register Slash Commands')
-            await rest.put(Routes.applicationCommands('833313461382938665'), {
+            await rest.put(Routes.applicationCommands(client.id as string), {
                 body: this.slashCommandList,
             })
             console.log('Slash Commands registered')

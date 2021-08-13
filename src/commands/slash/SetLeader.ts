@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import { CommandInteraction, Message } from 'discord.js'
 
-import { Client } from '../structures/Client'
+import { Client } from '../../structures/Client'
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -21,6 +21,9 @@ module.exports = {
             newLeader !== null &&
             server?.readyToMakeLeaderInteraction(interaction)
         ) {
+            await interaction.reply({
+                content: `Making ${newLeader} the leader`,
+            })
             return server.currentGame?.setLeader(newLeader)
         }
     },

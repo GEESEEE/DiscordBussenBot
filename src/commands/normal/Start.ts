@@ -1,8 +1,8 @@
 import { Message } from 'discord.js'
 
-import Bussen from '../game/games/Bussen'
-import { Client } from '../structures/Client'
-import { capitalizeFirstLetter } from '../utils/Utils'
+import Bussen from '../../game/games/Bussen'
+import { Client } from '../../structures/Client'
+import { capitalizeFirstLetter } from '../../utils/Utils'
 
 module.exports = {
     name: 'start',
@@ -22,15 +22,15 @@ module.exports = {
                     message.author,
                     message.channel,
                 )
-                return server.startGame()
             } else {
                 server.currentGame = new Bussen(
                     'Bussen',
                     message.author,
                     message.channel,
                 )
-                return server.startGame()
             }
+
+            return server.startGame()
         }
     },
 }

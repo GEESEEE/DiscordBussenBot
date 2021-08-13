@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import { CommandInteraction } from 'discord.js'
 
-import { Client } from '../structures/Client'
+import { Client } from '../../structures/Client'
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -11,6 +11,9 @@ module.exports = {
     async execute(client: Client, interaction: CommandInteraction) {
         const server = client.serverManager.getServer(interaction.guild!.id)
         if (server?.readyToQuitInteraction(interaction)) {
+            await interaction.reply({
+                content: `Quitting ${server?.currentGame?.name}`,
+            })
             return server.removePlayer(interaction.user)
         }
     },

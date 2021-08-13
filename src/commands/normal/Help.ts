@@ -1,6 +1,6 @@
 import { Message, MessageEmbed } from 'discord.js'
 
-import { Client } from '../structures/Client'
+import { Client } from '../../structures/Client'
 
 module.exports = {
     name: 'help',

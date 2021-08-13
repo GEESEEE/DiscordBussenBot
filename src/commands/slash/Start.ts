@@ -1,9 +1,9 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import { CommandInteraction, Interaction, Message } from 'discord.js'
 
-import Bussen from '../game/games/Bussen'
-import { Client } from '../structures/Client'
-import { capitalizeFirstLetter } from '../utils/Utils'
+import Bussen from '../../game/games/Bussen'
+import { Client } from '../../structures/Client'
+import { capitalizeFirstLetter } from '../../utils/Utils'
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -30,12 +30,14 @@ module.exports = {
                     interaction.user,
                     interaction.channel,
                 )
+                await interaction.reply({ content: `Starting ${game}` })
             } else {
                 server.currentGame = new Bussen(
                     'Bussen',
                     interaction.user,
                     interaction.channel!,
                 )
+                await interaction.reply({ content: `Starting Bussen` })
             }
             return server.startGame()
         }

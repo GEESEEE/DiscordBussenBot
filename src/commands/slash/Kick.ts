@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import { CommandInteraction, Message } from 'discord.js'
 
-import { Client } from '../structures/Client'
+import { Client } from '../../structures/Client'
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -20,6 +20,7 @@ module.exports = {
             user !== null &&
             server?.readyToKickInteraction(interaction, user)
         ) {
+            await interaction.reply({ content: `Kicking ${user}` })
             return server.removePlayer(user)
         }
     },

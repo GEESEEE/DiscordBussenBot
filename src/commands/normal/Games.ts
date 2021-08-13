@@ -1,7 +1,7 @@
 import { Message, MessageEmbed } from 'discord.js'
 
-import { Client } from '../structures/Client'
-import { capitalizeFirstLetter } from '../utils/Utils'
+import { Client } from '../../structures/Client'
+import { capitalizeFirstLetter } from '../../utils/Utils'
 
 module.exports = {
     name: `games`,

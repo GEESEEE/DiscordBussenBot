@@ -12,6 +12,6 @@ export class CollectorPlayerLeftError extends Error {
 
 export class NewLeaderError extends Error {
     constructor(message: string) {
-        super()
+        super(message)
     }
 }
