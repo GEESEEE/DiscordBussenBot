@@ -27,15 +27,15 @@ export class CollectorManager {
             | ReactionCollector
             | InteractionCollector<ButtonInteraction>,
         player: Player,
-        askLeader?: boolean,
+        askLeader = false,
     ) {
         this.collector = collector
         this.player = player
-        this.askLeader = askLeader ?? false
+        this.askLeader = askLeader
     }
 
-    stop(reason?: string) {
-        this.collector?.stop(reason ?? '')
+    stop(reason = '') {
+        this.collector?.stop(reason)
     }
 
     check(player: Player) {
