@@ -2,7 +2,7 @@ import * as Sentry from '@sentry/node'
 import { Intents } from 'discord.js'
 import dotenv from 'dotenv'
 
-import { Client } from './src/structures/Client'
+import { Client } from './structures/Client'
 
 dotenv.config()
 
