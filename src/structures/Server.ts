@@ -241,6 +241,7 @@ export class Server {
 
     private async unsafeRemoveGameInteraction() {
         if (this.currentGame === null || this.currentChannel === null) return
+        const currentGame = this.currentGame
         const gameName = this.currentGame.name
         const yes: User[] = []
         const no: User[] = []
@@ -304,6 +305,7 @@ export class Server {
         let response
         if (
             this.currentGame !== null &&
+            currentGame === this.currentGame &&
             !this.currentGame.collectorManager.collector?.ended
         ) {
             if (yes.length > no.length) {
