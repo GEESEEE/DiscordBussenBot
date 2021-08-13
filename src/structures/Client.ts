@@ -75,7 +75,7 @@ export class Client extends Discord.Client {
         const rest = new REST({ version: '9' }).setToken(process.env.TOKEN!)
         try {
             console.log('Attempting to register Slash Commands')
-            await rest.put(Routes.applicationCommands('873663168801566741'), {
+            await rest.put(Routes.applicationCommands('833313461382938665'), {
                 body: this.slashCommandList,
             })
             console.log('Slash Commands registered')
