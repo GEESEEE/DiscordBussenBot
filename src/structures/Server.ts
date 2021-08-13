@@ -1,4 +1,6 @@
 import {
+    CommandInteraction,
+    Interaction,
     InteractionCollector,
     Message,
     MessageComponentInteraction,
@@ -37,8 +39,16 @@ export class Server {
         return message.channel === this.currentChannel
     }
 
+    isFromChannelInteraction(interaction: CommandInteraction) {
+        return this.currentChannel === interaction.channel
+    }
+
     validMessage(message: Message) {
         return this.hasChannel() && this.isFromChannel(message)
+    }
+
+    validInteraction(interaction: CommandInteraction) {
+        return this.hasChannel() && this.isFromChannelInteraction(interaction)
     }
 
     readyToHelp(message: Message) {
@@ -49,12 +59,25 @@ export class Server {
         return this.validMessage(message) && this.currentGame === null
     }
 
+    readyToStartInteraction(interaction: CommandInteraction) {
+        return this.validInteraction(interaction) && this.currentGame === null
+    }
+
     readyToQuit(message: Message) {
         return (
             this.validMessage(message) &&
             this.currentGame !== null &&
             this.currentGame.hasStarted &&
             this.currentGame.isPlayer(message.author)
+        )
+    }
+
+    readyToQuitInteraction(interaction: CommandInteraction) {
+        return (
+            this.validInteraction(interaction) &&
+            this.currentGame !== null &&
+            this.currentGame.hasStarted &&
+            this.currentGame.isPlayer(interaction.user)
         )
     }
 

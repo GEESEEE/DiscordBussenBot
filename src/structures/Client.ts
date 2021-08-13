@@ -2,6 +2,7 @@ import { REST } from '@discordjs/rest'
 import Discord, {
     ClientOptions,
     Collection,
+    CommandInteraction,
     Interaction,
     Message,
 } from 'discord.js'
@@ -53,20 +54,18 @@ export class Client extends Discord.Client {
             this.slashCommands.set(command.data.name, command)
             this.slashCommandList.push(command.data.toJSON())
         }
-
+        console.log('SlashCommands:', this.slashCommandList)
         // Set Playable Games
         for (const file of gameFiles) {
             const game = require(`../game/games/${file}`)
             this.games.set(file.toLowerCase().slice(0, -3), game) // Slice off file extension
         }
 
-        this.registerCommands()
-
         // Event will fire once when initialized
         this.once('ready', this.onReady)
 
         // Event fires when bot detects a new message
-        this.on('messageCreate', this.onMessage)
+        //this.on('messageCreate', this.onMessage)
 
         // Event for slash commands
         this.on('interactionCreate', this.onInteraction)
@@ -85,17 +84,18 @@ export class Client extends Discord.Client {
         }
     }
 
-    onReady() {
+    async onReady() {
+        await this.registerCommands()
         console.log('Ready!')
     }
 
     async onInteraction(interaction: Interaction) {
         if (!interaction.isCommand()) return
-        console.log(interaction)
-        if (!this.commands.has(interaction.commandName)) return
+        console.log(interaction.commandName)
+        if (!this.slashCommands.has(interaction.commandName)) return
 
         try {
-            await this.commands
+            await this.slashCommands
                 .get(interaction.commandName)
                 .execute(this, interaction)
         } catch (err) {
@@ -110,6 +110,7 @@ export class Client extends Discord.Client {
     async onMessage(message: Message) {
         // If message not valid for this bot, ignore it
         if (
+            message.content.startsWith('/') ||
             !message.content.startsWith(prefix) ||
             !message.guild ||
             message.author.bot
