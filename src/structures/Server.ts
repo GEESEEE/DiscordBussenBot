@@ -251,7 +251,10 @@ export class Server {
         await collected
 
         let response
-        if (this.currentGame !== null && !this.currentGame.collector!.ended) {
+        if (
+            this.currentGame !== null &&
+            !this.currentGame.collectorManager.collector?.ended
+        ) {
             if (yes.length > no.length) {
                 try {
                     this.currentGame.endGame()

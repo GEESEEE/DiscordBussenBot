@@ -31,9 +31,7 @@ export class Client extends Discord.Client {
         // Set commands from /src/commands
         for (const file of commandFiles) {
             const command = require(`../commands/${file}`)
-            if (command.name !== 'leader') {
-                this.commands.set(command.name, command)
-            }
+            this.commands.set(command.name, command)
         }
 
         // Set Playable Games

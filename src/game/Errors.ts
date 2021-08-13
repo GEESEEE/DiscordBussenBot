@@ -9,9 +9,3 @@ export class CollectorPlayerLeftError extends Error {
         super(message)
     }
 }
-
-export class CollectorPlayerPassedInput extends Error {
-    constructor(message: string) {
-        super(message)
-    }
-}

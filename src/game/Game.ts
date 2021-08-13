@@ -1,20 +1,16 @@
 import Discord, {
     ButtonInteraction,
-    Channel,
-    Interaction,
     InteractionCollector,
     Message,
     MessageActionRow,
     MessageAttachment,
-    MessageCollector,
     MessageEmbed,
     MessageOptions,
-    ReactionCollector,
     TextBasedChannels,
-    TextChannel,
     User,
 } from 'discord.js'
 
+import { CollectorManager } from '../managers/CollectorManager'
 import { PlayerManager } from '../managers/PlayerManager'
 import { Player } from '../structures/Player'
 import { CardPrinter } from '../utils/CardPrinter'
@@ -25,24 +21,14 @@ import {
     removeMessage,
 } from '../utils/Utils'
 import { Card, Deck } from './Deck'
-import {
-    CollectorPlayerLeftError,
-    CollectorPlayerPassedInput,
-    GameEndedError,
-} from './Errors'
+import { CollectorPlayerLeftError, GameEndedError } from './Errors'
 
 export abstract class Game {
     name: string
 
     deck!: Deck
     channel: TextBasedChannels
-    collector:
-        | MessageCollector
-        | ReactionCollector
-        | InteractionCollector<ButtonInteraction>
-        | undefined
-
-    collectorPlayer: Player | undefined
+    collectorManager: CollectorManager
 
     playerManager: PlayerManager
     leader: Player
@@ -59,6 +45,7 @@ export abstract class Game {
         this.leader = this.playerManager.getPlayer(leader.id)!
         this.hasStarted = false
         this.channel = channel
+        this.collectorManager = new CollectorManager()
     }
 
     //region Simple Functions
@@ -85,7 +72,7 @@ export abstract class Game {
     }
 
     endGame() {
-        this.collector?.stop(`endgame`)
+        this.collectorManager.collector?.stop(`endgame`)
         throw new GameEndedError(`${this.name} has ended`)
     }
 
@@ -106,12 +93,17 @@ export abstract class Game {
 
     async setLeader(user: User) {
         if (this.isPlayer(user) && !this.isLeader(user)) {
-            const player = this.playerManager.getPlayer(user.id)
-            if (typeof player === 'undefined') return
+            const player = this.playerManager.getPlayer(user.id)!
             this.leader = player
             const embed = new MessageEmbed().setTitle(
                 `${this.leader.user.username} is the new leader!`,
             )
+            if (
+                this.collectorManager.player?.equals(player) &&
+                this.collectorManager.askLeader
+            ) {
+                this.collectorManager.stop('removeplayer')
+            }
             await this.channel.send({ embeds: [embed] })
         }
     }
@@ -128,13 +120,13 @@ export abstract class Game {
     async getSingleInteraction(
         player: Player,
         sentMessage: Message,
+        askLeader?: boolean,
     ): Promise<ButtonInteraction> {
         const { collected, collector } = getSingleInteraction(
             player,
             sentMessage,
         )
-        this.collector = collector
-        this.collectorPlayer = player
+        this.collectorManager.set(collector, player, askLeader ?? false)
         return collected
     }
 
@@ -142,7 +134,7 @@ export abstract class Game {
         return getActionRow(['+1', '+3', '-1', '-3', 'Continue'])
     }
 
-    async waitForInteractionValue(
+    async waitForValue(
         collector: InteractionCollector<ButtonInteraction>,
         val: number,
         min: number,
@@ -152,8 +144,10 @@ export abstract class Game {
         row: MessageActionRow,
         player?: Player,
     ) {
+        let askLeader = false
         if (typeof player === 'undefined') {
             player = this.leader
+            askLeader = true
         }
 
         const collected = new Promise((resolve, reject) => {
@@ -186,22 +180,21 @@ export abstract class Game {
                     reject(new GameEndedError(`${this.name} has ended`))
                 }
                 if (reason === `removeplayer`) {
-                    reject(new CollectorPlayerLeftError(``))
+                    reject(new CollectorPlayerLeftError(`Player Removed`))
                 }
             })
         })
-        this.collector = collector
-        this.collectorPlayer = player
+        this.collectorManager.set(collector, player, askLeader)
 
         return (await collected) as number
     }
 
     async removePlayer(user: User) {
         if (this.isPlayer(user)) {
-            const player = this.playerManager.getPlayer(user.id)
-            if (typeof player === 'undefined') return
-            if (this.collector && player.equals(this.collectorPlayer!)) {
-                this.collector?.stop(`removeplayer`)
+            const player = this.playerManager.getPlayer(user.id)!
+
+            if (this.collectorManager.check(player)) {
+                this.collectorManager.stop(`removeplayer`)
             }
 
             const title = `${user.username} decided to be a little bitch and quit ${this.name}\n`
@@ -247,13 +240,10 @@ export abstract class Game {
 
         const embed = new MessageEmbed().setTitle(`${this.name} has finished`)
         await this.channel.send({ embeds: [embed] })
-        // const server: Guild = this.channel.guild
-        // server.currentGame = null
     }
 
     abstract game(): void
     abstract onRemovePlayer(user: User): string
-    abstract passInput(oldPlayer: User, newPlayer: User): void
 
     //endregion
 
@@ -262,7 +252,7 @@ export abstract class Game {
     handleError(err: Error) {
         if (err instanceof CollectorPlayerLeftError) {
             this.hasEnded()
-        } else if (!(err instanceof CollectorPlayerPassedInput)) {
+        } else {
             throw err
         }
     }

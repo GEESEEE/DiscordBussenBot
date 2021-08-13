@@ -382,7 +382,7 @@ export default class Bussen extends Game {
         })
         const sizeCollector = getInteractionCollector(this.leader, sentMessage)
 
-        pyramidSize = await this.waitForInteractionValue(
+        pyramidSize = await this.waitForValue(
             sizeCollector,
             pyramidSize,
             1,
@@ -407,6 +407,7 @@ export default class Bussen extends Game {
             const collected = await this.getSingleInteraction(
                 this.leader,
                 sentMessage,
+                true,
             )
 
             if (collected) {
@@ -544,6 +545,7 @@ export default class Bussen extends Game {
         const collected = await this.getSingleInteraction(
             busPlayer,
             sentMessage,
+            true,
         )
 
         if (collected) {
@@ -565,7 +567,7 @@ export default class Bussen extends Game {
                 sentMessage,
             )
 
-            busSize = await this.waitForInteractionValue(
+            busSize = await this.waitForValue(
                 busSizeCollector,
                 busSize,
                 1,
@@ -593,7 +595,7 @@ export default class Bussen extends Game {
                         sentMessage,
                     )
 
-                    checkpoints = await this.waitForInteractionValue(
+                    checkpoints = await this.waitForValue(
                         checkpointCollector,
                         checkpoints,
                         0,
@@ -693,13 +695,6 @@ export default class Bussen extends Game {
         }
         if (newBusPlayer) {
             this.bus.player = newBusPlayer
-        }
-    }
-
-    passInput(oldPlayer: User, newPlayer: User): void {
-        if (this.bus && this.bus.player.user.equals(oldPlayer)) {
-            this.bus.player = this.playerManager.getPlayer(newPlayer.id)!
-            this.collector?.stop()
         }
     }
 
