@@ -3,7 +3,7 @@ import { Message } from 'discord.js'
 import { Client } from '../structures/Client'
 
 module.exports = {
-    name: 'leader',
+    name: 'setleader',
     desc: 'Makes someone else leader',
     args: [`@player`],
     execute(client: Client, message: Message, args: string[]) {

@@ -10,7 +10,9 @@ module.exports = {
         const server = client.serverManager.addServer(message.guild!.id)
 
         if (server?.readyToEnd(message)) {
-            return server.currentGame?.endGame()
+            try {
+                server.currentGame?.endGame()
+            } catch {}
         }
     },
 }

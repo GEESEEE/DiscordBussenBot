@@ -55,6 +55,10 @@ export class Server {
         return this.validMessage(message)
     }
 
+    readyToHelpInteraction(interaction: CommandInteraction) {
+        return this.validInteraction(interaction)
+    }
+
     readyToStart(message: Message) {
         return this.validMessage(message) && this.currentGame === null
     }
@@ -83,11 +87,20 @@ export class Server {
 
     readyToKick(message: Message, user: User) {
         return (
-            user &&
             message.author !== user &&
             this.validMessage(message) &&
             this.currentGame !== null &&
             this.currentGame?.isLeader(message.author) &&
+            this.currentGame.isPlayer(user)
+        )
+    }
+
+    readyToKickInteraction(interaction: CommandInteraction, user: User) {
+        return (
+            !interaction.user.equals(user) &&
+            this.validInteraction(interaction) &&
+            this.currentGame !== null &&
+            this.currentGame.isLeader(interaction.user) &&
             this.currentGame.isPlayer(user)
         )
     }
@@ -107,8 +120,12 @@ export class Server {
         )
     }
 
-    readyToPassInput(message: Message, user: User) {
-        return this.validMessage(message) && this.currentGame !== null
+    readyToEndInteraction(interaction: CommandInteraction) {
+        return (
+            this.validInteraction(interaction) &&
+            this.currentGame !== null &&
+            this.currentGame.isLeader(interaction.user)
+        )
     }
 
     readyToMakeLeader(message: Message, user: User) {
@@ -119,12 +136,24 @@ export class Server {
         )
     }
 
+    readyToMakeLeaderInteraction(interaction: CommandInteraction) {
+        return (
+            this.validInteraction(interaction) &&
+            this.currentGame !== null &&
+            this.currentGame.leader.user.equals(interaction.user)
+        )
+    }
+
     readyToShowGames(message: Message) {
         return this.validMessage(message)
     }
 
     readyToRemove(message: Message) {
         return this.validMessage(message) && this.currentGame !== null
+    }
+
+    readyToRemoveInteraction(interaction: CommandInteraction) {
+        return this.validInteraction(interaction) && this.currentGame !== null
     }
 
     getJoinEmbed() {
@@ -145,7 +174,7 @@ export class Server {
 
     async startGame() {
         if (this.currentGame === null || this.currentChannel === null) return
-        const embed = this.getJoinEmbed()
+        let embed = this.getJoinEmbed()
         if (typeof embed === 'undefined') return
         const row = getActionRow(['Join', 'Start'], ['PRIMARY', 'SECONDARY'])
         const sentMessage = await this.currentChannel.send({
@@ -167,10 +196,10 @@ export class Server {
                 // if user not yet a player, add player and refresh embed
                 if (!this.currentGame.isPlayer(interaction.user)) {
                     this.currentGame.addPlayer(interaction.user)
-                    embed.fields[0].value =
+                    embed!.fields[0].value =
                         this.currentGame.playerManager.players.join(`\n`)
                     await sentMessage.edit({
-                        embeds: [embed],
+                        embeds: [embed!],
                         components: [row],
                     })
 
@@ -180,10 +209,9 @@ export class Server {
 
                     // If players left, update embed
                     if (this.currentGame.hasPlayers()) {
-                        embed.fields[0].value =
-                            this.currentGame.playerManager.players.join(`\n`)
+                        embed = this.getJoinEmbed()
                         await sentMessage.edit({
-                            embeds: [embed],
+                            embeds: [embed!],
                             components: [row],
                         })
 

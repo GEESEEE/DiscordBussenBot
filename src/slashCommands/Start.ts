@@ -17,7 +17,7 @@ module.exports = {
                 .addChoice('Bussen', 'bussen'),
         ),
 
-    execute(client: Client, interaction: CommandInteraction) {
+    async execute(client: Client, interaction: CommandInteraction) {
         const server = client.serverManager.getServer(interaction.guild!.id)
 
         if (server?.readyToStartInteraction(interaction)) {
@@ -30,15 +30,14 @@ module.exports = {
                     interaction.user,
                     interaction.channel,
                 )
-                return server.startGame()
             } else {
                 server.currentGame = new Bussen(
                     'Bussen',
                     interaction.user,
                     interaction.channel!,
                 )
-                return server.startGame()
             }
+            return server.startGame()
         }
     },
 }

@@ -65,7 +65,7 @@ export class Client extends Discord.Client {
         this.once('ready', this.onReady)
 
         // Event fires when bot detects a new message
-        //this.on('messageCreate', this.onMessage)
+        this.on('messageCreate', this.onMessage)
 
         // Event for slash commands
         this.on('interactionCreate', this.onInteraction)
