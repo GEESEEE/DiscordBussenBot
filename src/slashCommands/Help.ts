@@ -15,19 +15,11 @@ module.exports = {
             const embed = new MessageEmbed()
 
             const commands = []
-            for (const command of client.commands.values()) {
-                const alias =
-                    command.aliases && command.aliases.length > 0
-                        ? ', !' + command.aliases.join(', !')
-                        : ''
-
-                const args =
-                    command.args && command.args.length > 0
-                        ? '`' + `${command.args.join(' ')}` + '`'
-                        : ``
+            for (const command of client.slashCommands.values()) {
+                const args = 'args'
 
                 commands.push(
-                    `**!${command.name}${alias}** ${args}: ${command.desc}\n`,
+                    `**/${command.data.name}** ${args}: ${command.data.description}\n`,
                 )
             }
 

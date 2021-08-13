@@ -54,7 +54,7 @@ export class Client extends Discord.Client {
             this.slashCommands.set(command.data.name, command)
             this.slashCommandList.push(command.data.toJSON())
         }
-        console.log('SlashCommands:', this.slashCommandList)
+
         // Set Playable Games
         for (const file of gameFiles) {
             const game = require(`../game/games/${file}`)
