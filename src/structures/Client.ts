@@ -14,17 +14,15 @@ dotenv.config()
 import { prefix } from '../../config.json'
 import { ServerManager } from '../managers/ServerManager'
 
-const slashCommandFiles = fs
-    .readdirSync('./src/slashCommands')
-    .filter(file => file.endsWith('.ts'))
+function readFolder(path: string) {
+    return fs.readdirSync(path).filter(file => file.endsWith('.ts'))
+}
 
-const commandFiles = fs
-    .readdirSync('./src/commands')
-    .filter(file => file.endsWith('.ts'))
+const slashCommandFiles = readFolder('./src/slashCommands')
 
-const gameFiles = fs
-    .readdirSync('./src/game/games')
-    .filter(file => file.endsWith('.ts'))
+const commandFiles = readFolder('./src/commands')
+
+const gameFiles = readFolder('./src/game/games')
 
 export class Client extends Discord.Client {
     commands: Collection<string, any>
