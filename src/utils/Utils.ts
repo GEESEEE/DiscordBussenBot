@@ -88,6 +88,15 @@ export function getSingleInteraction(player: Player, message: Message) {
     return {
         collected: new Promise((resolve, reject) => {
             collector.on('end', (collected, reason) => {
+                if (reason === 'endgame') {
+                    reject(new GameEndedError(`Game has ended`))
+                }
+                if (reason === 'setleader') {
+                    reject(new NewLeaderError('New Leader selected'))
+                }
+                if (reason === `removeplayer`) {
+                    reject(new CollectorPlayerLeftError(`Player Removed`))
+                }
                 if (collected.size === 0) {
                     reject(new CollectorPlayerLeftError(`Collector stopped`))
                     return
