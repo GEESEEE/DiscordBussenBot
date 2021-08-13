@@ -2,7 +2,6 @@ import { REST } from '@discordjs/rest'
 import Discord, {
     ClientOptions,
     Collection,
-    CommandInteraction,
     Interaction,
     Message,
 } from 'discord.js'
