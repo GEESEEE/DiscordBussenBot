@@ -1,4 +1,9 @@
-import Discord from 'discord.js'
+import Discord, {
+    ClientOptions,
+    Collection,
+    Interaction,
+    Message,
+} from 'discord.js'
 import fs from 'fs'
 
 import { prefix } from '../../config.json'
@@ -13,12 +18,12 @@ const gameFiles = fs
     .filter(file => file.endsWith('.ts'))
 
 export class Client extends Discord.Client {
-    commands
-    games
+    commands: Collection<string, any>
+    games: Collection<string, any>
     serverManager: ServerManager
 
-    constructor(x) {
-        super(x)
+    constructor(options: ClientOptions) {
+        super(options)
         this.commands = new Discord.Collection()
         this.games = new Discord.Collection()
         this.serverManager = new ServerManager()
@@ -42,13 +47,16 @@ export class Client extends Discord.Client {
 
         // Event fires when bot detects a new message
         this.on('messageCreate', this.onMessage)
+
+        // Event for slash commands
+        this.on('interactionCreate', this.onInteraction)
     }
 
     onReady() {
         console.log('Ready!')
     }
 
-    async onMessage(message) {
+    async onMessage(message: Message) {
         // If message not valid for this bot, ignore it
         if (
             !message.content.startsWith(prefix) ||
@@ -62,7 +70,8 @@ export class Client extends Discord.Client {
             .slice(prefix.length)
             .trim()
             .split(/ +/)
-        const commandName = args.shift().toLowerCase()
+        const commandName = args.shift()?.toLowerCase()
+        if (typeof commandName === 'undefined') return
 
         // If command is valid, execute it
         if (this.commands.has(commandName)) {
@@ -75,5 +84,10 @@ export class Client extends Discord.Client {
                 await command.execute(this, message, args)
             }
         }
+    }
+
+    async onInteraction(interaction: Interaction) {
+        if (!interaction.isCommand()) return
+        console.log(interaction)
     }
 }

@@ -2,7 +2,7 @@ import { Suit, Value } from '../utils/Consts'
 
 export class Deck {
     cards: Array<Card>
-    constructor(CardType) {
+    constructor(CardType: any) {
         this.cards = []
 
         for (const value of Object.values(Value)) {
@@ -13,15 +13,15 @@ export class Deck {
         }
     }
 
-    addCard(card) {
+    addCard(card: Card) {
         this.cards.push(card)
     }
 
-    addCards(cards) {
+    addCards(cards: Card[]) {
         this.cards.push(...cards)
     }
 
-    removeCard(card) {
+    removeCard(card: Card) {
         const index = this.cards.indexOf(card)
         if (index > -1) {
             this.cards.splice(index, 1)
@@ -49,9 +49,9 @@ export abstract class Card {
     suit: Suit
 
     // Any implementation *must* have their own CardValueMap
-    CardValueMap: Record<Value, number>
+    CardValueMap!: Record<Value, number>
 
-    protected constructor(value, suit) {
+    protected constructor(value: Value, suit: Suit) {
         this.value = value
         this.suit = suit
     }
@@ -60,11 +60,11 @@ export abstract class Card {
         return this.CardValueMap[this.value]
     }
 
-    equals(card) {
+    equals(card: Card) {
         return this.valueOf() === card.valueOf()
     }
 
-    isBetween(card1, card2) {
+    isBetween(card1: Card, card2: Card) {
         return (card1 < this && this < card2) || (card2 < this && this < card1)
     }
 
@@ -76,7 +76,7 @@ export abstract class Card {
         return this.suit === Suit.CLUBS || this.suit === Suit.SPADES
     }
 
-    hasSameSuit(cards) {
+    hasSameSuit(cards: Card[]) {
         for (const card of cards) {
             if (card.suit === this.suit) {
                 return true
@@ -85,7 +85,7 @@ export abstract class Card {
         return false
     }
 
-    isEqualTo(cards) {
+    isEqualTo(cards: Card[]) {
         for (const card of cards) {
             if (this.equals(card)) {
                 return true
@@ -109,7 +109,7 @@ export abstract class Card {
             return `Clubs`
         } else if (this.suit === Suit.HEARTS) {
             return `Hearts`
-        } else if (this.suit === Suit.DIAMONDS) {
+        } else {
             return `Diamonds`
         }
     }

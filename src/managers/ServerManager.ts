@@ -9,14 +9,14 @@ export class ServerManager {
         this.servers = new Collection()
     }
 
-    addServer(guildId: Snowflake): Server {
+    addServer(guildId: Snowflake): Server | undefined {
         if (typeof this.servers.get(guildId) === 'undefined') {
             this.servers.set(guildId, new Server())
         }
         return this.servers.get(guildId)
     }
 
-    getServer(guildId: Snowflake): Server {
+    getServer(guildId: Snowflake): Server | undefined {
         return this.servers.get(guildId)
     }
 }

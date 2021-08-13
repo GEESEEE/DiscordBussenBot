@@ -1,10 +1,16 @@
 import Discord, {
     ButtonInteraction,
+    Channel,
+    Interaction,
     InteractionCollector,
+    Message,
     MessageActionRow,
+    MessageAttachment,
     MessageCollector,
     MessageEmbed,
+    MessageOptions,
     ReactionCollector,
+    TextBasedChannels,
     TextChannel,
     User,
 } from 'discord.js'
@@ -18,7 +24,7 @@ import {
     incSize,
     removeMessage,
 } from '../utils/Utils'
-import { Deck } from './Deck'
+import { Card, Deck } from './Deck'
 import {
     CollectorPlayerLeftError,
     CollectorPlayerPassedInput,
@@ -28,23 +34,29 @@ import {
 export abstract class Game {
     name: string
 
-    deck: Deck
-    channel: TextChannel
+    deck!: Deck
+    channel: TextBasedChannels
     collector:
         | MessageCollector
         | ReactionCollector
         | InteractionCollector<ButtonInteraction>
-    collectorPlayer: Player
+        | undefined
+
+    collectorPlayer: Player | undefined
 
     playerManager: PlayerManager
     leader: Player
     hasStarted: boolean
 
-    protected constructor(name, leader, channel) {
+    protected constructor(
+        name: string,
+        leader: User,
+        channel: TextBasedChannels,
+    ) {
         this.name = name
         this.playerManager = new PlayerManager()
         this.playerManager.addUser(leader)
-        this.leader = this.playerManager.getPlayer(leader.id)
+        this.leader = this.playerManager.getPlayer(leader.id)!
         this.hasStarted = false
         this.channel = channel
     }
@@ -94,9 +106,11 @@ export abstract class Game {
 
     async setLeader(user: User) {
         if (this.isPlayer(user) && !this.isLeader(user)) {
-            this.leader = this.playerManager.getPlayer(user.id)
+            const player = this.playerManager.getPlayer(user.id)
+            if (typeof player === 'undefined') return
+            this.leader = player
             const embed = new MessageEmbed().setTitle(
-                `${this.leader} is the new leader!`,
+                `${this.leader.user.username} is the new leader!`,
             )
             await this.channel.send({ embeds: [embed] })
         }
@@ -105,7 +119,7 @@ export abstract class Game {
     //endregion
 
     //region Important Functions
-    async replaceMessage(sentMessage, messageOptions) {
+    async replaceMessage(sentMessage: Message, messageOptions: MessageOptions) {
         const message = await this.channel.send(messageOptions)
         await removeMessage(sentMessage)
         return message
@@ -113,7 +127,7 @@ export abstract class Game {
 
     async getSingleInteraction(
         player: Player,
-        sentMessage,
+        sentMessage: Message,
     ): Promise<ButtonInteraction> {
         const { collected, collector } = getSingleInteraction(
             player,
@@ -129,22 +143,22 @@ export abstract class Game {
     }
 
     async waitForInteractionValue(
-        collector,
-        val,
-        min,
-        max,
-        message,
-        embed,
+        collector: InteractionCollector<ButtonInteraction>,
+        val: number,
+        min: number,
+        max: number,
+        message: Message,
+        embed: MessageEmbed,
         row: MessageActionRow,
         player?: Player,
     ) {
-        if (!player) {
+        if (typeof player === 'undefined') {
             player = this.leader
         }
 
         const collected = new Promise((resolve, reject) => {
-            collector.on(`collect`, async interaction => {
-                if (interaction.user.equals(player.user)) {
+            collector.on(`collect`, async (interaction: ButtonInteraction) => {
+                if (interaction.user.equals(player!.user)) {
                     if (interaction.customId === 'Continue') {
                         collector.stop()
                         resolve(val)
@@ -185,7 +199,8 @@ export abstract class Game {
     async removePlayer(user: User) {
         if (this.isPlayer(user)) {
             const player = this.playerManager.getPlayer(user.id)
-            if (this.collector && player.equals(this.collectorPlayer)) {
+            if (typeof player === 'undefined') return
+            if (this.collector && player.equals(this.collectorPlayer!)) {
                 this.collector?.stop(`removeplayer`)
             }
 
@@ -203,7 +218,7 @@ export abstract class Game {
             this.deck.addCards(player.cards)
             player.removeAllCards()
 
-            const additionalMessage = this.onRemovePlayer(player)
+            const additionalMessage = this.onRemovePlayer(player.user)
 
             if (additionalMessage) {
                 message += additionalMessage
@@ -237,14 +252,14 @@ export abstract class Game {
     }
 
     abstract game(): void
-    abstract onRemovePlayer(player): string
-    abstract passInput(oldPlayer, newPlayer): void
+    abstract onRemovePlayer(user: User): string
+    abstract passInput(oldPlayer: User, newPlayer: User): void
 
     //endregion
 
     //region User Input Error Handling
 
-    handleError(err) {
+    handleError(err: Error) {
         if (err instanceof CollectorPlayerLeftError) {
             this.hasEnded()
         } else if (!(err instanceof CollectorPlayerPassedInput)) {
@@ -254,22 +269,19 @@ export abstract class Game {
 
     // This will continually ask the given player for a response using getResponse
     // if the player leaves during this, it returns undefined
-    async loopForResponse(func) {
+    async loopForResponse(func: () => Promise<void>) {
         let succes
-        let val
         while (!succes && this.hasPlayers()) {
             try {
-                val = await func.call(this)
+                await func.call(this)
                 succes = true
             } catch (err) {
                 this.handleError(err)
             }
         }
-
-        return val
     }
 
-    async askAllPlayers(func) {
+    async askAllPlayers(func: (player: Player) => Promise<void>) {
         for (let i = 0; i < this.playerManager.players.length; i++) {
             const player = this.playerManager.players[i]
             try {
@@ -285,7 +297,7 @@ export abstract class Game {
         }
     }
 
-    async askWhile(boolean, func) {
+    async askWhile(boolean: () => boolean, func: () => Promise<void>) {
         while (this.hasPlayers() && boolean()) {
             try {
                 await func.call(this)
@@ -295,7 +307,7 @@ export abstract class Game {
         }
     }
 
-    async ask(func) {
+    async ask(func: () => Promise<void>) {
         if (this.hasPlayers()) {
             try {
                 return func.call(this)
@@ -324,14 +336,18 @@ export abstract class Game {
         return this.getCardAttachment(printer, `pcards.png`)
     }
 
-    drawnCardAttachment(card) {
+    drawnCardAttachment(card: Card) {
         const printer = new CardPrinter()
             .addRow(`Drawn`, true)
             .addRow([card], true)
         return this.getCardAttachment(printer, `dcard.png`)
     }
 
-    async setImages(embed, imageAttachment, thumbnailAttachment?) {
+    async setImages(
+        embed: MessageEmbed,
+        imageAttachment: MessageAttachment,
+        thumbnailAttachment?: MessageAttachment,
+    ) {
         const attachments = [imageAttachment]
 
         if (thumbnailAttachment) {

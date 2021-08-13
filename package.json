@@ -3,7 +3,8 @@
     "version": "1.0.0",
     "description": "",
     "scripts": {
-        "start": "ts-node --transpile-only index.ts"
+        "start": "ts-node --transpile-only src/index.ts",
+        "lint": "eslint src"
     },
     "author": "Gies den Broeder",
     "license": "ISC",

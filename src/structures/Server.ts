@@ -1,8 +1,10 @@
 import {
     InteractionCollector,
+    Message,
     MessageComponentInteraction,
     MessageEmbed,
     ReactionCollector,
+    TextBasedChannels,
     TextChannel,
     User,
 } from 'discord.js'
@@ -14,99 +16,92 @@ import { DiscordErrors } from '../utils/Consts'
 import { failSilently, getActionRow, removeMessage } from '../utils/Utils'
 
 export class Server {
-    currentGame: Game
-    currentChannel: TextChannel
+    currentGame: Game | null
+    currentChannel: TextBasedChannels | null
     collector:
         | ReactionCollector
         | InteractionCollector<MessageComponentInteraction>
+        | null
 
     constructor() {
         this.currentGame = null
         this.currentChannel = null
+        this.collector = null
     }
 
     hasChannel() {
         return Boolean(this.currentChannel)
     }
 
-    isFromChannel(message) {
+    isFromChannel(message: Message) {
         return message.channel === this.currentChannel
     }
 
-    validMessage(message) {
+    validMessage(message: Message) {
         return this.hasChannel() && this.isFromChannel(message)
     }
 
-    gameExists() {
-        return Boolean(this.currentGame)
-    }
-
-    readyToHelp(message) {
+    readyToHelp(message: Message) {
         return this.validMessage(message)
     }
 
-    readyToStart(message) {
-        return this.validMessage(message) && !this.gameExists()
+    readyToStart(message: Message) {
+        return this.validMessage(message) && this.currentGame === null
     }
 
-    readyToQuit(message) {
+    readyToQuit(message: Message) {
         return (
             this.validMessage(message) &&
-            this.gameExists() &&
+            this.currentGame !== null &&
             this.currentGame.hasStarted &&
             this.currentGame.isPlayer(message.author)
         )
     }
 
-    readyToKick(message, user) {
+    readyToKick(message: Message, user: User) {
         return (
             user &&
             message.author !== user &&
             this.validMessage(message) &&
-            this.gameExists() &&
-            this.currentGame.isLeader(message.author) &&
+            this.currentGame !== null &&
+            this.currentGame?.isLeader(message.author) &&
             this.currentGame.isPlayer(user)
         )
     }
 
-    async removePlayer(player) {
-        await this.currentGame.removePlayer(player)
+    async removePlayer(user: User) {
+        await this.currentGame?.removePlayer(user)
         if (!this.currentGame?.hasPlayers()) {
             this.collector?.stop()
         }
     }
 
-    readyToEnd(message) {
+    readyToEnd(message: Message) {
         return (
             this.validMessage(message) &&
-            this.gameExists() &&
+            this.currentGame !== null &&
             this.currentGame?.isLeader(message.author)
         )
     }
 
-    readyToPassInput(message, user) {
+    readyToPassInput(message: Message, user: User) {
+        return this.validMessage(message) && this.currentGame !== null
+    }
+
+    readyToMakeLeader(message: Message, user: User) {
         return (
             this.validMessage(message) &&
-            this.gameExists() &&
-            user instanceof User
+            this.currentGame !== null &&
+            this.currentGame.leader.user.equals(message.author)
         )
     }
 
-    readyToMakeLeader(message, user) {
-        return (
-            this.validMessage(message) &&
-            this.gameExists() &&
-            this.currentGame.leader === message.author &&
-            user instanceof User
-        )
-    }
-
-    readyToShowGames(message) {
+    readyToShowGames(message: Message) {
         return this.validMessage(message)
     }
 
-    readyToRemove(message) {
-        return this.validMessage(message) && this.gameExists()
+    readyToRemove(message: Message) {
+        return this.validMessage(message) && this.currentGame !== null
     }
 
     getJoinEmbed() {
@@ -126,7 +121,9 @@ export class Server {
     }
 
     async startGame() {
+        if (this.currentGame === null || this.currentChannel === null) return
         const embed = this.getJoinEmbed()
+        if (typeof embed === 'undefined') return
         const row = getActionRow(['Join', 'Start'], ['PRIMARY', 'SECONDARY'])
         const sentMessage = await this.currentChannel.send({
             embeds: [embed],
@@ -142,6 +139,7 @@ export class Server {
         })
 
         collector.on('collect', async interaction => {
+            if (this.currentGame === null) return
             if (interaction.customId === 'Join' && !interaction.user.bot) {
                 // if user not yet a player, add player and refresh embed
                 if (!this.currentGame.isPlayer(interaction.user)) {
@@ -158,7 +156,7 @@ export class Server {
                     await this.currentGame.removePlayer(interaction.user)
 
                     // If players left, update embed
-                    if (this.gameExists() && this.currentGame.hasPlayers()) {
+                    if (this.currentGame.hasPlayers()) {
                         embed.fields[0].value =
                             this.currentGame.playerManager.players.join(`\n`)
                         await sentMessage.edit({
@@ -191,9 +189,10 @@ export class Server {
     }
 
     private async unsafeRemoveGameInteraction() {
+        if (this.currentGame === null || this.currentChannel === null) return
         const gameName = this.currentGame.name
-        const yes = []
-        const no = []
+        const yes: User[] = []
+        const no: User[] = []
 
         const embed = new MessageEmbed()
             .setTitle('Remove Game?')
@@ -252,7 +251,7 @@ export class Server {
         await collected
 
         let response
-        if (this.gameExists() && !this.currentGame.collector.ended) {
+        if (this.currentGame !== null && !this.currentGame.collector!.ended) {
             if (yes.length > no.length) {
                 try {
                     this.currentGame.endGame()

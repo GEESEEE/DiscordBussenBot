@@ -1,7 +1,10 @@
 import {
     ButtonInteraction,
+    Message,
     MessageActionRow,
     MessageEmbed,
+    TextBasedChannels,
+    TextChannel,
     User,
 } from 'discord.js'
 import pluralize from 'pluralize'
@@ -21,11 +24,11 @@ import { Game } from '../Game'
 
 export default class Bussen extends Game {
     drinks: number
-    pyramid: Pyramid
-    bus: Bus
+    pyramid!: Pyramid
+    bus!: Bus
     busPlayerManager: PlayerManager
 
-    constructor(name, leader, channel) {
+    constructor(name: string, leader: User, channel: TextBasedChannels) {
         super(name, leader, channel)
         this.deck = new Deck(BussenCard)
         this.drinks = 1
@@ -36,7 +39,7 @@ export default class Bussen extends Game {
         // if removed player is in the bus, swap for new player
         if (this.bus) {
             const player = this.busPlayerManager.getPlayer(user.id)
-            if (player.equals(this.bus.player)) {
+            if (player?.equals(this.bus.player)) {
                 const newPlayer = this.getNewBusPlayer()
                 if (newPlayer) {
                     this.bus.player = newPlayer
@@ -48,6 +51,7 @@ export default class Bussen extends Game {
                 this.busPlayerManager.removePlayer(user.id)
             }
         }
+        return ''
     }
 
     async game() {
@@ -76,7 +80,13 @@ export default class Bussen extends Game {
 
     //region Phase 1 Helpers
 
-    async createEmbed(player: Player, question, card?, reaction?, verdict?) {
+    async createEmbed(
+        player: Player,
+        question: string,
+        card?: Card,
+        reaction?: string,
+        verdict?: string,
+    ) {
         const attachments = []
         if (player.cards.length > 0) {
             const playerCardAttachment = await this.playerCardAttachment(player)
@@ -101,11 +111,11 @@ export default class Bussen extends Game {
             await this.setImages(
                 embed,
                 attachments[0],
-                attachments.length === 2 ? attachments[1] : null,
+                attachments.length === 2 ? attachments[1] : undefined,
             )
         }
 
-        if (card) {
+        if (card && verdict) {
             embed.addField(`Verdict`, verdict)
         }
 
@@ -129,7 +139,13 @@ export default class Bussen extends Game {
         return { message, collected: collected as ButtonInteraction }
     }
 
-    getMessage(isEqual, isTrue, player: Player, card, rainbow?) {
+    getMessage(
+        isEqual: boolean,
+        isTrue: boolean,
+        player: Player,
+        card: Card,
+        rainbow?: boolean,
+    ) {
         const drinks = this.drinks
         let message
         if (isEqual) {
@@ -160,13 +176,13 @@ export default class Bussen extends Game {
     }
 
     async addVerdict(
-        sentMessage,
-        isTrue,
+        sentMessage: Message,
+        isTrue: boolean,
         player: Player,
-        question,
-        card,
-        reaction,
-        rainbow?,
+        question: string,
+        card: Card,
+        reaction: string,
+        rainbow?: boolean,
     ) {
         const verdict = this.getMessage(
             card.isEqualTo(player.cards),
@@ -193,7 +209,7 @@ export default class Bussen extends Game {
 
     //region Phase 1 Questions
 
-    async askColour(player) {
+    async askColour(player: Player) {
         const question = `red or black?`
         const row = getActionRow(['Red', 'Black'], ['DANGER', 'SECONDARY'])
         const { message, collected } = await this.getInteraction(
@@ -202,7 +218,7 @@ export default class Bussen extends Game {
             row,
         )
 
-        const card = this.deck.getRandomCard()
+        const card = this.deck.getRandomCard()!
         const isTrue =
             (collected.customId === 'Red' && card.isRed()) ||
             (collected.customId === 'Black' && card.isBlack())
@@ -217,7 +233,7 @@ export default class Bussen extends Game {
         )
     }
 
-    async askHigherLower(player) {
+    async askHigherLower(player: Player) {
         const question = `higher or lower than ${player.cards[0]}?`
         const row = getActionRow(['Higher', 'Lower'])
         const { message, collected } = await this.getInteraction(
@@ -226,7 +242,7 @@ export default class Bussen extends Game {
             row,
         )
 
-        const card = this.deck.getRandomCard()
+        const card = this.deck.getRandomCard()!
         const isTrue =
             (collected.customId === 'Higher' && card > player.cards[0]) ||
             (collected.customId === 'Lower' && card < player.cards[0])
@@ -241,7 +257,7 @@ export default class Bussen extends Game {
         )
     }
 
-    async askBetween(player) {
+    async askBetween(player: Player) {
         const question = `is it between ${player.cards[0]} and ${player.cards[1]}?`
         const row = getActionRow(['Yes', 'No'], ['PRIMARY', 'DANGER'])
         const { message, collected } = await this.getInteraction(
@@ -250,7 +266,7 @@ export default class Bussen extends Game {
             row,
         )
 
-        const card = this.deck.getRandomCard()
+        const card = this.deck.getRandomCard()!
         const isBetween = card.isBetween(player.cards[0], player.cards[1])
         const isTrue =
             (collected.customId === 'Yes' && isBetween) ||
@@ -266,7 +282,7 @@ export default class Bussen extends Game {
         )
     }
 
-    async askSuit(player) {
+    async askSuit(player: Player) {
         const question = `do you already have the suit, you have ${[
             ...new Set(player.cards.map(cards => cards.suit)),
         ].join(', ')}?`
@@ -277,7 +293,7 @@ export default class Bussen extends Game {
             row,
         )
 
-        const card = this.deck.getRandomCard()
+        const card = this.deck.getRandomCard()!
         const hasSameSuit = card.hasSameSuit(player.cards)
         const tru =
             (collected.customId === 'Yes' && hasSameSuit) ||
@@ -343,7 +359,7 @@ export default class Bussen extends Game {
 
     async initPyramid() {
         const deckSize = this.deck.cards.length
-        let maxSize
+        let maxSize = 1
         for (let i = 1; i < 12; i++) {
             if (sum(i) <= deckSize) {
                 maxSize = i
@@ -402,7 +418,7 @@ export default class Bussen extends Game {
                 await this.setImages(embed, attachment)
 
                 await this.replaceMessage(sentMessage, {
-                    embeds: embed,
+                    embeds: [embed],
                     files: [attachment],
                 })
             }
@@ -410,7 +426,7 @@ export default class Bussen extends Game {
     }
 
     async playPyramid() {
-        const { card, drinks } = this.pyramid.getNextCard()
+        const { card, drinks } = this.pyramid.getNextCard()!
 
         const pyramidAttachment = await this.getPyramidAttachment(
             this.pyramid.index,
@@ -451,7 +467,7 @@ export default class Bussen extends Game {
 
     //region Phase 3 Bus
 
-    async getBusAttachment(focus?, showDrawn?) {
+    async getBusAttachment(focus?: boolean, showDrawn?: boolean) {
         const { rows, centered, focused, hidden } = this.bus.cardPrinterParams(
             focus,
             showDrawn,
@@ -595,7 +611,7 @@ export default class Bussen extends Game {
                 await this.setImages(embed, attachment)
                 await this.replaceMessage(sentMessage, {
                     embeds: [embed],
-                    components: [attachment],
+                    files: [attachment],
                 })
             }
         }
@@ -625,7 +641,7 @@ export default class Bussen extends Game {
             sentMessage,
         )
 
-        const newCard = this.bus.getRandomCard()
+        const newCard = this.bus.getRandomCard()!
         const correct =
             (collected.customId === 'Higher' && newCard > oldCard) ||
             (collected.customId === 'Lower' && newCard < oldCard)
@@ -680,9 +696,9 @@ export default class Bussen extends Game {
         }
     }
 
-    passInput(oldPlayer, newPlayer): void {
-        if (this.bus && this.bus.player.equals(oldPlayer)) {
-            this.bus.player = newPlayer
+    passInput(oldPlayer: User, newPlayer: User): void {
+        if (this.bus && this.bus.player.user.equals(oldPlayer)) {
+            this.bus.player = this.playerManager.getPlayer(newPlayer.id)!
             this.collector?.stop()
         }
     }
@@ -709,7 +725,12 @@ class Bus {
     hidden: boolean
     maxIndex: number
 
-    constructor(player, size, checkpoints, hidden) {
+    constructor(
+        player: Player,
+        size: number,
+        checkpoints: number,
+        hidden: boolean,
+    ) {
         this.player = player
         this.deck = new Deck(BussenCard)
         this.sequence = []
@@ -717,7 +738,7 @@ class Bus {
         this.hidden = hidden
 
         for (let i = 0; i < size; i++) {
-            this.sequence.push(this.deck.getRandomCard())
+            this.sequence.push(this.deck.getRandomCard()!)
         }
         this.discarded = []
         this.currentIndex = 0
@@ -741,7 +762,7 @@ class Bus {
         return this.currentIndex + 1 - this.getCurrentCheckpoint()
     }
 
-    incrementIndex(correct) {
+    incrementIndex(correct: boolean) {
         if (this.currentIndex > this.maxIndex) {
             this.maxIndex = this.currentIndex
         }
@@ -779,7 +800,7 @@ class Bus {
         return this.deck.getRandomCard()
     }
 
-    iterate(newCard, correct) {
+    iterate(newCard: Card, correct: boolean) {
         this.discarded.push(this.getCurrentCard())
         this.sequence[this.currentIndex] = newCard
 
@@ -790,13 +811,13 @@ class Bus {
         this.turns++
     }
 
-    cardPrinterParams(focus = false, showDrawn?) {
+    cardPrinterParams(focus = false, showDrawn?: boolean) {
         const rows = createRows(this.sequence, this.checkpoints)
         const centered = [true]
-        let focused
+        let focused: Array<Array<number>> | undefined
         let focusIndex
         let hidden
-        let hiddenIndex
+        let hiddenIndex: number | undefined
 
         if (focus) {
             focused = []
@@ -825,7 +846,7 @@ class Bus {
                         rowFocused.push(i)
                     }
 
-                    if (curr > hiddenIndex) {
+                    if (curr > hiddenIndex!) {
                         rowHidden.push(true)
                     } else {
                         rowHidden.push(false)
@@ -835,7 +856,7 @@ class Bus {
                 }
 
                 if (focus) {
-                    focused.push(rowFocused)
+                    focused!.push(rowFocused)
                 }
                 if (hidden) {
                     hidden.push(rowHidden)
@@ -855,7 +876,7 @@ class Pyramid {
     index: number
     rows: Array<number>
 
-    constructor(deck, reversed, size) {
+    constructor(deck: Deck, reversed: boolean, size: number) {
         this.deck = deck
         this.reversed = reversed
         this.size = size
@@ -867,7 +888,7 @@ class Pyramid {
             for (let i = 0; i < size; i++) {
                 this.rows.push(index)
                 for (let j = 0; j <= i; j++) {
-                    this.cards.push(deck.getRandomCard())
+                    this.cards.push(deck.getRandomCard()!)
                     index++
                 }
             }
@@ -875,7 +896,7 @@ class Pyramid {
             for (let i = size; i > 0; i--) {
                 this.rows.push(index)
                 for (let j = 0; j < i; j++) {
-                    this.cards.push(deck.getRandomCard())
+                    this.cards.push(deck.getRandomCard()!)
                     index++
                 }
             }
@@ -897,7 +918,7 @@ class Pyramid {
         }
     }
 
-    getDrinkCounts(index) {
+    getDrinkCounts(index: number) {
         if (this.reversed) {
             for (let i = 0; i < this.size; i++) {
                 if (sum(i) <= index && index < sum(i + 1)) {
