@@ -57,9 +57,9 @@ export default class Bussen extends Game {
     async game() {
         // Phase 1 questions
         await this.askAllPlayers(this.askColour)
-        await this.askAllPlayers(this.askHigherLower)
-        await this.askAllPlayers(this.askBetween)
-        await this.askAllPlayers(this.askSuit)
+        // await this.askAllPlayers(this.askHigherLower)
+        // await this.askAllPlayers(this.askBetween)
+        // await this.askAllPlayers(this.askSuit)
 
         // Phase 2 Pyramid
         await this.loopForResponse(this.initPyramid)

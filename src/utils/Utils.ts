@@ -8,7 +8,11 @@ import {
     MessageButtonStyleResolvable,
 } from 'discord.js'
 
-import { CollectorPlayerLeftError, GameEndedError } from '../game/Errors'
+import {
+    CollectorPlayerLeftError,
+    GameEndedError,
+    NewLeaderError,
+} from '../game/Errors'
 import { Player } from '../structures/Player'
 import { DiscordErrors } from './Consts'
 
@@ -84,9 +88,6 @@ export function getSingleInteraction(player: Player, message: Message) {
     return {
         collected: new Promise((resolve, reject) => {
             collector.on('end', (collected, reason) => {
-                if (reason === 'endgame') {
-                    reject(new GameEndedError('Game Ended'))
-                }
                 if (collected.size === 0) {
                     reject(new CollectorPlayerLeftError(`Collector stopped`))
                     return

@@ -21,7 +21,11 @@ import {
     removeMessage,
 } from '../utils/Utils'
 import { Card, Deck } from './Deck'
-import { CollectorPlayerLeftError, GameEndedError } from './Errors'
+import {
+    CollectorPlayerLeftError,
+    GameEndedError,
+    NewLeaderError,
+} from './Errors'
 
 export abstract class Game {
     name: string
@@ -72,7 +76,7 @@ export abstract class Game {
     }
 
     endGame() {
-        this.collectorManager.collector?.stop(`endgame`)
+        this.collectorManager.stop(`endgame`)
         throw new GameEndedError(`${this.name} has ended`)
     }
 
@@ -98,11 +102,13 @@ export abstract class Game {
             const embed = new MessageEmbed().setTitle(
                 `${this.leader.user.username} is the new leader!`,
             )
-            if (
-                this.collectorManager.player?.equals(player) &&
-                this.collectorManager.askLeader
-            ) {
-                this.collectorManager.stop('removeplayer')
+            console.log(
+                'Set leader',
+                user.username,
+                this.collectorManager.player?.user.username,
+            )
+            if (this.collectorManager.askLeader) {
+                this.collectorManager.stop('setleader')
             }
             await this.channel.send({ embeds: [embed] })
         }
@@ -120,13 +126,13 @@ export abstract class Game {
     async getSingleInteraction(
         player: Player,
         sentMessage: Message,
-        askLeader?: boolean,
+        askLeader = false,
     ): Promise<ButtonInteraction> {
         const { collected, collector } = getSingleInteraction(
             player,
             sentMessage,
         )
-        this.collectorManager.set(collector, player, askLeader ?? false)
+        this.collectorManager.set(collector, player, askLeader)
         return collected
     }
 
@@ -178,6 +184,9 @@ export abstract class Game {
             collector.on(`end`, (collected, reason) => {
                 if (reason === 'endgame') {
                     reject(new GameEndedError(`${this.name} has ended`))
+                }
+                if (reason === 'setleader') {
+                    reject(new NewLeaderError('New Leader selected'))
                 }
                 if (reason === `removeplayer`) {
                     reject(new CollectorPlayerLeftError(`Player Removed`))
@@ -250,9 +259,10 @@ export abstract class Game {
     //region User Input Error Handling
 
     handleError(err: Error) {
+        console.error(err)
         if (err instanceof CollectorPlayerLeftError) {
             this.hasEnded()
-        } else {
+        } else if (!(err instanceof NewLeaderError)) {
             throw err
         }
     }
