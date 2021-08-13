@@ -102,11 +102,6 @@ export abstract class Game {
             const embed = new MessageEmbed().setTitle(
                 `${this.leader.user.username} is the new leader!`,
             )
-            console.log(
-                'Set leader',
-                user.username,
-                this.collectorManager.player?.user.username,
-            )
             if (this.collectorManager.askLeader) {
                 this.collectorManager.stop('setleader')
             }
@@ -259,7 +254,6 @@ export abstract class Game {
     //region User Input Error Handling
 
     handleError(err: Error) {
-        console.error(err)
         if (err instanceof CollectorPlayerLeftError) {
             this.hasEnded()
         } else if (!(err instanceof NewLeaderError)) {

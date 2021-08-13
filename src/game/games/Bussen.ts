@@ -1,5 +1,6 @@
 import {
     ButtonInteraction,
+    Collection,
     Message,
     MessageActionRow,
     MessageEmbed,
@@ -545,7 +546,6 @@ export default class Bussen extends Game {
         const collected = await this.getSingleInteraction(
             busPlayer,
             sentMessage,
-            true,
         )
 
         if (collected) {
@@ -658,9 +658,14 @@ export default class Bussen extends Game {
                     this.bus.currentIndex + 2
                 } `
             } else {
-                message = `${this.bus.player} managed to escape the BUSS in ${this.bus.turns} turns, while consuming ${this.bus.totalDrinks} drinks in total`
+                message = `${this.bus.player} managed to escape the BUSS in ${
+                    this.bus.turns
+                } turns\n${this.bus.printDrinkMap()}`
             }
-        } else if (newCard.equals(oldCard)) {
+        } else if (
+            newCard.equals(oldCard) &&
+            this.playerManager.players.length > 1
+        ) {
             newBusPlayer = this.getNewBusPlayer()
             message = `${this.bus.player} drew ${newCard} so ${newBusPlayer} is now the BUSS driver!\n${this.bus.player} still has to consume ${this.bus.drinkCount} drinks, though.`
         } else {
@@ -715,7 +720,7 @@ class Bus {
     isFinished: boolean
 
     turns: number
-    totalDrinks: number
+    drinkMap: Collection<Player, number>
 
     hidden: boolean
     maxIndex: number
@@ -749,8 +754,8 @@ class Bus {
         this.currentCheckpoint = 0
         this.isFinished = false
 
-        this.turns = 0
-        this.totalDrinks = 0
+        this.turns = 1
+        this.drinkMap = new Collection()
     }
 
     get drinkCount() {
@@ -800,10 +805,24 @@ class Bus {
         this.sequence[this.currentIndex] = newCard
 
         if (!correct) {
-            this.totalDrinks = this.totalDrinks + this.drinkCount
+            let playerDrinks = 0
+            if (typeof this.drinkMap.get(this.player) === 'undefined') {
+                this.drinkMap.set(this.player, 0)
+            } else {
+                playerDrinks = this.drinkMap.get(this.player)!
+            }
+            this.drinkMap.set(this.player, playerDrinks + this.drinkCount)
         }
         this.incrementIndex(correct)
         this.turns++
+    }
+
+    printDrinkMap(): string {
+        let string = ''
+        for (const entry of this.drinkMap.entries()) {
+            string += `${entry[0]} consumed ${entry[1]} drinks\n`
+        }
+        return string
     }
 
     cardPrinterParams(focus = false, showDrawn?: boolean) {
