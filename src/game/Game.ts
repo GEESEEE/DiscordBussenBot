@@ -12,7 +12,6 @@ import Discord, {
 
 import { CollectorManager } from '../managers/CollectorManager'
 import { PlayerManager } from '../managers/PlayerManager'
-import { Player } from '../structures/Player'
 import { CardPrinter } from '../utils/CardPrinter'
 import {
     getActionRow,
@@ -20,12 +19,14 @@ import {
     incSize,
     removeMessage,
 } from '../utils/Utils'
-import { Card, Deck } from './Deck'
+import { Card } from './Card'
+import { Deck } from './Deck'
 import {
     CollectorPlayerLeftError,
     GameEndedError,
     NewLeaderError,
 } from './Errors'
+import { Player } from './Player'
 
 export abstract class Game {
     name: string

@@ -14,7 +14,7 @@ import {
     GameEndedError,
     NewLeaderError,
 } from '../game/Errors'
-import { Player } from '../structures/Player'
+import { Player } from '../game/Player'
 import { DiscordErrors } from './Consts'
 
 export function sum(n: number) {

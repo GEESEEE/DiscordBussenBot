@@ -1,5 +1,6 @@
 import { sum } from '../../../utils/Utils'
-import { Card, Deck } from '../../Deck'
+import { Card } from '../../Card'
+import { Deck } from '../../Deck'
 
 export class Pyramid {
     deck: Deck

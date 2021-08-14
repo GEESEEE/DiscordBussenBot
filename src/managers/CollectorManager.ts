@@ -5,7 +5,7 @@ import {
     ReactionCollector,
 } from 'discord.js'
 
-import { Player } from '../structures/Player'
+import { Player } from '../game/Player'
 
 export class CollectorManager {
     collector:

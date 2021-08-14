@@ -1,6 +1,6 @@
 import { Collection, Snowflake, User } from 'discord.js'
 
-import { Player } from '../structures/Player'
+import { Player } from '../game/Player'
 
 export class PlayerManager {
     playerCollection: Collection<Snowflake, Player>

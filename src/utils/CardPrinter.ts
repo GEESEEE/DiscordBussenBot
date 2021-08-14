@@ -1,6 +1,6 @@
 import { Canvas, CanvasRenderingContext2D, loadImage } from 'canvas'
 
-import { Card } from '../game/Deck'
+import { Card } from '../game/Card'
 
 export class CardPrinter {
     readonly cardWidth = 80

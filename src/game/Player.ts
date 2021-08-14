@@ -1,6 +1,6 @@
 import { User } from 'discord.js'
 
-import { Card } from '../game/Deck'
+import { Card } from './Card'
 
 export class Player {
     user: User

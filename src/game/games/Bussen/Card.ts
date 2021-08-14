@@ -1,5 +1,5 @@
 import { Value } from '../../../utils/Consts'
-import { Card } from '../../Deck'
+import { Card } from '../../Card'
 
 export class BussenCard extends Card {
     CardValueMap: Record<Value, number> = {

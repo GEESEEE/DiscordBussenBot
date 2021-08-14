@@ -9,7 +9,6 @@ import {
 import pluralize from 'pluralize'
 
 import { PlayerManager } from '../../../managers/PlayerManager'
-import { Player } from '../../../structures/Player'
 import { CardPrinter } from '../../../utils/CardPrinter'
 import { EmptyString } from '../../../utils/Consts'
 import {
@@ -18,10 +17,12 @@ import {
     getInteractionCollector,
     sum,
 } from '../../../utils/Utils'
-import { Card, Deck } from '../../Deck'
+import { Card } from '../../Card'
+import { Deck } from '../../Deck'
 import { Game } from '../../Game'
+import { Player } from '../../Player'
 import { Bus } from './Bus'
-import { BussenCard } from './BussenCard'
+import { BussenCard } from './Card'
 import { Pyramid } from './Pyramid'
 
 export default class Bussen extends Game {

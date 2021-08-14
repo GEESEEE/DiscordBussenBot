@@ -1,9 +1,10 @@
 import { Collection } from 'discord.js'
 
-import { Player } from '../../../structures/Player'
 import { createRows } from '../../../utils/Utils'
-import { Card, Deck } from '../../Deck'
-import { BussenCard } from './BussenCard'
+import { Card } from '../../Card'
+import { Deck } from '../../Deck'
+import { Player } from '../../Player'
+import { BussenCard } from './Card'
 
 export class Bus {
     player: Player
