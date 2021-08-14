@@ -21,10 +21,6 @@ export function sum(n: number) {
     return (Math.pow(n, 2) + n) / 2
 }
 
-export function capitalizeFirstLetter(string: string) {
-    return string.charAt(0).toUpperCase() + string.slice(1)
-}
-
 export function readFolder(path: string, fileExtension = '.ts') {
     return fs.readdirSync(path).filter(file => file.endsWith(fileExtension))
 }
