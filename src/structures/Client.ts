@@ -67,17 +67,6 @@ export class Client extends Discord.Client {
         this.on('interactionCreate', this.onInteraction)
     }
 
-    async setClientInfo() {
-        const rest = new REST({ version: '9' }).setToken(process.env.TOKEN!)
-        try {
-            this.info = (await rest.get(
-                Routes.oauth2CurrentApplication(),
-            )) as Record<string, any>
-        } catch (err) {
-            console.error(err)
-        }
-    }
-
     async registerCommands() {
         const rest = new REST({ version: '9' }).setToken(process.env.TOKEN!)
         try {
@@ -90,7 +79,7 @@ export class Client extends Discord.Client {
     }
 
     async onReady() {
-        await this.setClientInfo()
+        this.info = (await this.application?.fetch()) as Record<string, any>
         console.log('Ready!')
     }
 
