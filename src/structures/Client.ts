@@ -18,10 +18,8 @@ function readFolder(path: string) {
     return fs.readdirSync(path).filter(file => file.endsWith('.ts'))
 }
 
-const slashCommandFiles = readFolder('./src/commands/slash')
-
 const commandFiles = readFolder('./src/commands/normal')
-
+const slashCommandFiles = readFolder('./src/commands/slash')
 const gameFiles = readFolder('./src/game/games')
 
 export class Client extends Discord.Client {
@@ -86,7 +84,6 @@ export class Client extends Discord.Client {
     }
 
     async onReady() {
-        await this.registerCommands()
         console.log('Ready!')
     }
 
@@ -111,7 +108,6 @@ export class Client extends Discord.Client {
     async onMessage(message: Message) {
         // If message not valid for this bot, ignore it
         if (
-            message.content.startsWith('/') ||
             !message.content.startsWith(prefix) ||
             !message.guild ||
             message.author.bot
