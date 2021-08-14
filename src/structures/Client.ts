@@ -28,6 +28,7 @@ export class Client extends Discord.Client {
     slashCommandList: any[]
     games: Collection<string, any>
     serverManager: ServerManager
+    info!: Record<string, any>
 
     constructor(options: ClientOptions) {
         super(options)
@@ -66,24 +67,30 @@ export class Client extends Discord.Client {
         this.on('interactionCreate', this.onInteraction)
     }
 
+    async setClientInfo() {
+        const rest = new REST({ version: '9' }).setToken(process.env.TOKEN!)
+        try {
+            this.info = (await rest.get(
+                Routes.oauth2CurrentApplication(),
+            )) as Record<string, any>
+        } catch (err) {
+            console.error(err)
+        }
+    }
+
     async registerCommands() {
         const rest = new REST({ version: '9' }).setToken(process.env.TOKEN!)
-
         try {
-            const client = (await rest.get(
-                Routes.oauth2CurrentApplication(),
-            )) as Record<string, unknown>
-            console.log('Attempting to register Slash Commands')
-            await rest.put(Routes.applicationCommands(client.id as string), {
+            await rest.put(Routes.applicationCommands(this.info.id), {
                 body: this.slashCommandList,
             })
-            console.log('Slash Commands registered')
         } catch (error) {
             console.error(error)
         }
     }
 
     async onReady() {
+        await this.setClientInfo()
         console.log('Ready!')
     }
 
@@ -113,13 +120,14 @@ export class Client extends Discord.Client {
             message.author.bot
         )
             return
-
+        console.log(message.content)
         const args = message.content
             .toLowerCase()
             .slice(prefix.length)
             .trim()
             .split(/ +/)
         const commandName = args.shift()?.toLowerCase()
+        console.log(this.commands)
         if (typeof commandName === 'undefined') return
 
         // If command is valid, execute it
@@ -130,6 +138,7 @@ export class Client extends Discord.Client {
         // If command is an alias, execute it
         for (const command of this.commands.values()) {
             if (command.aliases && command.aliases.includes(commandName)) {
+                console.log(' made it?')
                 await command.execute(this, message, args)
             }
         }
