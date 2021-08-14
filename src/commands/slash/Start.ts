@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import { CommandInteraction } from 'discord.js'
 
-import { Bussen } from '../../game/games/Bussen/Game'
+import Bussen from '../../game/games/Bussen/Game'
 import { Client } from '../../structures/Client'
 import { gameFolders } from '../../structures/Client'
 

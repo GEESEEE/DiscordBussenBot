@@ -44,7 +44,7 @@ export class Client extends Discord.Client {
 
         // Set Playable Games
         for (const file of gameFolders) {
-            const game = require(`../game/games/${file}/Game.ts`)
+            const game = require(`../game/games/${file}/Game`)
             this.games.set(file, game)
         }
 

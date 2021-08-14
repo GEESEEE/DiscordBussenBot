@@ -24,7 +24,7 @@ import { Bus } from './Bus'
 import { BussenCard } from './BussenCard'
 import { Pyramid } from './Pyramid'
 
-export class Bussen extends Game {
+export default class Bussen extends Game {
     drinks: number
     pyramid!: Pyramid
     bus!: Bus
