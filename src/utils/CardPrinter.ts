@@ -120,7 +120,7 @@ export class CardPrinter {
             (sum: number, row: Array<Card> | string | number) =>
                 sum + this.getRowHeight(row),
             0,
-        ) as number
+        )
 
         this.canvas.width = maxRowWidth === 0 ? 1 : maxRowWidth
         this.canvas.height = totalRowHeight === 0 ? 1 : totalRowHeight
