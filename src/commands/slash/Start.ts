@@ -1,7 +1,6 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import { CommandInteraction } from 'discord.js'
 
-import Bussen from '../../game/games/Bussen/Game'
 import { Client } from '../../structures/Client'
 import { gameFolders } from '../../structures/Client'
 
@@ -13,7 +12,7 @@ module.exports = {
             option
                 .setName('gamename')
                 .setDescription('The game you want to play')
-                .setRequired(false)
+                .setRequired(true)
             for (const game of gameFolders) {
                 option.addChoice(game, game)
             }
@@ -23,26 +22,18 @@ module.exports = {
     async execute(client: Client, interaction: CommandInteraction) {
         const server = client.serverManager.getServer(interaction.guild!.id)
 
-        if (server?.readyToStartInteraction(interaction)) {
-            const game = interaction.options.getString('gamename')
-
-            if (game && client.games.has(game)) {
-                const gameClass = client.games.get(game).default
-                server.currentGame = new gameClass(
-                    game,
+        if (server?.readyToStartGame(interaction)) {
+            const gameName = interaction.options.getString('gamename')
+            if (gameName && client.games.has(gameName)) {
+                const gameClass = client.games.get(gameName).default
+                const game = new gameClass(
+                    gameName,
                     interaction.user,
                     interaction.channel,
                 )
-                await interaction.reply({ content: `Starting ${game}` })
-            } else {
-                server.currentGame = new Bussen(
-                    'Bussen',
-                    interaction.user,
-                    interaction.channel!,
-                )
-                await interaction.reply({ content: `Starting Bussen` })
+                await interaction.reply({ content: `Starting ${gameName}` })
+                return server.startGame(game)
             }
-            return server.startGame()
         }
     },
 }

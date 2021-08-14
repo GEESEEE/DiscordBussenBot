@@ -16,10 +16,7 @@ module.exports = {
     async execute(client: Client, interaction: CommandInteraction) {
         const server = client.serverManager.getServer(interaction.guild!.id)
         const user = interaction.options.getUser('player')
-        if (
-            user !== null &&
-            server?.readyToKickInteraction(interaction, user)
-        ) {
+        if (user !== null && server?.readyToKickPlayer(interaction, user)) {
             await interaction.reply({ content: `Kicking ${user}` })
             return server.removePlayer(user)
         }

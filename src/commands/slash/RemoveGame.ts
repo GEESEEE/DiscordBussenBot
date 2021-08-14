@@ -9,7 +9,7 @@ module.exports = {
         .setDescription('Creates a vote to remove the current game'),
     async execute(client: Client, interaction: CommandInteraction) {
         const server = client.serverManager.getServer(interaction.guild!.id)
-        if (server?.readyToRemoveInteraction(interaction)) {
+        if (server?.readyToRemoveGameVote(interaction)) {
             await interaction.reply({
                 content: `Starting vote to remove ${server?.currentGame?.name}`,
             })

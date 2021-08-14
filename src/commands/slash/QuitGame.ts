@@ -10,7 +10,7 @@ module.exports = {
 
     async execute(client: Client, interaction: CommandInteraction) {
         const server = client.serverManager.getServer(interaction.guild!.id)
-        if (server?.readyToQuitInteraction(interaction)) {
+        if (server?.readyToQuitGame(interaction)) {
             await interaction.reply({
                 content: `Quitting ${server?.currentGame?.name}`,
             })

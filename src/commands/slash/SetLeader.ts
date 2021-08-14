@@ -17,10 +17,7 @@ module.exports = {
     async execute(client: Client, interaction: CommandInteraction) {
         const server = client.serverManager.getServer(interaction.guild!.id)
         const newLeader = interaction.options.getUser('player')
-        if (
-            newLeader !== null &&
-            server?.readyToMakeLeaderInteraction(interaction)
-        ) {
+        if (newLeader !== null && server?.readyToMakeLeader(interaction)) {
             await interaction.reply({
                 content: `Making ${newLeader} the leader`,
             })
