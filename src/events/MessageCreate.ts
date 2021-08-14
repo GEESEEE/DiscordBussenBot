@@ -24,14 +24,14 @@ module.exports = {
         if (typeof commandName === 'undefined') return
 
         // If command is valid, execute it
-        if (client.commands.has(commandName)) {
-            await client.commands
+        if (client.messageCommands.has(commandName)) {
+            await client.messageCommands
                 .get(commandName)
                 .execute(client, message, args)
         }
 
         // If command is an alias, execute it
-        for (const command of client.commands.values()) {
+        for (const command of client.messageCommands.values()) {
             if (command.aliases && command.aliases.includes(commandName)) {
                 await command.execute(client, message, args)
             }

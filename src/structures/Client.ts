@@ -1,56 +1,45 @@
 import { REST } from '@discordjs/rest'
-import Discord, {
-    ClientApplication,
-    ClientOptions,
-    Collection,
-    Interaction,
-    Message,
-} from 'discord.js'
+import Discord, { ClientOptions, Collection } from 'discord.js'
 import { Routes } from 'discord-api-types/v9'
 import dotenv from 'dotenv'
-import fs from 'fs'
 
 dotenv.config()
 
-import { prefix } from '../../config.json'
 import { ServerManager } from '../managers/ServerManager'
+import { readFolder } from '../utils/Utils'
 
-function readFolder(path: string) {
-    return fs.readdirSync(path).filter(file => file.endsWith('.ts'))
-}
-
-const commandFiles = readFolder('./src/message-commands')
-const slashCommandFiles = readFolder('./src/slash-commands')
+const messageCommandFiles = readFolder('./src/commands/message')
+const slashCommandFiles = readFolder('./src/commands/slash')
 const gameFiles = readFolder('./src/game/games')
 const eventFiles = readFolder('./src/events')
 
 export class Client extends Discord.Client {
-    commands: Collection<string, any>
+    messageCommands: Collection<string, any>
     slashCommands: Collection<string, any>
-    slashCommandList: any[]
+    slashCommandsData: any[]
     games: Collection<string, any>
     serverManager: ServerManager
     info!: Record<string, any>
 
     constructor(options: ClientOptions) {
         super(options)
-        this.commands = new Collection()
+        this.messageCommands = new Collection()
         this.slashCommands = new Collection()
-        this.slashCommandList = []
+        this.slashCommandsData = []
         this.games = new Collection()
         this.serverManager = new ServerManager()
 
-        // Set slash-commands
-        for (const file of commandFiles) {
-            const command = require(`./src/message-commands/${file}`)
-            this.commands.set(command.name, command)
+        // Set slash
+        for (const file of messageCommandFiles) {
+            const command = require(`../commands/message/${file}`)
+            this.messageCommands.set(command.name, command)
         }
 
         // Set slashCommands
         for (const file of slashCommandFiles) {
-            const command = require(`./src/slash-commands/${file}`)
+            const command = require(`../commands/slash/${file}`)
             this.slashCommands.set(command.data.name, command)
-            this.slashCommandList.push(command.data.toJSON())
+            this.slashCommandsData.push(command.data.toJSON())
         }
 
         // Set Playable Games
@@ -74,7 +63,7 @@ export class Client extends Discord.Client {
         const rest = new REST({ version: '9' }).setToken(process.env.TOKEN!)
         try {
             await rest.put(Routes.applicationCommands(this.info.id), {
-                body: this.slashCommandList,
+                body: this.slashCommandsData,
             })
         } catch (error) {
             console.error(error)

@@ -7,6 +7,7 @@ import {
     MessageButton,
     MessageButtonStyleResolvable,
 } from 'discord.js'
+import fs from 'fs'
 
 import {
     CollectorPlayerLeftError,
@@ -22,6 +23,10 @@ export function sum(n: number) {
 
 export function capitalizeFirstLetter(string: string) {
     return string.charAt(0).toUpperCase() + string.slice(1)
+}
+
+export function readFolder(path: string, fileExtension = '.ts') {
+    return fs.readdirSync(path).filter(file => file.endsWith(fileExtension))
 }
 
 export function incSize(
