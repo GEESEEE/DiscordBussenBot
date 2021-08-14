@@ -35,45 +35,16 @@ export class Server {
         return Boolean(this.currentChannel)
     }
 
-    isFromChannel(message: Message) {
-        return message.channel === this.currentChannel
-    }
-
     isFromChannelInteraction(interaction: CommandInteraction) {
         return this.currentChannel === interaction.channel
-    }
-
-    validMessage(message: Message) {
-        return this.hasChannel() && this.isFromChannel(message)
     }
 
     validInteraction(interaction: CommandInteraction) {
         return this.hasChannel() && this.isFromChannelInteraction(interaction)
     }
 
-    readyToHelp(message: Message) {
-        return this.validMessage(message)
-    }
-
-    readyToHelpInteraction(interaction: CommandInteraction) {
-        return this.validInteraction(interaction)
-    }
-
-    readyToStart(message: Message) {
-        return this.validMessage(message) && this.currentGame === null
-    }
-
     readyToStartInteraction(interaction: CommandInteraction) {
         return this.validInteraction(interaction) && this.currentGame === null
-    }
-
-    readyToQuit(message: Message) {
-        return (
-            this.validMessage(message) &&
-            this.currentGame !== null &&
-            this.currentGame.hasStarted &&
-            this.currentGame.isPlayer(message.author)
-        )
     }
 
     readyToQuitInteraction(interaction: CommandInteraction) {
@@ -82,16 +53,6 @@ export class Server {
             this.currentGame !== null &&
             this.currentGame.hasStarted &&
             this.currentGame.isPlayer(interaction.user)
-        )
-    }
-
-    readyToKick(message: Message, user: User) {
-        return (
-            message.author !== user &&
-            this.validMessage(message) &&
-            this.currentGame !== null &&
-            this.currentGame?.isLeader(message.author) &&
-            this.currentGame.isPlayer(user)
         )
     }
 
@@ -112,27 +73,11 @@ export class Server {
         }
     }
 
-    readyToEnd(message: Message) {
-        return (
-            this.validMessage(message) &&
-            this.currentGame !== null &&
-            this.currentGame?.isLeader(message.author)
-        )
-    }
-
     readyToEndInteraction(interaction: CommandInteraction) {
         return (
             this.validInteraction(interaction) &&
             this.currentGame !== null &&
             this.currentGame.isLeader(interaction.user)
-        )
-    }
-
-    readyToMakeLeader(message: Message, user: User) {
-        return (
-            this.validMessage(message) &&
-            this.currentGame !== null &&
-            this.currentGame.leader.user.equals(message.author)
         )
     }
 
@@ -142,14 +87,6 @@ export class Server {
             this.currentGame !== null &&
             this.currentGame.leader.user.equals(interaction.user)
         )
-    }
-
-    readyToShowGames(message: Message) {
-        return this.validMessage(message)
-    }
-
-    readyToRemove(message: Message) {
-        return this.validMessage(message) && this.currentGame !== null
     }
 
     readyToRemoveInteraction(interaction: CommandInteraction) {
@@ -304,7 +241,6 @@ export class Server {
 
         let response
         if (
-            this.currentGame !== null &&
             currentGame === this.currentGame &&
             !this.currentGame.collectorManager.collector?.ended
         ) {

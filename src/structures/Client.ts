@@ -96,7 +96,6 @@ export class Client extends Discord.Client {
 
     async onInteraction(interaction: Interaction) {
         if (!interaction.isCommand()) return
-        console.log(interaction.commandName)
         if (!this.slashCommands.has(interaction.commandName)) return
 
         try {
@@ -120,14 +119,14 @@ export class Client extends Discord.Client {
             message.author.bot
         )
             return
-        console.log(message.content)
+
         const args = message.content
             .toLowerCase()
             .slice(prefix.length)
             .trim()
             .split(/ +/)
         const commandName = args.shift()?.toLowerCase()
-        console.log(this.commands)
+
         if (typeof commandName === 'undefined') return
 
         // If command is valid, execute it
@@ -138,7 +137,6 @@ export class Client extends Discord.Client {
         // If command is an alias, execute it
         for (const command of this.commands.values()) {
             if (command.aliases && command.aliases.includes(commandName)) {
-                console.log(' made it?')
                 await command.execute(this, message, args)
             }
         }
