@@ -1,13 +1,10 @@
 import {
     CommandInteraction,
-    Interaction,
     InteractionCollector,
-    Message,
     MessageComponentInteraction,
     MessageEmbed,
     ReactionCollector,
     TextBasedChannels,
-    TextChannel,
     User,
 } from 'discord.js'
 

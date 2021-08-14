@@ -27,7 +27,6 @@ module.exports = {
             const game = interaction.options.getString('gamename')
 
             if (game && client.games.has(game)) {
-                console.log(game)
                 const gameClass = client.games.get(game).default
                 server.currentGame = new gameClass(
                     game,

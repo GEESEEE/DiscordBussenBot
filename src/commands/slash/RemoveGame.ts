@@ -1,5 +1,5 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
-import { CommandInteraction, Message } from 'discord.js'
+import { CommandInteraction } from 'discord.js'
 
 import { Client } from '../../structures/Client'
 

@@ -97,8 +97,7 @@ export abstract class Game {
 
     async setLeader(user: User) {
         if (this.isPlayer(user) && !this.isLeader(user)) {
-            const player = this.playerManager.getPlayer(user.id)!
-            this.leader = player
+            this.leader = this.playerManager.getPlayer(user.id)!
             const embed = new MessageEmbed().setTitle(
                 `${this.leader.user.username} is the new leader!`,
             )
