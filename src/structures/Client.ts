@@ -1,5 +1,6 @@
 import { REST } from '@discordjs/rest'
 import Discord, {
+    ClientApplication,
     ClientOptions,
     Collection,
     Interaction,
@@ -18,9 +19,10 @@ function readFolder(path: string) {
     return fs.readdirSync(path).filter(file => file.endsWith('.ts'))
 }
 
-const commandFiles = readFolder('./src/commands/normal')
-const slashCommandFiles = readFolder('./src/commands/slash')
+const commandFiles = readFolder('./src/message-commands')
+const slashCommandFiles = readFolder('./src/slash-commands')
 const gameFiles = readFolder('./src/game/games')
+const eventFiles = readFolder('./src/events')
 
 export class Client extends Discord.Client {
     commands: Collection<string, any>
@@ -38,15 +40,15 @@ export class Client extends Discord.Client {
         this.games = new Collection()
         this.serverManager = new ServerManager()
 
-        // Set commands from /src/commands
+        // Set slash-commands
         for (const file of commandFiles) {
-            const command = require(`../commands/normal/${file}`)
+            const command = require(`./src/message-commands/${file}`)
             this.commands.set(command.name, command)
         }
 
         // Set slashCommands
         for (const file of slashCommandFiles) {
-            const command = require(`../commands/slash/${file}`)
+            const command = require(`./src/slash-commands/${file}`)
             this.slashCommands.set(command.data.name, command)
             this.slashCommandList.push(command.data.toJSON())
         }
@@ -57,14 +59,15 @@ export class Client extends Discord.Client {
             this.games.set(file.toLowerCase().slice(0, -3), game) // Slice off file extension
         }
 
-        // Event will fire once when initialized
-        this.once('ready', this.onReady)
-
-        // Event fires when bot detects a new message
-        this.on('messageCreate', this.onMessage)
-
-        // Event for slash commands
-        this.on('interactionCreate', this.onInteraction)
+        // Set EventListeners
+        for (const file of eventFiles) {
+            const event = require(`../events/${file}`)
+            if (event.once) {
+                this.once(event.name, (...args) => event.execute(...args, this))
+            } else {
+                this.on(event.name, (...args) => event.execute(...args, this))
+            }
+        }
     }
 
     async registerCommands() {
@@ -75,59 +78,6 @@ export class Client extends Discord.Client {
             })
         } catch (error) {
             console.error(error)
-        }
-    }
-
-    async onReady() {
-        this.info = (await this.application?.fetch()) as Record<string, any>
-        console.log('Ready!')
-    }
-
-    async onInteraction(interaction: Interaction) {
-        if (!interaction.isCommand()) return
-        if (!this.slashCommands.has(interaction.commandName)) return
-
-        try {
-            await this.slashCommands
-                .get(interaction.commandName)
-                .execute(this, interaction)
-        } catch (err) {
-            console.error(err)
-            await interaction.reply({
-                content: 'Could not execute this command!',
-                ephemeral: true,
-            })
-        }
-    }
-
-    async onMessage(message: Message) {
-        // If message not valid for this bot, ignore it
-        if (
-            !message.content.startsWith(prefix) ||
-            !message.guild ||
-            message.author.bot
-        )
-            return
-
-        const args = message.content
-            .toLowerCase()
-            .slice(prefix.length)
-            .trim()
-            .split(/ +/)
-        const commandName = args.shift()?.toLowerCase()
-
-        if (typeof commandName === 'undefined') return
-
-        // If command is valid, execute it
-        if (this.commands.has(commandName)) {
-            await this.commands.get(commandName).execute(this, message, args)
-        }
-
-        // If command is an alias, execute it
-        for (const command of this.commands.values()) {
-            if (command.aliases && command.aliases.includes(commandName)) {
-                await command.execute(this, message, args)
-            }
         }
     }
 }

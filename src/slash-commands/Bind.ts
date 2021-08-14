@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import { CommandInteraction } from 'discord.js'
 
-import { Client } from '../../structures/Client'
+import { Client } from '../structures/Client'
 
 module.exports = {
     data: new SlashCommandBuilder()
