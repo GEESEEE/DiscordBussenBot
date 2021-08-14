@@ -11,4 +11,4 @@ fi
 curl -sSf -H 'Content-Type: application/json' \
   --request POST \
   --data '{"content": "Deploy for '"$BUILDKITE_PIPELINE_SLUG"' '$STAGE' is finished"}' \
-  "$DISCORD_WEBHOOK_URL2"
+  "$DISCORD_WEBHOOK_URL"

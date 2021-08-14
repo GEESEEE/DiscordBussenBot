@@ -9,7 +9,7 @@ if [ "$STAGE" != 'production' ]; then
 fi
 
 curl -sSf -H 'Content-Type: application/json' \
-  -H 'Authorization: Bearer '"$SENTRY_API_TOKEN2" \
+  -H 'Authorization: Bearer '"$SENTRY_API_TOKEN" \
   --request POST \
   --data '{"version": "'"$BUILDKITE_COMMIT"'"}' \
   https://sentry.io/api/0/projects/gies-den-broeder/bussenbot/releases/
