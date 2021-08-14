@@ -3,7 +3,7 @@ import { Message } from 'discord.js'
 import { Client } from '../../structures/Client'
 
 module.exports = {
-    name: 'registercommands',
+    name: 'register',
     description: 'Registers the slash commands for the bot',
     aliases: ['deploy'],
     async execute(client: Client, message: Message, args: string[]) {
