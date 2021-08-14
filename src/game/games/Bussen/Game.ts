@@ -1,29 +1,30 @@
 import {
     ButtonInteraction,
-    Collection,
     Message,
     MessageActionRow,
     MessageEmbed,
     TextBasedChannels,
-    TextChannel,
     User,
 } from 'discord.js'
 import pluralize from 'pluralize'
 
-import { PlayerManager } from '../../managers/PlayerManager'
-import { Player } from '../../structures/Player'
-import { CardPrinter } from '../../utils/CardPrinter'
-import { EmptyString, Value } from '../../utils/Consts'
+import { PlayerManager } from '../../../managers/PlayerManager'
+import { Player } from '../../../structures/Player'
+import { CardPrinter } from '../../../utils/CardPrinter'
+import { EmptyString } from '../../../utils/Consts'
 import {
     createRows,
     getActionRow,
     getInteractionCollector,
     sum,
-} from '../../utils/Utils'
-import { Card, Deck } from '../Deck'
-import { Game } from '../Game'
+} from '../../../utils/Utils'
+import { Card, Deck } from '../../Deck'
+import { Game } from '../../Game'
+import { Bus } from './Bus'
+import { BussenCard } from './BussenCard'
+import { Pyramid } from './Pyramid'
 
-export default class Bussen extends Game {
+export class Bussen extends Game {
     drinks: number
     pyramid!: Pyramid
     bus!: Bus
@@ -704,270 +705,4 @@ export default class Bussen extends Game {
     }
 
     //endregion
-}
-
-class Bus {
-    player: Player
-    deck: Deck
-    size: number
-    sequence: Array<Card>
-    currentIndex: number
-
-    discarded: Array<Card>
-
-    checkpoints: Array<number>
-    currentCheckpoint: number
-    isFinished: boolean
-
-    turns: number
-    drinkMap: Collection<Player, number>
-
-    hidden: boolean
-    maxIndex: number
-
-    constructor(
-        player: Player,
-        size: number,
-        checkpoints: number,
-        hidden: boolean,
-    ) {
-        this.player = player
-        this.deck = new Deck(BussenCard)
-        this.sequence = []
-        this.size = size
-        this.hidden = hidden
-
-        for (let i = 0; i < size; i++) {
-            this.sequence.push(this.deck.getRandomCard()!)
-        }
-        this.discarded = []
-        this.currentIndex = 0
-        this.checkpoints = [0]
-        this.maxIndex = -1
-
-        for (let i = 0; i < checkpoints; i++) {
-            this.checkpoints.push(
-                Math.floor((size / (checkpoints + 1)) * (i + 1)),
-            )
-        }
-
-        this.currentCheckpoint = 0
-        this.isFinished = false
-
-        this.turns = 1
-        this.drinkMap = new Collection()
-    }
-
-    get drinkCount() {
-        return this.currentIndex + 1 - this.getCurrentCheckpoint()
-    }
-
-    incrementIndex(correct: boolean) {
-        if (this.currentIndex > this.maxIndex) {
-            this.maxIndex = this.currentIndex
-        }
-
-        if (correct) {
-            this.currentIndex = (this.currentIndex + 1) % this.sequence.length
-            if (
-                this.checkpoints.includes(this.currentIndex - 1) &&
-                this.getCurrentCheckpoint() < this.currentIndex - 1
-            ) {
-                this.currentCheckpoint += 1
-            }
-
-            if (this.currentIndex === 0) {
-                this.isFinished = true
-            }
-        } else {
-            this.currentIndex = this.getCurrentCheckpoint()
-        }
-    }
-
-    getCurrentCheckpoint() {
-        return this.checkpoints[this.currentCheckpoint]
-    }
-
-    getCurrentCard() {
-        return this.sequence[this.currentIndex]
-    }
-
-    getRandomCard() {
-        if (this.deck.isEmpty()) {
-            this.deck.addCards(this.discarded)
-            this.discarded = []
-        }
-        return this.deck.getRandomCard()
-    }
-
-    iterate(newCard: Card, correct: boolean) {
-        this.discarded.push(this.getCurrentCard())
-        this.sequence[this.currentIndex] = newCard
-
-        if (!correct) {
-            let playerDrinks = 0
-            if (typeof this.drinkMap.get(this.player) === 'undefined') {
-                this.drinkMap.set(this.player, 0)
-            } else {
-                playerDrinks = this.drinkMap.get(this.player)!
-            }
-            this.drinkMap.set(this.player, playerDrinks + this.drinkCount)
-        }
-        this.incrementIndex(correct)
-        this.turns++
-    }
-
-    printDrinkMap(): string {
-        let string = ''
-        for (const entry of this.drinkMap.entries()) {
-            string += `${entry[0]} consumed ${entry[1]} drinks\n`
-        }
-        return string
-    }
-
-    cardPrinterParams(focus = false, showDrawn?: boolean) {
-        const rows = createRows(this.sequence, this.checkpoints)
-        const centered = [true]
-        let focused: Array<Array<number>> | undefined
-        let focusIndex
-        let hidden
-        let hiddenIndex: number | undefined
-
-        if (focus) {
-            focused = []
-            focusIndex = this.currentIndex
-        }
-
-        if (this.hidden) {
-            hidden = []
-            hiddenIndex =
-                showDrawn && this.currentIndex > this.maxIndex
-                    ? this.maxIndex + 1
-                    : this.maxIndex
-        }
-
-        if (
-            typeof focusIndex !== 'undefined' ||
-            typeof hiddenIndex !== 'undefined'
-        ) {
-            let curr = 0
-            for (const row of rows) {
-                const rowFocused = []
-                const rowHidden = []
-
-                for (let i = 0; i < row.length; i++) {
-                    if (curr === focusIndex) {
-                        rowFocused.push(i)
-                    }
-
-                    if (curr > hiddenIndex!) {
-                        rowHidden.push(true)
-                    } else {
-                        rowHidden.push(false)
-                    }
-
-                    curr += 1
-                }
-
-                if (focus) {
-                    focused!.push(rowFocused)
-                }
-                if (hidden) {
-                    hidden.push(rowHidden)
-                }
-            }
-        }
-
-        return { rows, centered, focused, hidden }
-    }
-}
-
-class Pyramid {
-    deck: Deck
-    reversed: boolean
-    size: number
-    cards: Array<Card>
-    index: number
-    rows: Array<number>
-
-    constructor(deck: Deck, reversed: boolean, size: number) {
-        this.deck = deck
-        this.reversed = reversed
-        this.size = size
-        this.cards = []
-        this.rows = []
-
-        let index = 0
-        if (!reversed) {
-            for (let i = 0; i < size; i++) {
-                this.rows.push(index)
-                for (let j = 0; j <= i; j++) {
-                    this.cards.push(deck.getRandomCard()!)
-                    index++
-                }
-            }
-        } else {
-            for (let i = size; i > 0; i--) {
-                this.rows.push(index)
-                for (let j = 0; j < i; j++) {
-                    this.cards.push(deck.getRandomCard()!)
-                    index++
-                }
-            }
-        }
-
-        this.index = 0
-    }
-
-    isEmpty() {
-        return this.index >= this.cards.length
-    }
-
-    getNextCard() {
-        if (!this.isEmpty()) {
-            const drinks = this.getDrinkCounts(this.index)
-            const card = this.cards[this.cards.length - 1 - this.index]
-            this.index++
-            return { card, drinks }
-        }
-    }
-
-    getDrinkCounts(index: number) {
-        if (this.reversed) {
-            for (let i = 0; i < this.size; i++) {
-                if (sum(i) <= index && index < sum(i + 1)) {
-                    return i + 1
-                }
-            }
-        } else {
-            let totalIndex = 0
-            for (let i = this.size; i > 0; i--) {
-                for (let j = 0; j < i; j++) {
-                    if (totalIndex === index) {
-                        return this.size - (i - 1)
-                    }
-                    totalIndex++
-                }
-            }
-        }
-        return -1
-    }
-}
-
-class BussenCard extends Card {
-    CardValueMap: Record<Value, number> = {
-        '2': 2,
-        '3': 3,
-        '4': 4,
-        '5': 5,
-        '6': 6,
-        '7': 7,
-        '8': 8,
-        '9': 9,
-        '10': 10,
-        Jack: 11,
-        Queen: 12,
-        King: 13,
-        Ace: 14,
-    }
 }

@@ -10,8 +10,8 @@ import { readFolder } from '../utils/Utils'
 
 const messageCommandFiles = readFolder('./src/commands/message')
 const slashCommandFiles = readFolder('./src/commands/slash')
-const gameFiles = readFolder('./src/game/games')
 const eventFiles = readFolder('./src/events')
+const gameFolders = readFolder('./src/game/games', '')
 
 export class Client extends Discord.Client {
     messageCommands: Collection<string, any>
@@ -43,9 +43,9 @@ export class Client extends Discord.Client {
         }
 
         // Set Playable Games
-        for (const file of gameFiles) {
-            const game = require(`../game/games/${file}`)
-            this.games.set(file.toLowerCase().slice(0, -3), game) // Slice off file extension
+        for (const file of gameFolders) {
+            const game = require(`../game/games/${file}/Game.ts`)
+            this.games.set(file, game) // Slice off file extension
         }
 
         // Set EventListeners
