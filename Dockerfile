@@ -1,4 +1,4 @@
-FROM node:16.6.2
+FROM node:16.6.2-alpine
 
 ARG NODE_ENV
 ENV NODE_ENV=$NODE_ENV
