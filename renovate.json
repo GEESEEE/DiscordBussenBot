@@ -17,11 +17,13 @@
   "packageRules": [
     {
       "groupName": "Minors",
+      "groupSlug": "minors",
       "matchManagers": ["dockerfile", "npm"],
       "matchUpdateTypes": ["minor", "patch", "pin", "digest"]
     },
     {
       "groupName": "Majors",
+      "groupSlug": "majors",
       "matchManagers": ["dockerfile", "npm"],
       "matchUpdateTypes": ["major"]
     }
