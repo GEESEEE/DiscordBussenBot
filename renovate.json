@@ -1,0 +1,29 @@
+{
+  "extends": [
+    "config:base",
+    ":preserveSemverRanges",
+    ":disableDependencyDashboard"
+  ],
+  "vulnerabilityAlerts": {
+    "labels": ["Security/Vulnerability"]
+  },
+  "buildkite": {
+    "enabled": false
+  },
+  "docker-compose": {
+    "enabled": false
+  },
+  "labels": ["Renovate", "Dependencies"],
+  "packageRules": [
+    {
+      "groupName": "Minors",
+      "matchManagers": ["dockerfile", "npm"],
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"]
+    },
+    {
+      "groupName": "Majors",
+      "matchManagers": ["dockerfile", "npm"],
+      "matchUpdateTypes": ["major"]
+    }
+  ]
+}
