@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Build test image
-        uses: guidojw/actions/build-docker-image@main
+        uses: guidojw/actions/build-docker-image@v1
         with:
           name: app
 
