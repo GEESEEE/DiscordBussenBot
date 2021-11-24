@@ -16,6 +16,7 @@ jobs:
     name: Metadata
     runs-on: ubuntu-latest
     outputs:
+      tag: ${{ steps.get_metadata.outputs.tag }}
       build_args: ${{ steps.get_metadata.outputs.build_args }}
     steps:
       - name: Get metadata
