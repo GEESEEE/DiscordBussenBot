@@ -8,7 +8,7 @@ on:
 env:
   PROJECT_NAME: bussenbot
   REGISTRY_URL: ghcr.io
-  SENTRY_ORG: geese-slug
+  SENTRY_ORG: geesee
   APP_ID: 154315
 
 jobs:
