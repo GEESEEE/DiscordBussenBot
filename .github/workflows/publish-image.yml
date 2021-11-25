@@ -33,6 +33,8 @@ jobs:
             echo '::set-output name=build_args::'$BUILD_ARGS
           fi
 
+          echo '::set-output name=repository_owner::'${GITHUB_REPOSITORY,,}
+
   publish:
     name: Publish
     runs-on: ubuntu-latest
@@ -63,7 +65,7 @@ jobs:
           cache-from: type=gha,scope=main
           cache-to: type=gha,scope=main
           tags: |
-            ${{ env.REGISTRY_URL }}/${{ github.repository_owner }}/${{ env.PROJECT_NAME }}:${{
+            ${{ env.REGISTRY_URL }}/${{ needs.metadata.outputs.repository_owner }}/${{ env.PROJECT_NAME }}:${{
             needs.metadata.outputs.tag }}
 
       - name: Create Sentry release
