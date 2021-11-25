@@ -1,107 +1,108 @@
 name: Publish Image
 
 on:
-  push:
-    branches: [master]
-  workflow_dispatch:
+    push:
+        branches: [master]
+    workflow_dispatch:
 
 env:
-  PROJECT_NAME: bussenbot
-  REGISTRY_URL: ghcr.io
-  SENTRY_ORG: geesee
-  APP_ID: 154315
+    PROJECT_NAME: bussenbot
+    REGISTRY_URL: ghcr.io
+    SENTRY_ORG: geesee
+    APP_ID: 154315
 
 jobs:
-  metadata:
-    name: Metadata
-    runs-on: ubuntu-latest
-    outputs:
-      tag: ${{ steps.get_metadata.outputs.tag }}
-      build_args: ${{ steps.get_metadata.outputs.build_args }}
-    steps:
-      - name: Get metadata
-        id: get_metadata
-        run: |
-          if [ $GITHUB_REF_NAME = 'master' ]; then
-            echo '::set-output name=tag::latest'
-          else
-            echo '::set-output name=tag::'$GITHUB_REF_NAME
-          fi
+    metadata:
+        name: Metadata
+        runs-on: ubuntu-latest
+        outputs:
+            tag: ${{ steps.get_metadata.outputs.tag }}
+            build_args: ${{ steps.get_metadata.outputs.build_args }}
+            repository_owner: ${{ steps.get_metadata.outputs.repository_owner }}
+        steps:
+            - name: Get metadata
+              id: get_metadata
+              run: |
+                  if [ $GITHUB_REF_NAME = 'master' ]; then
+                    echo '::set-output name=tag::latest'
+                  else
+                    echo '::set-output name=tag::'$GITHUB_REF_NAME
+                  fi
 
-          if [ $GITHUB_REF_NAME = 'master' ]; then
-            BUILD_ARGS='BUILD_HASH='$GITHUB_SHA
-            echo '::set-output name=build_args::'$BUILD_ARGS
-          fi
+                  if [ $GITHUB_REF_NAME = 'master' ]; then
+                    BUILD_ARGS='BUILD_HASH='$GITHUB_SHA
+                    echo '::set-output name=build_args::'$BUILD_ARGS
+                  fi
 
-          echo '::set-output name=repository_owner::'${GITHUB_REPOSITORY,,}
+                  echo '::set-output name=repository_owner::'${GITHUB_REPOSITORY,,}
 
-  publish:
-    name: Publish
-    runs-on: ubuntu-latest
-    needs: metadata
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
+    publish:
+        name: Publish
+        runs-on: ubuntu-latest
+        needs: metadata
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v2
+              with:
+                  fetch-depth: 0
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v1
 
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v1
-        with:
-          registry: ${{ env.REGISTRY_URL }}
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+            - name: Login to GitHub Container Registry
+              uses: docker/login-action@v1
+              with:
+                  registry: ${{ env.REGISTRY_URL }}
+                  username: ${{ github.repository_owner }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push image
-        id: build_push_image
-        uses: docker/build-push-action@v2
-        with:
-          push: true
-          context: .
-          build-args: ${{ needs.metadata.outputs.build_args }}
-          cache-from: type=gha,scope=main
-          cache-to: type=gha,scope=main
-          tags: |
-            ${{ env.REGISTRY_URL }}/${{ needs.metadata.outputs.repository_owner }}/${{ env.PROJECT_NAME }}:${{
-            needs.metadata.outputs.tag }}
+            - name: Build and push image
+              id: build_push_image
+              uses: docker/build-push-action@v2
+              with:
+                  push: true
+                  context: .
+                  build-args: ${{ needs.metadata.outputs.build_args }}
+                  cache-from: type=gha,scope=main
+                  cache-to: type=gha,scope=main
+                  tags: |
+                      ${{ env.REGISTRY_URL }}/${{ needs.metadata.outputs.repository_owner }}/${{ env.PROJECT_NAME }}:${{
+                      needs.metadata.outputs.tag }}
 
-      - name: Create Sentry release
-        if: ${{ !(github.event_name == 'workflow_dispatch' && github.workflow == 'Publish Image') }}
-        uses: getsentry/action-release@v1
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_PROJECT: ${{ env.PROJECT_NAME }}
-        with:
-          environment: production
-          finalize: false
+            - name: Create Sentry release
+              if: ${{ !(github.event_name == 'workflow_dispatch' && github.workflow == 'Publish Image') }}
+              uses: getsentry/action-release@v1
+              env:
+                  SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+                  SENTRY_PROJECT: ${{ env.PROJECT_NAME }}
+              with:
+                  environment: production
+                  finalize: false
 
-  update_check_run:
-    name: Update Check Run
-    runs-on: ubuntu-latest
-    needs: [metadata, publish]
-    if: github.event_name == 'workflow_dispatch' && github.workflow == 'Publish Image' && always()
-    steps:
-      - name: Get conclusion
-        id: get_conclusion
-        env:
-          RESULTS: ${{ join(needs.*.result, ' ') }}
-        run: |
-          for RESULT in $RESULTS; do
-            if [ $RESULT = 'cancelled' ] || [ $RESULT = 'failure' ]; then
-              echo '::set-output name=conclusion::'$RESULT
-              exit
-            fi
-          done
-          echo '::set-output name=conclusion::success'
+    update_check_run:
+        name: Update Check Run
+        runs-on: ubuntu-latest
+        needs: [metadata, publish]
+        if: github.event_name == 'workflow_dispatch' && github.workflow == 'Publish Image' && always()
+        steps:
+            - name: Get conclusion
+              id: get_conclusion
+              env:
+                  RESULTS: ${{ join(needs.*.result, ' ') }}
+              run: |
+                  for RESULT in $RESULTS; do
+                    if [ $RESULT = 'cancelled' ] || [ $RESULT = 'failure' ]; then
+                      echo '::set-output name=conclusion::'$RESULT
+                      exit
+                    fi
+                  done
+                  echo '::set-output name=conclusion::success'
 
-      - name: Update Publish Image check run
-        uses: guidojw/actions/update-check-run@v1
-        with:
-          app_id: ${{ env.APP_ID }}
-          private_key: ${{ secrets.APP_PRIVATE_KEY }}
-          name: Publish Image
-          conclusion: ${{ steps.get_conclusion.outputs.conclusion }}
-          details_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            - name: Update Publish Image check run
+              uses: guidojw/actions/update-check-run@v1
+              with:
+                  app_id: ${{ env.APP_ID }}
+                  private_key: ${{ secrets.APP_PRIVATE_KEY }}
+                  name: Publish Image
+                  conclusion: ${{ steps.get_conclusion.outputs.conclusion }}
+                  details_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
