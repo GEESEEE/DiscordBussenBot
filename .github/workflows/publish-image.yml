@@ -67,7 +67,7 @@ jobs:
             needs.metadata.outputs.tag }}
 
       - name: Create Sentry release
-        if: !(github.event_name == 'workflow_dispatch' && github.workflow == 'Publish Image')
+        if: ${{ !(github.event_name == 'workflow_dispatch' && github.workflow == 'Publish Image') }}
         uses: getsentry/action-release@v1
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
