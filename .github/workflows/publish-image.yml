@@ -76,7 +76,6 @@ jobs:
                   SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
                   SENTRY_PROJECT: ${{ env.PROJECT_NAME }}
               with:
-                  environment: production
                   finalize: false
 
     update_check_run:
