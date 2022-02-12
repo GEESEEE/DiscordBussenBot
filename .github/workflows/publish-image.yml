@@ -1,9 +1,13 @@
 name: Publish Image
 
 on:
-    push:
-        branches: [master]
     workflow_dispatch:
+    workflow_call:
+        secrets:
+            SENTRY_AUTH_TOKEN:
+                required: true
+            APP_PRIVATE_KEY:
+                required: true
 
 env:
     PROJECT_NAME: bussenbot
