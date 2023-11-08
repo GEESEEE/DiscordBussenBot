@@ -9,17 +9,17 @@
     "author": "Gies den Broeder",
     "license": "ISC",
     "dependencies": {
-        "@discordjs/rest": "^0.1.0-canary.0",
+        "@discordjs/rest": "^0.6.0",
         "@sentry/node": "^6.8.0",
         "canvas": "^2.7.0",
-        "discord-api-types": "^0.22.0",
+        "discord-api-types": "^0.37.0",
         "discord.js": "^13.1.0",
         "dotenv": "^10.0.0",
         "pluralize": "^8.0.0"
     },
     "devDependencies": {
         "@types/node": "^16.6.1",
-        "@types/pluralize": "^0.0.29",
+        "@types/pluralize": "^0.0.33",
         "@typescript-eslint/eslint-plugin": "^4.22.0",
         "@typescript-eslint/parser": "^4.22.0",
         "eslint": "^7.24.0",
